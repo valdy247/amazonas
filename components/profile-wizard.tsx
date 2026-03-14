@@ -157,8 +157,6 @@ export function ProfileWizard({ initialValues, email }: ProfileWizardProps) {
       .from("profiles")
       .update({
         role: values.role,
-        first_name: values.firstName.trim(),
-        last_name: values.lastName.trim(),
         full_name: fullName,
         phone: values.phone.trim(),
         accepted_terms_at: acceptedTermsAt,

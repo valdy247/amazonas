@@ -3,6 +3,25 @@ import { SiteHeader } from "@/components/site-header";
 import { ProfileWizard } from "@/components/profile-wizard";
 import { createClient } from "@/lib/supabase/server";
 
+function splitFullName(fullName?: string | null) {
+  const normalized = String(fullName || "").trim();
+
+  if (!normalized) {
+    return { firstName: "", lastName: "" };
+  }
+
+  const parts = normalized.split(/\s+/);
+
+  if (parts.length === 1) {
+    return { firstName: parts[0], lastName: "" };
+  }
+
+  return {
+    firstName: parts[0],
+    lastName: parts.slice(1).join(" "),
+  };
+}
+
 export default async function OnboardingPage() {
   const supabase = await createClient();
   const {
@@ -15,11 +34,12 @@ export default async function OnboardingPage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("first_name, last_name, phone, role, accepted_terms_at")
+    .select("full_name, phone, role, accepted_terms_at")
     .eq("id", user.id)
     .single();
 
   const metadata = (user.user_metadata || {}) as Record<string, unknown>;
+  const fallbackName = splitFullName(profile?.full_name);
 
   return (
     <div className="min-h-screen">
@@ -30,10 +50,10 @@ export default async function OnboardingPage() {
           initialValues={{
             role: profile?.role === "provider" ? "provider" : "tester",
             firstName:
-              profile?.first_name ||
+              fallbackName.firstName ||
               (typeof metadata.first_name === "string" ? metadata.first_name : ""),
             lastName:
-              profile?.last_name ||
+              fallbackName.lastName ||
               (typeof metadata.last_name === "string" ? metadata.last_name : ""),
             phone:
               profile?.phone ||
