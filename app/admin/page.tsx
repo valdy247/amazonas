@@ -68,10 +68,19 @@ export default async function AdminPage() {
   const membershipByUser = new Map((memberships as MembershipRow[] | null)?.map((m) => [m.user_id, m.status]) ?? []);
   const kycByUser = new Map((kycRows as KycRow[] | null)?.map((k) => [k.user_id, k.status]) ?? []);
 
-  const { data: contacts } = await supabase
+  const withVerification = await supabase
     .from("provider_contacts")
     .select("id, title, network, url, is_active, is_verified")
     .order("created_at", { ascending: false });
+
+  const contacts = withVerification.error
+    ? (
+        await supabase
+          .from("provider_contacts")
+          .select("id, title, network, url, is_active")
+          .order("created_at", { ascending: false })
+      ).data?.map((contact) => ({ ...contact, is_verified: false })) || []
+    : withVerification.data || [];
 
   return (
     <div className="min-h-screen">
@@ -137,7 +146,7 @@ export default async function AdminPage() {
           <div className="card p-4">
             <h2 className="font-bold">Contactos activos</h2>
             <ul className="mt-3 space-y-2 text-sm">
-              {(contacts as ContactRow[] | null)?.map((contact) => (
+              {(contacts as ContactRow[]).map((contact) => (
                 <li key={contact.id}>
                   {contact.title} - {contact.network || "sin red"} - {contact.is_active ? "activo" : "inactivo"} - {contact.is_verified ? "verificado" : "sin verificar"}
                 </li>

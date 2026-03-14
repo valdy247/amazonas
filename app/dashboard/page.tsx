@@ -65,9 +65,28 @@ export default async function DashboardPage() {
   const kycStatus = ACCESS_TEST_MODE && testingKycStatus ? testingKycStatus : kyc?.status || "pending";
   const canSeeContacts = !isProvider && membershipStatus === "active" && kycStatus === "approved";
 
-  const { data: contacts } = canSeeContacts
-    ? await supabase.from("provider_contacts").select("id, title, network, url, notes, is_verified").eq("is_active", true)
-    : { data: [] as ProviderContact[] };
+  let contacts: ProviderContact[] = [];
+
+  if (canSeeContacts) {
+    const withVerification = await supabase
+      .from("provider_contacts")
+      .select("id, title, network, url, notes, is_verified")
+      .eq("is_active", true);
+
+    if (withVerification.error) {
+      const fallback = await supabase
+        .from("provider_contacts")
+        .select("id, title, network, url, notes")
+        .eq("is_active", true);
+
+      contacts = (fallback.data || []).map((contact) => ({
+        ...contact,
+        is_verified: false,
+      })) as ProviderContact[];
+    } else {
+      contacts = (withVerification.data || []) as ProviderContact[];
+    }
+  }
 
   const testerSteps = [
     {
@@ -277,7 +296,7 @@ export default async function DashboardPage() {
               </span>
             </div>
             <div className="mt-3 grid gap-3">
-              {(contacts as ProviderContact[] | null)?.map((contact) => (
+              {contacts.map((contact) => (
                 <article key={contact.id} className="rounded-[1.5rem] border border-[#eee5db] bg-[linear-gradient(180deg,#ffffff_0%,#fcfaf7_100%)] p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div>
