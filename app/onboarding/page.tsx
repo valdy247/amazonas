@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { SiteHeader } from "@/components/site-header";
 import { ProfileWizard } from "@/components/profile-wizard";
+import { normalizeUserRole } from "@/lib/onboarding";
 import { createClient } from "@/lib/supabase/server";
 
 function splitFullName(fullName?: string | null) {
@@ -52,7 +53,7 @@ export default async function OnboardingPage() {
         <ProfileWizard
           email={user.email}
           initialValues={{
-            role: profile?.role === "provider" ? "provider" : "tester",
+            role: normalizeUserRole(profile?.role),
             firstName:
               fallbackName.firstName ||
               (typeof metadata.first_name === "string" ? metadata.first_name : ""),

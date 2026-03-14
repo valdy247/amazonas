@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -121,14 +122,9 @@ export function ProfileEditor({ email, initialValues }: ProfileEditorProps) {
       <section className="card p-5">
         <p className="text-sm font-semibold text-[#dc4f1f]">Editar perfil</p>
         <h1 className="mt-2 text-3xl font-bold">Ajusta tu informacion</h1>
-        <p className="mt-2 text-sm text-[#62626d]">
-          Puedes mejorar tu perfil sin rehacer el onboarding. El rol queda bloqueado para mantener la coherencia del flujo.
-        </p>
+        <p className="mt-2 text-sm text-[#62626d]">Puedes mejorar tu perfil sin rehacer el onboarding.</p>
 
         <div className="mt-4 flex flex-wrap gap-3">
-          <div className="rounded-full border border-[#e5e5df] bg-[#f8f4ef] px-4 py-2 text-sm">
-            Rol: <span className="font-semibold capitalize">{values.role}</span>
-          </div>
           <div className="rounded-full border border-[#e5e5df] bg-white px-4 py-2 text-sm text-[#62626d]">
             {email || "Sin correo disponible"}
           </div>
@@ -197,9 +193,9 @@ export function ProfileEditor({ email, initialValues }: ProfileEditorProps) {
             value={values.note}
             onChange={(event) => updateValue("note", event.target.value)}
             placeholder={
-              values.role === "tester"
+              values.role === "reviewer"
                 ? "Describe que tipo de productos te gusta probar y donde aportas mas valor."
-                : "Describe que tipo de testers buscas, categorias clave y enfoque de colaboracion."
+                : "Describe que tipo de reviewers buscas, categorias clave y enfoque de colaboracion."
             }
           />
         </div>
@@ -208,10 +204,13 @@ export function ProfileEditor({ email, initialValues }: ProfileEditorProps) {
       {error ? <p className="text-sm font-semibold text-red-600">{error}</p> : null}
       {saved ? <p className="text-sm font-semibold text-emerald-700">{saved}</p> : null}
 
-      <div className="sticky bottom-0 rounded-[1.6rem] border border-[#e5e5df] bg-white/95 p-3 backdrop-blur">
+      <div className="sticky bottom-0 space-y-3 rounded-[1.6rem] border border-[#e5e5df] bg-white/95 p-3 backdrop-blur">
         <button type="submit" disabled={loading} className="btn-primary h-12 w-full">
           {loading ? "Guardando..." : "Guardar cambios"}
         </button>
+        <Link href="/dashboard" className="btn-secondary h-12 w-full">
+          Ir al panel
+        </Link>
       </div>
     </form>
   );

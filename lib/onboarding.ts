@@ -1,4 +1,5 @@
-export type UserRole = "tester" | "provider";
+export type UserRole = "reviewer" | "provider";
+export type StoredUserRole = UserRole | "tester";
 
 export type ExperienceLevel = "new" | "growing" | "advanced";
 
@@ -32,3 +33,12 @@ export const EXPERIENCE_LABELS: Record<ExperienceLevel, string> = {
   growing: "Ya tengo experiencia",
   advanced: "Busco oportunidades avanzadas",
 };
+
+export function normalizeUserRole(role?: string | null): UserRole {
+  if (role === "provider") return "provider";
+  return "reviewer";
+}
+
+export function getRoleLabel(role?: string | null) {
+  return normalizeUserRole(role) === "provider" ? "provider" : "reviewer";
+}

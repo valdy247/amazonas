@@ -9,7 +9,7 @@ create table if not exists public.profiles (
   last_name text,
   full_name text,
   phone text,
-  role text default 'pending' check (role in ('pending', 'tester', 'provider', 'admin')),
+  role text default 'pending' check (role in ('pending', 'tester', 'reviewer', 'provider', 'admin')),
   accepted_terms_at timestamptz,
   created_at timestamptz default now()
 );

@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { SiteHeader } from "@/components/site-header";
 import { ProfileEditor } from "@/components/profile-editor";
 import { createClient } from "@/lib/supabase/server";
-import type { ExperienceLevel, UserRole } from "@/lib/onboarding";
+import { normalizeUserRole, type ExperienceLevel } from "@/lib/onboarding";
 
 function splitFullName(fullName?: string | null) {
   const normalized = String(fullName || "").trim();
@@ -53,7 +53,7 @@ export default async function ProfilePage() {
         <ProfileEditor
           email={user.email}
           initialValues={{
-            role: profile.role as UserRole,
+            role: normalizeUserRole(profile.role),
             firstName:
               fallbackName.firstName ||
               (typeof metadata.first_name === "string" ? metadata.first_name : ""),

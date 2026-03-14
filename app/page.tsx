@@ -26,7 +26,7 @@ export default async function Home() {
           </span>
           <h1 className="text-4xl font-extrabold leading-tight sm:text-5xl">Amazona Review</h1>
           <p className="text-sm text-[#62626d] sm:text-base">
-            Conecta testers y proveedores en un entorno con membresía, verificación KYC y reglas claras de transparencia.
+            Conecta reviewers y proveedores en un entorno con membresía, verificación KYC y reglas claras de transparencia.
           </p>
           <div className="flex flex-col gap-2 sm:flex-row">
             <Link href="/auth?mode=signup" className="btn-primary w-full sm:w-auto">
@@ -47,7 +47,7 @@ export default async function Home() {
           <article className="card p-4">
             <Users className="h-5 w-5 text-[#ff6b35]" />
             <h2 className="mt-2 font-bold">Roles claros</h2>
-            <p className="mt-1 text-sm text-[#62626d]">Testers y proveedores tienen experiencia distinta desde onboarding.</p>
+            <p className="mt-1 text-sm text-[#62626d]">Reviewers y proveedores tienen experiencia distinta desde onboarding.</p>
           </article>
           <article className="card p-4">
             <ShieldCheck className="h-5 w-5 text-[#ff6b35]" />

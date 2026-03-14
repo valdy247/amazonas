@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { hasAdminAccess } from "@/lib/admin";
 import { TestingAccessControls } from "@/components/testing-access-controls";
 import { ProviderContactGrid } from "@/components/provider-contact-grid";
+import { normalizeUserRole } from "@/lib/onboarding";
 
 type ProviderContact = {
   id: number;
@@ -39,6 +40,8 @@ export default async function DashboardPage() {
     redirect("/onboarding");
   }
 
+  const role = normalizeUserRole(profile.role);
+  const firstName = String(profile.full_name || "miembro").trim().split(/\s+/)[0] || "miembro";
   const metadata = (user.user_metadata || {}) as Record<string, unknown>;
   const userInterests = Array.isArray(metadata.interests)
     ? metadata.interests.filter((item): item is string => typeof item === "string")
@@ -49,7 +52,7 @@ export default async function DashboardPage() {
   const testingMembershipStatus = typeof metadata.testing_payment_state === "string" ? metadata.testing_payment_state : null;
   const testingKycStatus = typeof metadata.testing_kyc_state === "string" ? metadata.testing_kyc_state : null;
   const isAdmin = hasAdminAccess(profile?.role, profile?.email || user.email);
-  const isProvider = profile?.role === "provider";
+  const isProvider = role === "provider";
 
   const { data: membership } = await supabase
     .from("memberships")
@@ -103,7 +106,7 @@ export default async function DashboardPage() {
     }
   }
 
-  const testerSteps = [
+  const reviewerSteps = [
     {
       title: "Acceso",
       description: membershipStatus === "active" ? "Tu acceso de prueba ya esta activo." : "Activa la membresia de prueba para seguir.",
@@ -131,24 +134,15 @@ export default async function DashboardPage() {
         <section className="overflow-hidden rounded-[1.8rem] border border-[#1f1b17] bg-[linear-gradient(135deg,#201915_0%,#2c221a_55%,#3f2a1d_100%)] p-5 text-white shadow-[0_26px_80px_rgba(35,22,13,0.22)]">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="text-xs uppercase tracking-[0.24em] text-white/55">{isProvider ? "Provider Hub" : "Tester Hub"}</p>
-              <h1 className="mt-2 text-3xl font-bold">Hola, {profile?.full_name || "miembro"}</h1>
-              <p className="mt-2 max-w-md text-sm text-white/68">
-                {isProvider
-                  ? "Tu perfil esta listo para evolucionar hacia discovery de testers y filtros mas finos."
-                  : "Tu panel de pruebas concentra activacion, KYC y acceso final en un solo recorrido claro."}
-              </p>
+              <p className="text-xs uppercase tracking-[0.24em] text-white/55">{isProvider ? "Provider Hub" : "Reviewer Hub"}</p>
+              <h1 className="mt-2 text-3xl font-bold">Hola, {firstName}</h1>
             </div>
             <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10">
               <Sparkles className="h-5 w-5" />
             </span>
           </div>
 
-          <div className="mt-5 grid gap-3 sm:grid-cols-3">
-            <div className="rounded-[1.4rem] border border-white/10 bg-white/6 p-4">
-              <p className="text-xs uppercase tracking-[0.18em] text-white/50">Rol</p>
-              <p className="mt-2 text-lg font-semibold">{isAdmin ? "admin" : profile?.role}</p>
-            </div>
+          <div className={`mt-5 grid gap-3 ${isProvider ? "sm:grid-cols-2" : "sm:grid-cols-2 lg:grid-cols-3"}`}>
             <div className="rounded-[1.4rem] border border-white/10 bg-white/6 p-4">
               <p className="text-xs uppercase tracking-[0.18em] text-white/50">Pais y nivel</p>
               <div className="mt-2 flex items-center gap-2 text-sm text-white/85">
@@ -166,6 +160,12 @@ export default async function DashboardPage() {
                 <p className={`mt-2 text-sm font-semibold ${kycStatus === "approved" ? "text-emerald-300" : "text-amber-300"}`}>
                   KYC: {kycStatus}
                 </p>
+              </div>
+            ) : null}
+            {isAdmin ? (
+              <div className="rounded-[1.4rem] border border-white/10 bg-white/6 p-4">
+                <p className="text-xs uppercase tracking-[0.18em] text-white/50">Permisos</p>
+                <p className="mt-2 text-sm font-semibold text-white/85">Admin habilitado</p>
               </div>
             ) : null}
           </div>
@@ -188,7 +188,7 @@ export default async function DashboardPage() {
             <section className="card p-4">
               <h2 className="font-bold">Perfil provider activo</h2>
               <p className="mt-1 text-sm text-[#62626d]">
-                Tu acceso no requiere pago. Este dashboard queda listo para evolucionar a un buscador de testers por intereses,
+                Tu acceso no requiere pago. Este dashboard queda listo para evolucionar a un buscador de reviewers por intereses,
                 pais y experiencia.
               </p>
               <Link href="/profile" className="btn-secondary mt-3">
@@ -197,9 +197,9 @@ export default async function DashboardPage() {
             </section>
 
             <section className="card p-4">
-              <h2 className="font-bold">Buscador de testers</h2>
+              <h2 className="font-bold">Buscador de reviewers</h2>
               <p className="mt-1 text-sm text-[#62626d]">
-                La siguiente capa puede usar tus etiquetas para mostrar testers compatibles sin friccion desde movil.
+                La siguiente capa puede usar tus etiquetas para mostrar reviewers compatibles sin friccion desde movil.
               </p>
             </section>
           </>
@@ -207,7 +207,7 @@ export default async function DashboardPage() {
 
         {!isProvider ? (
           <section className="grid gap-3 sm:grid-cols-3">
-            {testerSteps.map((step) => {
+            {reviewerSteps.map((step) => {
               const Icon = step.icon;
 
               return (

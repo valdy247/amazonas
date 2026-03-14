@@ -42,7 +42,7 @@ export function ProfileWizard({ initialValues, email }: ProfileWizardProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [values, setValues] = useState<WizardValues>({
-    role: initialValues.role || "tester",
+    role: initialValues.role || "reviewer",
     firstName: initialValues.firstName || "",
     lastName: initialValues.lastName || "",
     phone: initialValues.phone || "",
@@ -63,9 +63,9 @@ export function ProfileWizard({ initialValues, email }: ProfileWizardProps) {
   const isLastStep = step === steps.length - 1;
   const selectedCountryLabel = values.country || "Sin pais seleccionado";
   const roleCopy =
-    values.role === "tester"
+    values.role === "reviewer"
       ? "Te ayudaremos a construir un perfil claro para encontrar oportunidades alineadas."
-      : "Activaremos un perfil orientado a descubrir testers segun las categorias que te interesan.";
+      : "Activaremos un perfil orientado a descubrir reviewers segun las categorias que te interesan.";
 
   function updateValue<K extends keyof WizardValues>(key: K, value: WizardValues[K]) {
     setValues((current) => ({ ...current, [key]: value }));
@@ -233,14 +233,14 @@ export function ProfileWizard({ initialValues, email }: ProfileWizardProps) {
               <div className="grid gap-3">
                 {[
                   {
-                    role: "tester" as const,
-                    title: "Soy tester",
+                    role: "reviewer" as const,
+                    title: "Soy reviewer",
                     description: "Voy a completar mi perfil para recibir oportunidades alineadas con mis intereses.",
                   },
                   {
                     role: "provider" as const,
                     title: "Soy proveedor",
-                    description: "Quiero entrar sin friccion y preparar mi perfil para buscar testers relevantes.",
+                    description: "Quiero entrar sin friccion y preparar mi perfil para buscar reviewers relevantes.",
                   },
                 ].map((option) => (
                   <button
@@ -269,24 +269,9 @@ export function ProfileWizard({ initialValues, email }: ProfileWizardProps) {
               </div>
 
               <div className="grid gap-3">
-                <input
-                  className="input"
-                  value={values.firstName}
-                  onChange={(event) => updateValue("firstName", event.target.value)}
-                  placeholder="Nombre"
-                />
-                <input
-                  className="input"
-                  value={values.lastName}
-                  onChange={(event) => updateValue("lastName", event.target.value)}
-                  placeholder="Apellidos"
-                />
-                <input
-                  className="input"
-                  value={values.phone}
-                  onChange={(event) => updateValue("phone", event.target.value)}
-                  placeholder="Telefono"
-                />
+                <input className="input" value={values.firstName} onChange={(event) => updateValue("firstName", event.target.value)} placeholder="Nombre" />
+                <input className="input" value={values.lastName} onChange={(event) => updateValue("lastName", event.target.value)} placeholder="Apellidos" />
+                <input className="input" value={values.phone} onChange={(event) => updateValue("phone", event.target.value)} placeholder="Telefono" />
                 <div className="rounded-2xl border border-dashed border-[#e5e5df] bg-[#f8f4ef] p-3 text-sm text-[#62626d]">
                   <p className="font-semibold text-[#131316]">Correo de acceso</p>
                   <p className="mt-1">{email || "Sin correo disponible"}</p>
@@ -301,7 +286,7 @@ export function ProfileWizard({ initialValues, email }: ProfileWizardProps) {
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <p className="text-sm font-semibold text-[#dc4f1f]">
-                      {values.role === "tester" ? "Que te interesa probar" : "Que categorias quieres trabajar"}
+                      {values.role === "reviewer" ? "Que te interesa probar" : "Que categorias quieres trabajar"}
                     </p>
                     <p className="mt-1 text-sm text-[#62626d]">
                       Estas etiquetas nos ayudan a personalizar el dashboard y futuros matches.
@@ -401,9 +386,9 @@ export function ProfileWizard({ initialValues, email }: ProfileWizardProps) {
                 value={values.note}
                 onChange={(event) => updateValue("note", event.target.value)}
                 placeholder={
-                  values.role === "tester"
+                  values.role === "reviewer"
                     ? "Cuentanos que tipo de productos te gusta reseñar o en que eres fuerte."
-                    : "Describe que tipo de testers o categorias buscas primero."
+                    : "Describe que tipo de reviewers o categorias buscas primero."
                 }
               />
             </>
@@ -437,12 +422,7 @@ export function ProfileWizard({ initialValues, email }: ProfileWizardProps) {
               </div>
 
               <label className="flex items-start gap-3 rounded-2xl border border-[#e5e5df] p-4 text-sm">
-                <input
-                  type="checkbox"
-                  checked={values.acceptTerms}
-                  onChange={(event) => updateValue("acceptTerms", event.target.checked)}
-                  className="mt-1"
-                />
+                <input type="checkbox" checked={values.acceptTerms} onChange={(event) => updateValue("acceptTerms", event.target.checked)} className="mt-1" />
                 <span>Acepto terminos, privacidad y reglas de cumplimiento para activar mi acceso.</span>
               </label>
             </>

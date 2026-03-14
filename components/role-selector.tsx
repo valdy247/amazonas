@@ -1,13 +1,13 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
-type Role = "tester" | "provider";
+type Role = "reviewer" | "provider";
 
 export function RoleSelector() {
-  const [role, setRole] = useState<Role>("tester");
+  const [role, setRole] = useState<Role>("reviewer");
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -57,10 +57,10 @@ export function RoleSelector() {
       <div className="grid gap-3">
         <button
           type="button"
-          onClick={() => setRole("tester")}
-          className={`rounded-2xl border p-4 text-left ${role === "tester" ? "border-[#ff6b35] bg-[#fff3ec]" : "border-[#e5e5df]"}`}
+          onClick={() => setRole("reviewer")}
+          className={`rounded-2xl border p-4 text-left ${role === "reviewer" ? "border-[#ff6b35] bg-[#fff3ec]" : "border-[#e5e5df]"}`}
         >
-          <p className="font-semibold">Soy Tester</p>
+          <p className="font-semibold">Soy Reviewer</p>
           <p className="text-sm text-[#62626d]">Quiero probar productos y acceder a contactos verificados.</p>
         </button>
         <button
@@ -69,7 +69,7 @@ export function RoleSelector() {
           className={`rounded-2xl border p-4 text-left ${role === "provider" ? "border-[#ff6b35] bg-[#fff3ec]" : "border-[#e5e5df]"}`}
         >
           <p className="font-semibold">Soy Proveedor</p>
-          <p className="text-sm text-[#62626d]">Quiero enviar productos a testers verificados.</p>
+          <p className="text-sm text-[#62626d]">Quiero enviar productos a reviewers verificados.</p>
         </button>
       </div>
 
@@ -85,5 +85,3 @@ export function RoleSelector() {
     </div>
   );
 }
-
-
