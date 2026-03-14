@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ArrowUpRight, CircleX, MessageCircleMore } from "lucide-react";
 import { parseContactMethods } from "@/lib/provider-contact";
 
@@ -18,8 +18,33 @@ type ProviderContactGridProps = {
   contacts: ProviderContact[];
 };
 
+const STORAGE_KEY = "amazonas-contacted-provider-ids";
+
+function readStoredContactedIds() {
+  if (typeof window === "undefined") {
+    return [] as number[];
+  }
+
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) return [];
+
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter((item): item is number => typeof item === "number") : [];
+  } catch {
+    return [];
+  }
+}
+
 export function ProviderContactGrid({ contacts }: ProviderContactGridProps) {
   const [selectedContactId, setSelectedContactId] = useState<number | null>(null);
+  const [activeTab, setActiveTab] = useState<"pending" | "contacted">("pending");
+  const [contactedIds, setContactedIds] = useState<number[]>(readStoredContactedIds);
+
+  useEffect(() => {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(contactedIds));
+  }, [contactedIds]);
+
   const selectedContact = useMemo(
     () => contacts.find((contact) => contact.id === selectedContactId) || null,
     [contacts, selectedContactId]
@@ -31,11 +56,46 @@ export function ProviderContactGrid({ contacts }: ProviderContactGridProps) {
         : [],
     [selectedContact]
   );
+  const pendingContacts = useMemo(
+    () => contacts.filter((contact) => !contactedIds.includes(contact.id)),
+    [contacts, contactedIds]
+  );
+  const contactedContacts = useMemo(
+    () => contacts.filter((contact) => contactedIds.includes(contact.id)),
+    [contacts, contactedIds]
+  );
+  const visibleContacts = activeTab === "pending" ? pendingContacts : contactedContacts;
+
+  function markAsContacted(contactId: number) {
+    setContactedIds((current) => (current.includes(contactId) ? current : [...current, contactId]));
+    setActiveTab("contacted");
+  }
 
   return (
     <>
+      <div className="mt-4 flex rounded-full border border-[#e8ddd2] bg-[#f8f3ed] p-1">
+        <button
+          type="button"
+          onClick={() => setActiveTab("pending")}
+          className={`flex-1 rounded-full px-4 py-3 text-sm font-semibold transition ${
+            activeTab === "pending" ? "bg-white text-[#131316] shadow-sm" : "text-[#7c7064]"
+          }`}
+        >
+          Por contactar ({pendingContacts.length})
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("contacted")}
+          className={`flex-1 rounded-full px-4 py-3 text-sm font-semibold transition ${
+            activeTab === "contacted" ? "bg-white text-[#131316] shadow-sm" : "text-[#7c7064]"
+          }`}
+        >
+          Contactados ({contactedContacts.length})
+        </button>
+      </div>
+
       <div className="mt-3 grid gap-3">
-        {contacts.map((contact) => (
+        {visibleContacts.map((contact) => (
           <article key={contact.id} className="rounded-[1.5rem] border border-[#eee5db] bg-[linear-gradient(180deg,#ffffff_0%,#fcfaf7_100%)] p-4">
             <div className="flex items-start justify-between gap-3">
               <div>
@@ -54,12 +114,20 @@ export function ProviderContactGrid({ contacts }: ProviderContactGridProps) {
               onClick={() => setSelectedContactId(contact.id)}
               className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-[#dc4f1f]"
             >
-              Contactar proveedor
+              {activeTab === "pending" ? "Contactar proveedor" : "Volver a contactar"}
               <ArrowUpRight className="h-4 w-4" />
             </button>
           </article>
         ))}
       </div>
+
+      {!visibleContacts.length ? (
+        <div className="mt-3 rounded-[1.5rem] border border-dashed border-[#e6ddd1] bg-[#fffdf9] p-5 text-sm text-[#62626d]">
+          {activeTab === "pending"
+            ? "Todavia no hay proveedores pendientes por contactar."
+            : "Aun no has abierto ningun contacto. Cuando abras uno aparecera aqui automaticamente."}
+        </div>
+      ) : null}
 
       {selectedContact ? (
         <div className="fixed inset-0 z-30 bg-[#131316]/45 p-4 backdrop-blur-sm">
@@ -88,6 +156,10 @@ export function ProviderContactGrid({ contacts }: ProviderContactGridProps) {
                   href={method.href}
                   target={method.href.startsWith("tel:") ? undefined : "_blank"}
                   rel={method.href.startsWith("tel:") ? undefined : "noreferrer"}
+                  onClick={() => {
+                    markAsContacted(selectedContact.id);
+                    setSelectedContactId(null);
+                  }}
                   className="inline-flex items-center justify-between rounded-[1.4rem] border border-[#ebdfd2] bg-[#fcfaf7] px-4 py-4 text-left"
                 >
                   <span className="flex items-center gap-3">
