@@ -30,6 +30,7 @@ export async function createProviderContact(formData: FormData) {
   const network = String(formData.get("network") || "").trim();
   const url = String(formData.get("url") || "").trim();
   const notes = String(formData.get("notes") || "").trim();
+  const isVerified = String(formData.get("is_verified") || "") === "on";
 
   // Evita romper la UI en testing: completa valores faltantes.
   const safeTitle = title || "Proveedor sin nombre";
@@ -40,6 +41,7 @@ export async function createProviderContact(formData: FormData) {
     network,
     url: safeUrl,
     notes,
+    is_verified: isVerified,
     created_by: adminId,
   });
 

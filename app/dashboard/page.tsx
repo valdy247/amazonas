@@ -12,6 +12,7 @@ type ProviderContact = {
   network: string | null;
   url: string;
   notes: string | null;
+  is_verified: boolean;
 };
 
 const ACCESS_TEST_MODE = true;
@@ -65,7 +66,7 @@ export default async function DashboardPage() {
   const canSeeContacts = !isProvider && membershipStatus === "active" && kycStatus === "approved";
 
   const { data: contacts } = canSeeContacts
-    ? await supabase.from("provider_contacts").select("id, title, network, url, notes").eq("is_active", true)
+    ? await supabase.from("provider_contacts").select("id, title, network, url, notes, is_verified").eq("is_active", true)
     : { data: [] as ProviderContact[] };
 
   const testerSteps = [
@@ -283,9 +284,11 @@ export default async function DashboardPage() {
                       <p className="font-semibold">{contact.title}</p>
                       <p className="text-xs text-[#62626d]">{contact.network || "Red no definida"}</p>
                     </div>
-                    <span className="rounded-full bg-[#fff3ec] px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-[#dc4f1f]">
-                      Verificado
-                    </span>
+                    {contact.is_verified ? (
+                      <span className="rounded-full bg-[#fff3ec] px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-[#dc4f1f]">
+                        Verificado
+                      </span>
+                    ) : null}
                   </div>
                   <a className="mt-3 inline-block text-sm font-semibold text-[#dc4f1f]" href={contact.url} target="_blank" rel="noreferrer">
                     Abrir contacto
