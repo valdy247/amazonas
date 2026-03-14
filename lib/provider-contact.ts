@@ -48,7 +48,12 @@ export function parseContactMethods(contactMethods?: string | null, fallbackUrl?
 
     if (!href) return;
 
-    const label = right ? left.trim() || labelFromUrl(href) : labelFromUrl(href);
+    const derivedLabel = labelFromUrl(href);
+    const requestedLabel = right ? left.trim() : "";
+    const label =
+      derivedLabel === "WhatsApp"
+        ? "WhatsApp"
+        : requestedLabel || derivedLabel;
     methods.push({ label, href });
   });
 
