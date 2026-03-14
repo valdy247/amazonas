@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Compass, MapPin, Sparkles, Stars } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { COUNTRY_OPTIONS, EXPERIENCE_LABELS, INTEREST_OPTIONS, type ExperienceLevel, type UserRole } from "@/lib/onboarding";
 
@@ -61,6 +61,7 @@ export function ProfileWizard({ initialValues, email }: ProfileWizardProps) {
 
   const currentStep = steps[step];
   const isLastStep = step === steps.length - 1;
+  const selectedCountryLabel = values.country || "Sin pais seleccionado";
   const roleCopy =
     values.role === "tester"
       ? "Te ayudaremos a construir un perfil claro para encontrar oportunidades alineadas."
@@ -296,23 +297,52 @@ export function ProfileWizard({ initialValues, email }: ProfileWizardProps) {
 
           {currentStep?.id === "focus" ? (
             <>
-              <div>
-                <p className="text-sm font-semibold text-[#dc4f1f]">
-                  {values.role === "tester" ? "Que te interesa probar" : "Que categorias quieres trabajar"}
-                </p>
-                <p className="mt-1 text-sm text-[#62626d]">
-                  Estas etiquetas nos ayudan a personalizar el dashboard y futuros matches.
-                </p>
-              </div>
+              <div className="rounded-[1.75rem] border border-[#f2d3c4] bg-[linear-gradient(180deg,#fff6f1_0%,#fffdf9_100%)] p-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-semibold text-[#dc4f1f]">
+                      {values.role === "tester" ? "Que te interesa probar" : "Que categorias quieres trabajar"}
+                    </p>
+                    <p className="mt-1 text-sm text-[#62626d]">
+                      Estas etiquetas nos ayudan a personalizar el dashboard y futuros matches.
+                    </p>
+                  </div>
+                  <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-[#ff6b35] shadow-sm">
+                    <Stars className="h-5 w-5" />
+                  </span>
+                </div>
 
-              <select className="input" value={values.country} onChange={(event) => updateValue("country", event.target.value)}>
-                <option value="">Selecciona tu pais</option>
-                {COUNTRY_OPTIONS.map((country) => (
-                  <option key={country} value={country}>
-                    {country}
-                  </option>
-                ))}
-              </select>
+                <div className="mt-4 rounded-[1.5rem] bg-[#1e1712] p-4 text-white">
+                  <div className="flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-white/55">
+                    <MapPin className="h-4 w-4" />
+                    Region principal
+                  </div>
+                  <p className="mt-3 text-lg font-bold">{selectedCountryLabel}</p>
+                  <p className="mt-1 text-sm text-white/65">
+                    Elegimos un pais base para mostrar oportunidades y matches relevantes primero.
+                  </p>
+                  <div className="mt-4 grid grid-cols-2 gap-2">
+                    {COUNTRY_OPTIONS.map((country) => {
+                      const active = values.country === country;
+
+                      return (
+                        <button
+                          key={country}
+                          type="button"
+                          onClick={() => updateValue("country", country)}
+                          className={`rounded-2xl border px-3 py-3 text-left text-sm font-semibold transition ${
+                            active
+                              ? "border-[#ff8a5b] bg-[#ff8a5b] text-white"
+                              : "border-white/12 bg-white/6 text-white/82"
+                          }`}
+                        >
+                          {country}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
 
               <div className="grid gap-2">
                 {(["new", "growing", "advanced"] as ExperienceLevel[]).map((level) => (
@@ -329,23 +359,41 @@ export function ProfileWizard({ initialValues, email }: ProfileWizardProps) {
                 ))}
               </div>
 
-              <div className="flex flex-wrap gap-2">
-                {INTEREST_OPTIONS.map((option) => {
-                  const active = values.interests.includes(option);
+              <div className="rounded-[1.75rem] border border-[#eadfd6] bg-[#fcfaf7] p-4">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-semibold text-[#131316]">Mapa de intereses</p>
+                    <p className="mt-1 text-sm text-[#62626d]">Selecciona al menos 3 para entrenar mejor tu perfil.</p>
+                  </div>
+                  <div className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-2 text-xs font-semibold text-[#dc4f1f] shadow-sm">
+                    <Compass className="h-4 w-4" />
+                    {values.interests.length} seleccionados
+                  </div>
+                </div>
 
-                  return (
-                    <button
-                      key={option}
-                      type="button"
-                      onClick={() => toggleInterest(option)}
-                      className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${
-                        active ? "border-[#ff6b35] bg-[#ff6b35] text-white" : "border-[#e5e5df] bg-white text-[#131316]"
-                      }`}
-                    >
-                      {option}
-                    </button>
-                  );
-                })}
+                <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {INTEREST_OPTIONS.map((option) => {
+                    const active = values.interests.includes(option);
+
+                    return (
+                      <button
+                        key={option}
+                        type="button"
+                        onClick={() => toggleInterest(option)}
+                        className={`rounded-[1.25rem] border px-4 py-3 text-left text-sm font-semibold transition ${
+                          active
+                            ? "border-[#ff6b35] bg-[linear-gradient(135deg,#ff6b35_0%,#ff8b5e_100%)] text-white shadow-[0_14px_26px_rgba(255,107,53,0.22)]"
+                            : "border-[#ebe4db] bg-white text-[#131316]"
+                        }`}
+                      >
+                        <span className="flex items-center justify-between gap-2">
+                          <span>{option}</span>
+                          {active ? <Check className="h-4 w-4" /> : null}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
               <textarea

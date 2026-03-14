@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { BadgeCheck, Compass, LockKeyhole, MapPin, Sparkles, WalletCards } from "lucide-react";
 import { SiteHeader } from "@/components/site-header";
 import { createClient } from "@/lib/supabase/server";
 import { hasAdminAccess } from "@/lib/admin";
@@ -12,12 +13,6 @@ type ProviderContact = {
   url: string;
   notes: string | null;
 };
-
-function statusColor(status: string) {
-  if (status === "active" || status === "approved") return "text-emerald-700";
-  if (status === "rejected" || status === "suspended") return "text-red-600";
-  return "text-amber-700";
-}
 
 const ACCESS_TEST_MODE = true;
 
@@ -73,27 +68,84 @@ export default async function DashboardPage() {
     ? await supabase.from("provider_contacts").select("id, title, network, url, notes").eq("is_active", true)
     : { data: [] as ProviderContact[] };
 
+  const testerSteps = [
+    {
+      title: "Acceso",
+      description: membershipStatus === "active" ? "Tu acceso de prueba ya esta activo." : "Activa la membresia de prueba para seguir.",
+      done: membershipStatus === "active",
+      icon: WalletCards,
+    },
+    {
+      title: "KYC",
+      description: kycStatus === "approved" ? "Tu validacion de prueba ya esta aprobada." : "Aprueba KYC de prueba para desbloquear el panel final.",
+      done: kycStatus === "approved",
+      icon: BadgeCheck,
+    },
+    {
+      title: "Contactos",
+      description: canSeeContacts ? "Ya puedes abrir contactos verificados." : "Se habilita cuando acceso y KYC esten listos.",
+      done: canSeeContacts,
+      icon: Compass,
+    },
+  ];
+
   return (
     <div className="min-h-screen">
       <SiteHeader />
       <main className="container-x space-y-4 py-6">
-        <section className="card p-4">
-          <h1 className="text-2xl font-bold">Hola, {profile?.full_name || "miembro"}</h1>
-          <p className="mt-1 text-sm text-[#62626d]">Rol: {isAdmin ? "admin" : profile?.role}</p>
-          {!isProvider ? <p className={`mt-1 text-sm ${statusColor(membershipStatus)}`}>Membresia: {membershipStatus}</p> : null}
-          {!isProvider ? <p className={`mt-1 text-sm ${statusColor(kycStatus)}`}>KYC: {kycStatus}</p> : null}
-          {country ? <p className="mt-1 text-sm text-[#62626d]">Pais: {country}</p> : null}
-          {experienceLevel ? <p className="mt-1 text-sm text-[#62626d]">Nivel: {experienceLevel}</p> : null}
+        <section className="overflow-hidden rounded-[1.8rem] border border-[#1f1b17] bg-[linear-gradient(135deg,#201915_0%,#2c221a_55%,#3f2a1d_100%)] p-5 text-white shadow-[0_26px_80px_rgba(35,22,13,0.22)]">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-xs uppercase tracking-[0.24em] text-white/55">{isProvider ? "Provider Hub" : "Tester Hub"}</p>
+              <h1 className="mt-2 text-3xl font-bold">Hola, {profile?.full_name || "miembro"}</h1>
+              <p className="mt-2 max-w-md text-sm text-white/68">
+                {isProvider
+                  ? "Tu perfil esta listo para evolucionar hacia discovery de testers y filtros mas finos."
+                  : "Tu panel de pruebas concentra activacion, KYC y acceso final en un solo recorrido claro."}
+              </p>
+            </div>
+            <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10">
+              <Sparkles className="h-5 w-5" />
+            </span>
+          </div>
+
+          <div className="mt-5 grid gap-3 sm:grid-cols-3">
+            <div className="rounded-[1.4rem] border border-white/10 bg-white/6 p-4">
+              <p className="text-xs uppercase tracking-[0.18em] text-white/50">Rol</p>
+              <p className="mt-2 text-lg font-semibold">{isAdmin ? "admin" : profile?.role}</p>
+            </div>
+            <div className="rounded-[1.4rem] border border-white/10 bg-white/6 p-4">
+              <p className="text-xs uppercase tracking-[0.18em] text-white/50">Pais y nivel</p>
+              <div className="mt-2 flex items-center gap-2 text-sm text-white/85">
+                <MapPin className="h-4 w-4" />
+                <span>{country || "Sin pais"}</span>
+              </div>
+              <p className="mt-2 text-sm text-white/72">{experienceLevel || "Nivel pendiente"}</p>
+            </div>
+            {!isProvider ? (
+              <div className="rounded-[1.4rem] border border-white/10 bg-white/6 p-4">
+                <p className="text-xs uppercase tracking-[0.18em] text-white/50">Estado</p>
+                <p className={`mt-2 text-sm font-semibold ${membershipStatus === "active" ? "text-emerald-300" : "text-amber-300"}`}>
+                  Membresia: {membershipStatus}
+                </p>
+                <p className={`mt-2 text-sm font-semibold ${kycStatus === "approved" ? "text-emerald-300" : "text-amber-300"}`}>
+                  KYC: {kycStatus}
+                </p>
+              </div>
+            ) : null}
+          </div>
+
           {userInterests.length ? (
-            <div className="mt-3 flex flex-wrap gap-2">
+            <div className="mt-5 flex flex-wrap gap-2">
               {userInterests.map((interest) => (
-                <span key={interest} className="rounded-full bg-[#fff3ec] px-3 py-1 text-xs font-semibold text-[#dc4f1f]">
+                <span key={interest} className="rounded-full border border-white/12 bg-white/8 px-3 py-1 text-xs font-semibold text-white">
                   {interest}
                 </span>
               ))}
             </div>
           ) : null}
-          {profileNote ? <p className="mt-3 text-sm text-[#62626d]">{profileNote}</p> : null}
+
+          {profileNote ? <p className="mt-4 max-w-2xl text-sm text-white/68">{profileNote}</p> : null}
         </section>
 
         {isProvider ? (
@@ -118,12 +170,52 @@ export default async function DashboardPage() {
           </>
         ) : null}
 
+        {!isProvider ? (
+          <section className="grid gap-3 sm:grid-cols-3">
+            {testerSteps.map((step) => {
+              const Icon = step.icon;
+
+              return (
+                <article
+                  key={step.title}
+                  className={`rounded-[1.6rem] border p-4 ${
+                    step.done ? "border-[#ffd7c8] bg-[linear-gradient(180deg,#fff6f1_0%,#fffdf9_100%)]" : "border-[#e8e1d8] bg-white"
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <span
+                      className={`inline-flex h-11 w-11 items-center justify-center rounded-2xl ${
+                        step.done ? "bg-[#ff6b35] text-white" : "bg-[#f6f1ea] text-[#131316]"
+                      }`}
+                    >
+                      <Icon className="h-5 w-5" />
+                    </span>
+                    <span className={`text-xs font-bold uppercase tracking-[0.18em] ${step.done ? "text-[#dc4f1f]" : "text-[#8f857b]"}`}>
+                      {step.done ? "Listo" : "Pendiente"}
+                    </span>
+                  </div>
+                  <h2 className="mt-4 text-lg font-bold">{step.title}</h2>
+                  <p className="mt-2 text-sm text-[#62626d]">{step.description}</p>
+                </article>
+              );
+            })}
+          </section>
+        ) : null}
+
         {!isProvider && membershipStatus !== "active" ? (
-          <section className="card p-4">
-            <h2 className="font-bold">1) Activar membresia</h2>
+          <section className="rounded-[1.8rem] border border-[#f0d7ca] bg-[linear-gradient(180deg,#fff7f3_0%,#ffffff_100%)] p-5">
+            <div className="flex items-center gap-3">
+              <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-[#ff6b35] text-white">
+                <WalletCards className="h-5 w-5" />
+              </span>
+              <div>
+                <h2 className="font-bold">Activar membresia</h2>
+                <p className="text-sm text-[#62626d]">Paso 1 del recorrido de prueba</p>
+              </div>
+            </div>
             {ACCESS_TEST_MODE ? (
               <>
-                <p className="mt-1 text-sm text-[#62626d]">
+                <p className="mt-4 text-sm text-[#62626d]">
                   Square esta deshabilitado durante pruebas. Puedes marcar manualmente tu acceso para seguir validando el flujo.
                 </p>
                 <TestingAccessControls stage="payment" />
@@ -147,11 +239,19 @@ export default async function DashboardPage() {
         ) : null}
 
         {!isProvider && membershipStatus === "active" && kycStatus !== "approved" ? (
-          <section className="card p-4">
-            <h2 className="font-bold">2) Verificacion KYC</h2>
+          <section className="rounded-[1.8rem] border border-[#dfe9df] bg-[linear-gradient(180deg,#f8fff8_0%,#ffffff_100%)] p-5">
+            <div className="flex items-center gap-3">
+              <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-[#1f7a4d] text-white">
+                <LockKeyhole className="h-5 w-5" />
+              </span>
+              <div>
+                <h2 className="font-bold">Verificacion KYC</h2>
+                <p className="text-sm text-[#62626d]">Paso 2 del recorrido de prueba</p>
+              </div>
+            </div>
             {ACCESS_TEST_MODE ? (
               <>
-                <p className="mt-1 text-sm text-[#62626d]">
+                <p className="mt-4 text-sm text-[#62626d]">
                   El KYC real tambien esta pausado en pruebas. Puedes aprobarlo o reiniciarlo manualmente para validar el recorrido.
                 </p>
                 <TestingAccessControls stage="kyc" />
@@ -165,14 +265,29 @@ export default async function DashboardPage() {
         ) : null}
 
         {!isProvider && canSeeContacts ? (
-          <section className="card p-4">
-            <h2 className="font-bold">Contactos de proveedores</h2>
+          <section className="rounded-[1.8rem] border border-[#e6ddd1] bg-white p-5">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h2 className="text-xl font-bold">Contactos de proveedores</h2>
+                <p className="mt-1 text-sm text-[#62626d]">Desbloqueaste el acceso final de prueba.</p>
+              </div>
+              <span className="inline-flex rounded-full bg-[#fff3ec] px-3 py-2 text-xs font-bold uppercase tracking-[0.18em] text-[#dc4f1f]">
+                Acceso abierto
+              </span>
+            </div>
             <div className="mt-3 grid gap-3">
               {(contacts as ProviderContact[] | null)?.map((contact) => (
-                <article key={contact.id} className="rounded-xl border border-[#e5e5df] p-3">
-                  <p className="font-semibold">{contact.title}</p>
-                  <p className="text-xs text-[#62626d]">{contact.network || "Red no definida"}</p>
-                  <a className="mt-2 inline-block text-sm font-semibold text-[#dc4f1f]" href={contact.url} target="_blank" rel="noreferrer">
+                <article key={contact.id} className="rounded-[1.5rem] border border-[#eee5db] bg-[linear-gradient(180deg,#ffffff_0%,#fcfaf7_100%)] p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-semibold">{contact.title}</p>
+                      <p className="text-xs text-[#62626d]">{contact.network || "Red no definida"}</p>
+                    </div>
+                    <span className="rounded-full bg-[#fff3ec] px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-[#dc4f1f]">
+                      Verificado
+                    </span>
+                  </div>
+                  <a className="mt-3 inline-block text-sm font-semibold text-[#dc4f1f]" href={contact.url} target="_blank" rel="noreferrer">
                     Abrir contacto
                   </a>
                   {contact.notes ? <p className="mt-2 text-sm text-[#62626d]">{contact.notes}</p> : null}
@@ -183,9 +298,9 @@ export default async function DashboardPage() {
         ) : null}
 
         {!isProvider && !canSeeContacts ? (
-          <section className="card p-4">
-            <h2 className="font-bold">3) Acceso a contactos</h2>
-            <p className="mt-1 text-sm text-[#62626d]">
+          <section className="rounded-[1.8rem] border border-dashed border-[#dfd4c8] bg-[#fffdf9] p-5">
+            <h2 className="font-bold">Acceso a contactos</h2>
+            <p className="mt-2 text-sm text-[#62626d]">
               Se habilita automaticamente cuando membresia y KYC esten en estado aprobado.
             </p>
             {ACCESS_TEST_MODE ? <TestingAccessControls stage="reset" /> : null}
