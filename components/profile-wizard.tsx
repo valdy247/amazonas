@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -23,7 +23,7 @@ type ProfileWizardProps = {
   email?: string | null;
 };
 
-const steps = [
+const baseSteps = [
   { id: "role", title: "Tu camino", description: "Define como vas a usar la plataforma." },
   { id: "profile", title: "Perfil base", description: "Datos minimos para arrancar desde mobile." },
   { id: "focus", title: "Intereses", description: "Etiquetas para personalizar tu experiencia." },
@@ -39,7 +39,6 @@ function normalizeInterests(value: unknown) {
 
 export function ProfileWizard({ initialValues, email }: ProfileWizardProps) {
   const router = useRouter();
-  const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [values, setValues] = useState<WizardValues>({
@@ -53,6 +52,12 @@ export function ProfileWizard({ initialValues, email }: ProfileWizardProps) {
     note: initialValues.note || "",
     acceptTerms: Boolean(initialValues.acceptTerms),
   });
+  const hasEssentialProfile = Boolean(values.firstName.trim() && values.lastName.trim() && phoneRegex.test(values.phone.trim()));
+  const steps = useMemo(
+    () => baseSteps.filter((step) => (step.id === "profile" ? !hasEssentialProfile : true)),
+    [hasEssentialProfile]
+  );
+  const [step, setStep] = useState(0);
 
   const currentStep = steps[step];
   const isLastStep = step === steps.length - 1;
@@ -75,6 +80,10 @@ export function ProfileWizard({ initialValues, email }: ProfileWizardProps) {
   }
 
   function validateCurrentStep() {
+    if (!currentStep) {
+      return "No se pudo cargar este paso.";
+    }
+
     if (currentStep.id === "profile") {
       if (!values.firstName.trim() || !values.lastName.trim()) {
         return "Completa nombre y apellidos.";
@@ -103,6 +112,11 @@ export function ProfileWizard({ initialValues, email }: ProfileWizardProps) {
   }
 
   async function handleNext() {
+    if (!currentStep) {
+      setError("No se pudo cargar este paso.");
+      return;
+    }
+
     const validationError = validateCurrentStep();
 
     if (validationError) {
@@ -205,12 +219,12 @@ export function ProfileWizard({ initialValues, email }: ProfileWizardProps) {
           </div>
 
           <p className="mt-3 text-sm text-white/72">
-            Paso {step + 1} de {steps.length}: {currentStep.title}
+            Paso {step + 1} de {steps.length}: {currentStep?.title}
           </p>
         </div>
 
         <div className="card space-y-5 p-5">
-          {currentStep.id === "role" ? (
+          {currentStep?.id === "role" ? (
             <>
               <div>
                 <p className="text-sm font-semibold text-[#dc4f1f]">Elige tu ruta inicial</p>
@@ -246,7 +260,7 @@ export function ProfileWizard({ initialValues, email }: ProfileWizardProps) {
             </>
           ) : null}
 
-          {currentStep.id === "profile" ? (
+          {currentStep?.id === "profile" ? (
             <>
               <div>
                 <p className="text-sm font-semibold text-[#dc4f1f]">Completa lo esencial</p>
@@ -282,7 +296,7 @@ export function ProfileWizard({ initialValues, email }: ProfileWizardProps) {
             </>
           ) : null}
 
-          {currentStep.id === "focus" ? (
+          {currentStep?.id === "focus" ? (
             <>
               <div>
                 <p className="text-sm font-semibold text-[#dc4f1f]">
@@ -349,7 +363,7 @@ export function ProfileWizard({ initialValues, email }: ProfileWizardProps) {
             </>
           ) : null}
 
-          {currentStep.id === "confirm" ? (
+          {currentStep?.id === "confirm" ? (
             <>
               <div>
                 <p className="text-sm font-semibold text-[#dc4f1f]">Resumen rapido</p>

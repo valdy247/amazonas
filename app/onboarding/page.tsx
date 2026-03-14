@@ -29,9 +29,15 @@ export default async function OnboardingPage() {
           email={user.email}
           initialValues={{
             role: profile?.role === "provider" ? "provider" : "tester",
-            firstName: profile?.first_name || "",
-            lastName: profile?.last_name || "",
-            phone: profile?.phone || "",
+            firstName:
+              profile?.first_name ||
+              (typeof metadata.first_name === "string" ? metadata.first_name : ""),
+            lastName:
+              profile?.last_name ||
+              (typeof metadata.last_name === "string" ? metadata.last_name : ""),
+            phone:
+              profile?.phone ||
+              (typeof metadata.phone === "string" ? metadata.phone : ""),
             acceptTerms: Boolean(profile?.accepted_terms_at),
             country: typeof metadata.country === "string" ? metadata.country : "",
             experienceLevel:
