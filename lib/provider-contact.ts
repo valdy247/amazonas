@@ -15,6 +15,7 @@ function labelFromUrl(raw: string) {
 
     return host;
   } catch {
+    if (raw.startsWith("https://wa.me/")) return "WhatsApp";
     return "Enlace";
   }
 }
@@ -27,7 +28,7 @@ function toHref(raw: string) {
 
   const normalizedPhone = value.replace(/[^\d+]/g, "");
   if (/^\+?\d{7,15}$/.test(normalizedPhone)) {
-    return `tel:${normalizedPhone}`;
+    return `https://wa.me/${normalizedPhone.replace(/^\+/, "")}`;
   }
 
   return `https://${value}`;
