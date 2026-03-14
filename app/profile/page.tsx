@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
 import { SiteHeader } from "@/components/site-header";
-import { ProfileWizard } from "@/components/profile-wizard";
+import { ProfileEditor } from "@/components/profile-editor";
 import { createClient } from "@/lib/supabase/server";
+import type { ExperienceLevel, UserRole } from "@/lib/onboarding";
 
 function splitFullName(fullName?: string | null) {
   const normalized = String(fullName || "").trim();
@@ -22,7 +23,7 @@ function splitFullName(fullName?: string | null) {
   };
 }
 
-export default async function OnboardingPage() {
+export default async function ProfilePage() {
   const supabase = await createClient();
   const {
     data: { user },
@@ -34,12 +35,12 @@ export default async function OnboardingPage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("full_name, phone, role, accepted_terms_at")
+    .select("full_name, phone, role")
     .eq("id", user.id)
     .single();
 
-  if (profile?.role && profile.role !== "pending") {
-    redirect("/profile");
+  if (!profile?.role || profile.role === "pending") {
+    redirect("/onboarding");
   }
 
   const metadata = (user.user_metadata || {}) as Record<string, unknown>;
@@ -49,10 +50,10 @@ export default async function OnboardingPage() {
     <div className="min-h-screen">
       <SiteHeader />
       <main className="container-x py-4 sm:py-6">
-        <ProfileWizard
+        <ProfileEditor
           email={user.email}
           initialValues={{
-            role: profile?.role === "provider" ? "provider" : "tester",
+            role: profile.role as UserRole,
             firstName:
               fallbackName.firstName ||
               (typeof metadata.first_name === "string" ? metadata.first_name : ""),
@@ -60,15 +61,16 @@ export default async function OnboardingPage() {
               fallbackName.lastName ||
               (typeof metadata.last_name === "string" ? metadata.last_name : ""),
             phone:
-              profile?.phone ||
+              profile.phone ||
               (typeof metadata.phone === "string" ? metadata.phone : ""),
-            acceptTerms: Boolean(profile?.accepted_terms_at),
             country: typeof metadata.country === "string" ? metadata.country : "",
             experienceLevel:
               metadata.experience_level === "growing" || metadata.experience_level === "advanced"
-                ? metadata.experience_level
+                ? (metadata.experience_level as ExperienceLevel)
                 : "new",
-            interests: Array.isArray(metadata.interests) ? metadata.interests : [],
+            interests: Array.isArray(metadata.interests)
+              ? metadata.interests.filter((item): item is string => typeof item === "string")
+              : [],
             note: typeof metadata.profile_note === "string" ? metadata.profile_note : "",
           }}
         />

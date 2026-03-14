@@ -99,8 +99,8 @@ export default async function DashboardPage() {
                 Tu acceso no requiere pago. Este dashboard queda listo para evolucionar a un buscador de testers por intereses,
                 pais y experiencia.
               </p>
-              <Link href="/onboarding" className="btn-secondary mt-3">
-                Editar perfil paso a paso
+              <Link href="/profile" className="btn-secondary mt-3">
+                Editar perfil
               </Link>
             </section>
 
@@ -167,7 +167,7 @@ export default async function DashboardPage() {
         ) : null}
 
         <div className="flex flex-wrap gap-3">
-          <Link href="/onboarding" className="btn-secondary">
+          <Link href="/profile" className="btn-secondary">
             Editar perfil
           </Link>
           {isAdmin ? (
