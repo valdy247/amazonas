@@ -104,18 +104,12 @@ export default async function AdminPage() {
           <div className="card p-4">
             <h2 className="font-bold">Agregar contacto</h2>
             <form action={createProviderContact} noValidate className="mt-3 grid gap-2">
-              <input className="input" name="title" placeholder="Nombre proveedor" spellCheck={false} autoCorrect="off" autoCapitalize="off" />
-              <input className="input" name="network" placeholder="Instagram / WhatsApp / Telegram" spellCheck={false} autoCorrect="off" autoCapitalize="off" />
-              <input className="input" name="url" placeholder="Enlace principal opcional" spellCheck={false} autoCorrect="off" autoCapitalize="off" />
-              <textarea
-                className="input min-h-28"
-                name="contact_methods"
-                placeholder={"Metodos de contacto, uno por linea\nInstagram|https://instagram.com/usuario\nMessenger|https://m.me/usuario\nTelefono|+1786703994"}
-                spellCheck={false}
-                autoCorrect="off"
-                autoCapitalize="off"
-              />
+              <input className="input" name="title" placeholder="Nombre del proveedor" spellCheck={false} autoCorrect="off" autoCapitalize="off" />
+              <input className="input" name="whatsapp" placeholder="WhatsApp con prefijo. Ej: +1786703994" spellCheck={false} autoCorrect="off" autoCapitalize="off" />
+              <input className="input" name="instagram" placeholder="Instagram. Ej: instagram.com/usuario o https://instagram.com/usuario" spellCheck={false} autoCorrect="off" autoCapitalize="off" />
+              <input className="input" name="messenger" placeholder="Messenger. Ej: m.me/usuario o https://m.me/usuario" spellCheck={false} autoCorrect="off" autoCapitalize="off" />
               <textarea className="input min-h-24" name="notes" placeholder="Notas" spellCheck={false} autoCorrect="off" autoCapitalize="off" />
+              <p className="text-xs text-[#62626d]">Debes completar al menos uno: WhatsApp, Instagram o Messenger.</p>
               <label className="flex items-center gap-2 text-sm text-[#62626d]">
                 <input type="checkbox" name="is_verified" />
                 <span>Marcar como verificado</span>
@@ -130,7 +124,7 @@ export default async function AdminPage() {
               {(members as ProfileRow[] | null)?.map((member) => (
                 <article key={member.id} className="rounded-xl border border-[#e5e5df] p-3">
                   <p className="font-semibold">{member.full_name || "Sin nombre"}</p>
-                  <p className="text-xs text-[#62626d]">{member.email} • rol: {member.role || "sin definir"}</p>
+                  <p className="text-xs text-[#62626d]">{member.email} - rol: {member.role || "sin definir"}</p>
                   <form action={updateMemberStatus} className="mt-2 grid gap-2 sm:grid-cols-4 sm:items-center">
                     <input type="hidden" name="user_id" value={member.id} />
                     <select className="input" name="membership_status" defaultValue={membershipByUser.get(member.id) || "pending_payment"}>

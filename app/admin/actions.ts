@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { hasAdminAccess } from "@/lib/admin";
-import { getPrimaryContactUrl } from "@/lib/provider-contact";
+import { buildContactMethodsFromFields, getPrimaryContactUrl } from "@/lib/provider-contact";
 
 async function assertAdmin() {
   const supabase = await createClient();
@@ -28,19 +28,26 @@ export async function createProviderContact(formData: FormData) {
   const { supabase, adminId } = await assertAdmin();
 
   const title = String(formData.get("title") || "").trim();
-  const network = String(formData.get("network") || "").trim();
-  const url = String(formData.get("url") || "").trim();
-  const contactMethods = String(formData.get("contact_methods") || "").trim();
+  const whatsapp = String(formData.get("whatsapp") || "").trim();
+  const instagram = String(formData.get("instagram") || "").trim();
+  const messenger = String(formData.get("messenger") || "").trim();
   const notes = String(formData.get("notes") || "").trim();
   const isVerified = String(formData.get("is_verified") || "") === "on";
+  const contactMethods = buildContactMethodsFromFields({ whatsapp, instagram, messenger });
+  const methodCount = [whatsapp, instagram, messenger].filter(Boolean).length;
 
   // Evita romper la UI en testing: completa valores faltantes.
   const safeTitle = title || "Proveedor sin nombre";
-  const safeUrl = getPrimaryContactUrl(contactMethods, url) || "#";
+  const safeUrl = getPrimaryContactUrl(contactMethods) || "#";
+  const primaryNetwork = whatsapp ? "WhatsApp" : instagram ? "Instagram" : messenger ? "Messenger" : "";
+
+  if (!methodCount) {
+    throw new Error("Debes agregar al menos un metodo de contacto.");
+  }
 
   const insertWithMethods = await supabase.from("provider_contacts").insert({
     title: safeTitle,
-    network,
+    network: primaryNetwork,
     url: safeUrl,
     contact_methods: contactMethods || null,
     notes,
@@ -51,7 +58,7 @@ export async function createProviderContact(formData: FormData) {
   if (insertWithMethods.error) {
     await supabase.from("provider_contacts").insert({
       title: safeTitle,
-      network,
+      network: primaryNetwork,
       url: safeUrl,
       notes,
       is_verified: isVerified,

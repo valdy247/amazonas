@@ -71,3 +71,21 @@ export function getPrimaryContactUrl(contactMethods?: string | null, fallbackUrl
   const methods = parseContactMethods(contactMethods, fallbackUrl);
   return methods[0]?.href || fallbackUrl || "#";
 }
+
+export function buildContactMethodsFromFields({
+  whatsapp,
+  instagram,
+  messenger,
+}: {
+  whatsapp?: string | null;
+  instagram?: string | null;
+  messenger?: string | null;
+}) {
+  const rows = [
+    whatsapp?.trim() ? `WhatsApp|${whatsapp.trim()}` : null,
+    instagram?.trim() ? `Instagram|${instagram.trim()}` : null,
+    messenger?.trim() ? `Messenger|${messenger.trim()}` : null,
+  ].filter(Boolean);
+
+  return rows.join("\n");
+}
