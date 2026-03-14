@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { hasAdminAccess } from "@/lib/admin";
+import { getPrimaryContactUrl } from "@/lib/provider-contact";
 
 async function assertAdmin() {
   const supabase = await createClient();
@@ -29,21 +30,34 @@ export async function createProviderContact(formData: FormData) {
   const title = String(formData.get("title") || "").trim();
   const network = String(formData.get("network") || "").trim();
   const url = String(formData.get("url") || "").trim();
+  const contactMethods = String(formData.get("contact_methods") || "").trim();
   const notes = String(formData.get("notes") || "").trim();
   const isVerified = String(formData.get("is_verified") || "") === "on";
 
   // Evita romper la UI en testing: completa valores faltantes.
   const safeTitle = title || "Proveedor sin nombre";
-  const safeUrl = url || "#";
+  const safeUrl = getPrimaryContactUrl(contactMethods, url) || "#";
 
-  await supabase.from("provider_contacts").insert({
+  const insertWithMethods = await supabase.from("provider_contacts").insert({
     title: safeTitle,
     network,
     url: safeUrl,
+    contact_methods: contactMethods || null,
     notes,
     is_verified: isVerified,
     created_by: adminId,
   });
+
+  if (insertWithMethods.error) {
+    await supabase.from("provider_contacts").insert({
+      title: safeTitle,
+      network,
+      url: safeUrl,
+      notes,
+      is_verified: isVerified,
+      created_by: adminId,
+    });
+  }
 
   revalidatePath("/admin");
   revalidatePath("/dashboard");

@@ -5,6 +5,7 @@ import { SiteHeader } from "@/components/site-header";
 import { createClient } from "@/lib/supabase/server";
 import { hasAdminAccess } from "@/lib/admin";
 import { TestingAccessControls } from "@/components/testing-access-controls";
+import { ProviderContactGrid } from "@/components/provider-contact-grid";
 
 type ProviderContact = {
   id: number;
@@ -13,6 +14,7 @@ type ProviderContact = {
   url: string;
   notes: string | null;
   is_verified: boolean;
+  contact_methods?: string | null;
 };
 
 const ACCESS_TEST_MODE = true;
@@ -68,23 +70,36 @@ export default async function DashboardPage() {
   let contacts: ProviderContact[] = [];
 
   if (canSeeContacts) {
-    const withVerification = await supabase
+    const withMethods = await supabase
       .from("provider_contacts")
-      .select("id, title, network, url, notes, is_verified")
+      .select("id, title, network, url, notes, is_verified, contact_methods")
       .eq("is_active", true);
 
-    if (withVerification.error) {
-      const fallback = await supabase
+    if (withMethods.error) {
+      const withVerification = await supabase
         .from("provider_contacts")
-        .select("id, title, network, url, notes")
+        .select("id, title, network, url, notes, is_verified")
         .eq("is_active", true);
 
-      contacts = (fallback.data || []).map((contact) => ({
-        ...contact,
-        is_verified: false,
-      })) as ProviderContact[];
+      if (withVerification.error) {
+        const fallback = await supabase
+          .from("provider_contacts")
+          .select("id, title, network, url, notes")
+          .eq("is_active", true);
+
+        contacts = (fallback.data || []).map((contact) => ({
+          ...contact,
+          is_verified: false,
+          contact_methods: null,
+        })) as ProviderContact[];
+      } else {
+        contacts = (withVerification.data || []).map((contact) => ({
+          ...contact,
+          contact_methods: null,
+        })) as ProviderContact[];
+      }
     } else {
-      contacts = (withVerification.data || []) as ProviderContact[];
+      contacts = (withMethods.data || []) as ProviderContact[];
     }
   }
 
@@ -103,7 +118,7 @@ export default async function DashboardPage() {
     },
     {
       title: "Contactos",
-      description: canSeeContacts ? "Ya puedes abrir contactos verificados." : "Se habilita cuando acceso y KYC esten listos.",
+      description: canSeeContacts ? "Ya puedes abrir los contactos disponibles." : "Se habilita cuando acceso y KYC esten listos.",
       done: canSeeContacts,
       icon: Compass,
     },
@@ -289,33 +304,13 @@ export default async function DashboardPage() {
             <div className="flex items-center justify-between gap-3">
               <div>
                 <h2 className="text-xl font-bold">Contactos de proveedores</h2>
-                <p className="mt-1 text-sm text-[#62626d]">Desbloqueaste el acceso final de prueba.</p>
+                <p className="mt-1 text-sm text-[#62626d]">Toca un proveedor para elegir la via de contacto disponible.</p>
               </div>
               <span className="inline-flex rounded-full bg-[#fff3ec] px-3 py-2 text-xs font-bold uppercase tracking-[0.18em] text-[#dc4f1f]">
                 Acceso abierto
               </span>
             </div>
-            <div className="mt-3 grid gap-3">
-              {contacts.map((contact) => (
-                <article key={contact.id} className="rounded-[1.5rem] border border-[#eee5db] bg-[linear-gradient(180deg,#ffffff_0%,#fcfaf7_100%)] p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="font-semibold">{contact.title}</p>
-                      <p className="text-xs text-[#62626d]">{contact.network || "Red no definida"}</p>
-                    </div>
-                    {contact.is_verified ? (
-                      <span className="rounded-full bg-[#fff3ec] px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-[#dc4f1f]">
-                        Verificado
-                      </span>
-                    ) : null}
-                  </div>
-                  <a className="mt-3 inline-block text-sm font-semibold text-[#dc4f1f]" href={contact.url} target="_blank" rel="noreferrer">
-                    Abrir contacto
-                  </a>
-                  {contact.notes ? <p className="mt-2 text-sm text-[#62626d]">{contact.notes}</p> : null}
-                </article>
-              ))}
-            </div>
+            <ProviderContactGrid contacts={contacts} />
           </section>
         ) : null}
 

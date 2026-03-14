@@ -1,4 +1,4 @@
-﻿import { redirect } from "next/navigation";
+import { redirect } from "next/navigation";
 import { SiteHeader } from "@/components/site-header";
 import { createClient } from "@/lib/supabase/server";
 import { hasAdminAccess } from "@/lib/admin";
@@ -28,6 +28,7 @@ type ContactRow = {
   url: string;
   is_active: boolean;
   is_verified: boolean;
+  contact_methods?: string | null;
 };
 
 export default async function AdminPage() {
@@ -68,19 +69,19 @@ export default async function AdminPage() {
   const membershipByUser = new Map((memberships as MembershipRow[] | null)?.map((m) => [m.user_id, m.status]) ?? []);
   const kycByUser = new Map((kycRows as KycRow[] | null)?.map((k) => [k.user_id, k.status]) ?? []);
 
-  const withVerification = await supabase
+  const withMethods = await supabase
     .from("provider_contacts")
-    .select("id, title, network, url, is_active, is_verified")
+    .select("id, title, network, url, is_active, is_verified, contact_methods")
     .order("created_at", { ascending: false });
 
-  const contacts = withVerification.error
+  const contacts = withMethods.error
     ? (
         await supabase
           .from("provider_contacts")
-          .select("id, title, network, url, is_active")
+          .select("id, title, network, url, is_active, is_verified")
           .order("created_at", { ascending: false })
-      ).data?.map((contact) => ({ ...contact, is_verified: false })) || []
-    : withVerification.data || [];
+      ).data?.map((contact) => ({ ...contact, contact_methods: null })) || []
+    : withMethods.data || [];
 
   return (
     <div className="min-h-screen">
@@ -105,7 +106,15 @@ export default async function AdminPage() {
             <form action={createProviderContact} noValidate className="mt-3 grid gap-2">
               <input className="input" name="title" placeholder="Nombre proveedor" spellCheck={false} autoCorrect="off" autoCapitalize="off" />
               <input className="input" name="network" placeholder="Instagram / WhatsApp / Telegram" spellCheck={false} autoCorrect="off" autoCapitalize="off" />
-              <input className="input" name="url" placeholder="https://..." spellCheck={false} autoCorrect="off" autoCapitalize="off" />
+              <input className="input" name="url" placeholder="Enlace principal opcional" spellCheck={false} autoCorrect="off" autoCapitalize="off" />
+              <textarea
+                className="input min-h-28"
+                name="contact_methods"
+                placeholder={"Metodos de contacto, uno por linea\nInstagram|https://instagram.com/usuario\nMessenger|https://m.me/usuario\nTelefono|+1786703994"}
+                spellCheck={false}
+                autoCorrect="off"
+                autoCapitalize="off"
+              />
               <textarea className="input min-h-24" name="notes" placeholder="Notas" spellCheck={false} autoCorrect="off" autoCapitalize="off" />
               <label className="flex items-center gap-2 text-sm text-[#62626d]">
                 <input type="checkbox" name="is_verified" />
@@ -148,7 +157,7 @@ export default async function AdminPage() {
             <ul className="mt-3 space-y-2 text-sm">
               {(contacts as ContactRow[]).map((contact) => (
                 <li key={contact.id}>
-                  {contact.title} - {contact.network || "sin red"} - {contact.is_active ? "activo" : "inactivo"} - {contact.is_verified ? "verificado" : "sin verificar"}
+                  {contact.title} - {contact.network || "sin red"} - {contact.is_active ? "activo" : "inactivo"} - {contact.is_verified ? "verificado" : "sin verificar"} - {contact.contact_methods ? "multiples vias" : "via unica"}
                 </li>
               ))}
             </ul>
