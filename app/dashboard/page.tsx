@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { SiteHeader } from "@/components/site-header";
 import { createClient } from "@/lib/supabase/server";
 import { hasAdminAccess } from "@/lib/admin";
+import { setTestingAccessState } from "./actions";
 
 type ProviderContact = {
   id: number;
@@ -17,6 +18,8 @@ function statusColor(status: string) {
   if (status === "rejected" || status === "suspended") return "text-red-600";
   return "text-amber-700";
 }
+
+const ACCESS_TEST_MODE = true;
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -116,26 +119,60 @@ export default async function DashboardPage() {
         {!isProvider && membershipStatus !== "active" ? (
           <section className="card p-4">
             <h2 className="font-bold">1) Activar membresia</h2>
-            <p className="mt-1 text-sm text-[#62626d]">
-              Usa Square para pagar tu acceso. Cuando se confirme, admin marcara tu cuenta como activa.
-            </p>
-            <a
-              href={process.env.NEXT_PUBLIC_SQUARE_PAYMENT_LINK || "#"}
-              target="_blank"
-              rel="noreferrer"
-              className="btn-primary mt-3"
-            >
-              Pagar con Square
-            </a>
+            {ACCESS_TEST_MODE ? (
+              <>
+                <p className="mt-1 text-sm text-[#62626d]">
+                  Square esta deshabilitado durante pruebas. Puedes marcar manualmente tu acceso para seguir validando el flujo.
+                </p>
+                <form action={setTestingAccessState} className="mt-3 grid gap-2">
+                  <button className="btn-primary w-full" type="submit" name="intent" value="paid">
+                    Ya pague
+                  </button>
+                  <button className="btn-secondary w-full" type="submit" name="intent" value="skip_payment">
+                    No voy a pagar por ahora
+                  </button>
+                </form>
+              </>
+            ) : (
+              <>
+                <p className="mt-1 text-sm text-[#62626d]">
+                  Usa Square para pagar tu acceso. Cuando se confirme, admin marcara tu cuenta como activa.
+                </p>
+                <a
+                  href={process.env.NEXT_PUBLIC_SQUARE_PAYMENT_LINK || "#"}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="btn-primary mt-3"
+                >
+                  Pagar con Square
+                </a>
+              </>
+            )}
           </section>
         ) : null}
 
         {!isProvider && membershipStatus === "active" && kycStatus !== "approved" ? (
           <section className="card p-4">
             <h2 className="font-bold">2) Verificacion KYC</h2>
-            <p className="mt-1 text-sm text-[#62626d]">
-              Tu membresia esta activa. Ahora toca validacion KYC economica. El admin te contactara para completar el proceso.
-            </p>
+            {ACCESS_TEST_MODE ? (
+              <>
+                <p className="mt-1 text-sm text-[#62626d]">
+                  El KYC real tambien esta pausado en pruebas. Puedes aprobarlo o reiniciarlo manualmente para validar el recorrido.
+                </p>
+                <form action={setTestingAccessState} className="mt-3 grid gap-2">
+                  <button className="btn-primary w-full" type="submit" name="intent" value="approve_kyc">
+                    Aprobar KYC de prueba
+                  </button>
+                  <button className="btn-secondary w-full" type="submit" name="intent" value="reset_kyc">
+                    Dejar KYC pendiente
+                  </button>
+                </form>
+              </>
+            ) : (
+              <p className="mt-1 text-sm text-[#62626d]">
+                Tu membresia esta activa. Ahora toca validacion KYC economica. El admin te contactara para completar el proceso.
+              </p>
+            )}
           </section>
         ) : null}
 
@@ -163,6 +200,13 @@ export default async function DashboardPage() {
             <p className="mt-1 text-sm text-[#62626d]">
               Se habilita automaticamente cuando membresia y KYC esten en estado aprobado.
             </p>
+            {ACCESS_TEST_MODE ? (
+              <form action={setTestingAccessState} className="mt-3">
+                <button className="btn-secondary w-full" type="submit" name="intent" value="reset_payment">
+                  Reiniciar flujo de prueba
+                </button>
+              </form>
+            ) : null}
           </section>
         ) : null}
 
