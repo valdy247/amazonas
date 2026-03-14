@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { SiteHeader } from "@/components/site-header";
 import { createClient } from "@/lib/supabase/server";
 import { hasAdminAccess } from "@/lib/admin";
-import { setTestingAccessState } from "./actions";
+import { TestingAccessControls } from "@/components/testing-access-controls";
 
 type ProviderContact = {
   id: number;
@@ -48,6 +48,8 @@ export default async function DashboardPage() {
   const experienceLevel = typeof metadata.experience_level === "string" ? metadata.experience_level : null;
   const profileNote = typeof metadata.profile_note === "string" ? metadata.profile_note : null;
   const country = typeof metadata.country === "string" ? metadata.country : null;
+  const testingMembershipStatus = typeof metadata.testing_payment_state === "string" ? metadata.testing_payment_state : null;
+  const testingKycStatus = typeof metadata.testing_kyc_state === "string" ? metadata.testing_kyc_state : null;
   const isAdmin = hasAdminAccess(profile?.role, profile?.email || user.email);
   const isProvider = profile?.role === "provider";
 
@@ -63,8 +65,8 @@ export default async function DashboardPage() {
     .eq("user_id", user.id)
     .single();
 
-  const membershipStatus = membership?.status || "pending_payment";
-  const kycStatus = kyc?.status || "pending";
+  const membershipStatus = ACCESS_TEST_MODE && testingMembershipStatus ? testingMembershipStatus : membership?.status || "pending_payment";
+  const kycStatus = ACCESS_TEST_MODE && testingKycStatus ? testingKycStatus : kyc?.status || "pending";
   const canSeeContacts = !isProvider && membershipStatus === "active" && kycStatus === "approved";
 
   const { data: contacts } = canSeeContacts
@@ -124,14 +126,7 @@ export default async function DashboardPage() {
                 <p className="mt-1 text-sm text-[#62626d]">
                   Square esta deshabilitado durante pruebas. Puedes marcar manualmente tu acceso para seguir validando el flujo.
                 </p>
-                <form action={setTestingAccessState} className="mt-3 grid gap-2">
-                  <button className="btn-primary w-full" type="submit" name="intent" value="paid">
-                    Ya pague
-                  </button>
-                  <button className="btn-secondary w-full" type="submit" name="intent" value="skip_payment">
-                    No voy a pagar por ahora
-                  </button>
-                </form>
+                <TestingAccessControls stage="payment" />
               </>
             ) : (
               <>
@@ -159,14 +154,7 @@ export default async function DashboardPage() {
                 <p className="mt-1 text-sm text-[#62626d]">
                   El KYC real tambien esta pausado en pruebas. Puedes aprobarlo o reiniciarlo manualmente para validar el recorrido.
                 </p>
-                <form action={setTestingAccessState} className="mt-3 grid gap-2">
-                  <button className="btn-primary w-full" type="submit" name="intent" value="approve_kyc">
-                    Aprobar KYC de prueba
-                  </button>
-                  <button className="btn-secondary w-full" type="submit" name="intent" value="reset_kyc">
-                    Dejar KYC pendiente
-                  </button>
-                </form>
+                <TestingAccessControls stage="kyc" />
               </>
             ) : (
               <p className="mt-1 text-sm text-[#62626d]">
@@ -200,13 +188,7 @@ export default async function DashboardPage() {
             <p className="mt-1 text-sm text-[#62626d]">
               Se habilita automaticamente cuando membresia y KYC esten en estado aprobado.
             </p>
-            {ACCESS_TEST_MODE ? (
-              <form action={setTestingAccessState} className="mt-3">
-                <button className="btn-secondary w-full" type="submit" name="intent" value="reset_payment">
-                  Reiniciar flujo de prueba
-                </button>
-              </form>
-            ) : null}
+            {ACCESS_TEST_MODE ? <TestingAccessControls stage="reset" /> : null}
           </section>
         ) : null}
 
