@@ -1,26 +1,92 @@
-@import "tailwindcss";
+﻿@import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #f7f7f2;
+  --surface: #ffffff;
+  --ink: #131316;
+  --muted: #62626d;
+  --line: #e5e5df;
+  --brand: #ff6b35;
+  --brand-dark: #dc4f1f;
+  --brand-soft: #ffe7de;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+* {
+  box-sizing: border-box;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+html,
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  margin: 0;
+  padding: 0;
+  background: radial-gradient(circle at 20% 10%, #fff3ec, transparent 35%), var(--bg);
+  color: var(--ink);
+  font-family: var(--font-manrope), sans-serif;
 }
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-space-grotesk), sans-serif;
+  letter-spacing: -0.02em;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.container-x {
+  width: min(100%, 1120px);
+  margin-inline: auto;
+  padding-inline: 1rem;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+}
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--brand);
+  color: #fff;
+  border: none;
+  padding: 0.75rem 1rem;
+  font-weight: 700;
+}
+
+.btn-primary:hover {
+  background: var(--brand-dark);
+}
+
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink);
+  padding: 0.75rem 1rem;
+  font-weight: 600;
+}
+
+.input {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  padding: 0.75rem 0.85rem;
+  outline: none;
+  background: #fff;
+}
+
+.input:focus {
+  border-color: var(--brand);
+}
+
+

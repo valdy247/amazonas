@@ -1,36 +1,69 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+﻿# TestHub Comunidad (Mobile First)
 
-## Getting Started
+Web app para testers y proveedores con flujo: registro -> pago Square -> KYC -> acceso a contactos.
 
-First, run the development server:
+## Stack
+- Next.js 16 + TypeScript + Tailwind CSS v4
+- Supabase (Auth + Postgres + RLS)
+- Vercel (deploy)
+- Square (payment link + webhook pendiente)
 
+## Checklist del proyecto
+- [x] Base Next.js creada
+- [x] UI mobile-first + responsive fallback
+- [x] Home moderna con `hero.png`
+- [x] Header con `Mi cuenta` -> crear cuenta / iniciar sesión
+- [x] Registro e inicio de sesión con Supabase
+- [x] Onboarding de rol (`tester` / `provider`)
+- [x] Dashboard con flujo por estados (membresía/KYC)
+- [x] Panel admin protegido por rol
+- [x] Crear nuevos admins desde panel
+- [x] Cargar contactos de proveedores desde panel
+- [x] SQL de Supabase con tablas + RLS
+- [ ] Confirmación automática de pago Square por webhook
+- [ ] Integración KYC real (Persona/Sumsub/Metamap)
+- [ ] Términos y políticas legales finales
+- [ ] Hardening de seguridad y auditoría completa
+
+## Estructura
+- `app/page.tsx`: Home
+- `app/auth/page.tsx`: login/registro
+- `app/onboarding/page.tsx`: selección de rol
+- `app/dashboard/page.tsx`: panel de usuario
+- `app/admin/page.tsx`: panel admin
+- `app/api/square/webhook/route.ts`: endpoint webhook (placeholder)
+- `supabase/schema.sql`: esquema inicial DB + políticas
+
+## Variables de entorno (`.env.local`)
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+NEXT_PUBLIC_SQUARE_PAYMENT_LINK=
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Configuración rápida
+1. Instala dependencias
+```bash
+npm install
+```
+2. Carga `supabase/schema.sql` en SQL Editor de Supabase.
+3. Crea un usuario y desde SQL ponlo admin:
+```sql
+update public.profiles set role = 'admin' where email = 'tu-correo@dominio.com';
+```
+4. Ejecuta local:
+```bash
+npm run dev
+```
+5. Deploy en Vercel y configura las mismas env vars.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Flujo actual
+1. Usuario entra y crea cuenta.
+2. Elige si es tester/proveedor.
+3. En dashboard paga por Square.
+4. Admin marca `membership=active` y estado KYC.
+5. Si KYC aprobado, ve contactos de proveedores.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Próximo paso recomendado
+Implementar webhook real de Square para cambiar membresía de forma automática y reducir trabajo manual de admin.
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
