@@ -1,4 +1,4 @@
-﻿@import "tailwindcss";
+@import "tailwindcss";
 
 :root {
   --bg: #f7f7f2;
@@ -89,4 +89,6 @@ a {
   border-color: var(--brand);
 }
 
-
+textarea.input {
+  font: inherit;
+}

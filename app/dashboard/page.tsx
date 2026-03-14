@@ -1,4 +1,4 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { SiteHeader } from "@/components/site-header";
 import { createClient } from "@/lib/supabase/server";
@@ -38,7 +38,15 @@ export default async function DashboardPage() {
     redirect("/onboarding");
   }
 
+  const metadata = (user.user_metadata || {}) as Record<string, unknown>;
+  const userInterests = Array.isArray(metadata.interests)
+    ? metadata.interests.filter((item): item is string => typeof item === "string")
+    : [];
+  const experienceLevel = typeof metadata.experience_level === "string" ? metadata.experience_level : null;
+  const profileNote = typeof metadata.profile_note === "string" ? metadata.profile_note : null;
+  const country = typeof metadata.country === "string" ? metadata.country : null;
   const isAdmin = hasAdminAccess(profile?.role, profile?.email || user.email);
+  const isProvider = profile?.role === "provider";
 
   const { data: membership } = await supabase
     .from("memberships")
@@ -54,8 +62,7 @@ export default async function DashboardPage() {
 
   const membershipStatus = membership?.status || "pending_payment";
   const kycStatus = kyc?.status || "pending";
-
-  const canSeeContacts = membershipStatus === "active" && kycStatus === "approved";
+  const canSeeContacts = !isProvider && membershipStatus === "active" && kycStatus === "approved";
 
   const { data: contacts } = canSeeContacts
     ? await supabase.from("provider_contacts").select("id, title, network, url, notes").eq("is_active", true)
@@ -68,11 +75,45 @@ export default async function DashboardPage() {
         <section className="card p-4">
           <h1 className="text-2xl font-bold">Hola, {profile?.full_name || "miembro"}</h1>
           <p className="mt-1 text-sm text-[#62626d]">Rol: {isAdmin ? "admin" : profile?.role}</p>
-          <p className={`mt-1 text-sm ${statusColor(membershipStatus)}`}>Membresia: {membershipStatus}</p>
-          <p className={`mt-1 text-sm ${statusColor(kycStatus)}`}>KYC: {kycStatus}</p>
+          {!isProvider ? <p className={`mt-1 text-sm ${statusColor(membershipStatus)}`}>Membresia: {membershipStatus}</p> : null}
+          {!isProvider ? <p className={`mt-1 text-sm ${statusColor(kycStatus)}`}>KYC: {kycStatus}</p> : null}
+          {country ? <p className="mt-1 text-sm text-[#62626d]">Pais: {country}</p> : null}
+          {experienceLevel ? <p className="mt-1 text-sm text-[#62626d]">Nivel: {experienceLevel}</p> : null}
+          {userInterests.length ? (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {userInterests.map((interest) => (
+                <span key={interest} className="rounded-full bg-[#fff3ec] px-3 py-1 text-xs font-semibold text-[#dc4f1f]">
+                  {interest}
+                </span>
+              ))}
+            </div>
+          ) : null}
+          {profileNote ? <p className="mt-3 text-sm text-[#62626d]">{profileNote}</p> : null}
         </section>
 
-        {membershipStatus !== "active" ? (
+        {isProvider ? (
+          <>
+            <section className="card p-4">
+              <h2 className="font-bold">Perfil provider activo</h2>
+              <p className="mt-1 text-sm text-[#62626d]">
+                Tu acceso no requiere pago. Este dashboard queda listo para evolucionar a un buscador de testers por intereses,
+                pais y experiencia.
+              </p>
+              <Link href="/onboarding" className="btn-secondary mt-3">
+                Editar perfil paso a paso
+              </Link>
+            </section>
+
+            <section className="card p-4">
+              <h2 className="font-bold">Buscador de testers</h2>
+              <p className="mt-1 text-sm text-[#62626d]">
+                La siguiente capa puede usar tus etiquetas para mostrar testers compatibles sin friccion desde movil.
+              </p>
+            </section>
+          </>
+        ) : null}
+
+        {!isProvider && membershipStatus !== "active" ? (
           <section className="card p-4">
             <h2 className="font-bold">1) Activar membresia</h2>
             <p className="mt-1 text-sm text-[#62626d]">
@@ -89,7 +130,7 @@ export default async function DashboardPage() {
           </section>
         ) : null}
 
-        {membershipStatus === "active" && kycStatus !== "approved" ? (
+        {!isProvider && membershipStatus === "active" && kycStatus !== "approved" ? (
           <section className="card p-4">
             <h2 className="font-bold">2) Verificacion KYC</h2>
             <p className="mt-1 text-sm text-[#62626d]">
@@ -98,7 +139,7 @@ export default async function DashboardPage() {
           </section>
         ) : null}
 
-        {canSeeContacts ? (
+        {!isProvider && canSeeContacts ? (
           <section className="card p-4">
             <h2 className="font-bold">Contactos de proveedores</h2>
             <div className="mt-3 grid gap-3">
@@ -114,20 +155,27 @@ export default async function DashboardPage() {
               ))}
             </div>
           </section>
-        ) : (
+        ) : null}
+
+        {!isProvider && !canSeeContacts ? (
           <section className="card p-4">
             <h2 className="font-bold">3) Acceso a contactos</h2>
             <p className="mt-1 text-sm text-[#62626d]">
               Se habilita automaticamente cuando membresia y KYC esten en estado aprobado.
             </p>
           </section>
-        )}
-
-        {isAdmin ? (
-          <Link href="/admin" className="btn-secondary">
-            Ir al panel admin
-          </Link>
         ) : null}
+
+        <div className="flex flex-wrap gap-3">
+          <Link href="/onboarding" className="btn-secondary">
+            Editar perfil
+          </Link>
+          {isAdmin ? (
+            <Link href="/admin" className="btn-secondary">
+              Ir al panel admin
+            </Link>
+          ) : null}
+        </div>
       </main>
     </div>
   );
