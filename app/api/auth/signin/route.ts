@@ -1,4 +1,5 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
+import { callSupabaseAuth } from "@/lib/auth-api";
 
 type SignInBody = {
   email?: string;
@@ -15,27 +16,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Datos incompletos" }, { status: 400 });
     }
 
-    const res = await fetch(
-      `${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/token?grant_type=password`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "",
-        },
-        body: JSON.stringify({ email, password }),
-        cache: "no-store",
-      }
-    );
+    const result = await callSupabaseAuth("/auth/v1/token?grant_type=password", { email, password });
 
-    const json = await res.json();
-
-    if (!res.ok) {
-      return NextResponse.json({ error: json?.msg || json?.error_description || json?.error || "Error al iniciar sesion" }, { status: res.status });
+    if (!result.ok) {
+      return NextResponse.json({ error: result.error || "Error al iniciar sesion" }, { status: result.status });
     }
 
-    return NextResponse.json({ data: json }, { status: 200 });
-  } catch {
-    return NextResponse.json({ error: "No se pudo procesar el inicio de sesion" }, { status: 500 });
+    return NextResponse.json({ data: result.data }, { status: 200 });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "No se pudo procesar el inicio de sesion";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

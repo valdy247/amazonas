@@ -1,0 +1,80 @@
+function readAuthEnv() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey =
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseKey) {
+    return {
+      error:
+        "Faltan variables de entorno de Supabase. Configura NEXT_PUBLIC_SUPABASE_URL y NEXT_PUBLIC_SUPABASE_ANON_KEY.",
+    };
+  }
+
+  return { supabaseUrl, supabaseKey };
+}
+
+async function parseAuthResponse(res: Response) {
+  const text = await res.text();
+
+  if (!text) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(text) as Record<string, unknown>;
+  } catch {
+    return { raw: text };
+  }
+}
+
+export async function callSupabaseAuth(path: string, body: Record<string, unknown>) {
+  const env = readAuthEnv();
+
+  if ("error" in env) {
+    return {
+      ok: false,
+      status: 500,
+      error: env.error,
+    };
+  }
+
+  try {
+    const res = await fetch(`${env.supabaseUrl}${path}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: env.supabaseKey,
+        Authorization: `Bearer ${env.supabaseKey}`,
+      },
+      body: JSON.stringify(body),
+      cache: "no-store",
+    });
+
+    const json = await parseAuthResponse(res);
+    const error =
+      typeof json?.msg === "string"
+        ? json.msg
+        : typeof json?.error_description === "string"
+          ? json.error_description
+          : typeof json?.error === "string"
+            ? json.error
+            : !res.ok
+              ? "Error de autenticacion"
+              : null;
+
+    return {
+      ok: res.ok,
+      status: res.status,
+      data: json,
+      error,
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "No se pudo conectar con Supabase";
+
+    return {
+      ok: false,
+      status: 500,
+      error: message,
+    };
+  }
+}
