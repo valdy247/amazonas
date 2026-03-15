@@ -132,14 +132,6 @@ export function CollaborationInbox({
   const providerHasSentMessage = Boolean(
     activeThread && activeThread.messages.some((message) => message.senderId === currentUserId)
   );
-  const providerHasSharedIntro = Boolean(
-    currentUserRole === "provider" &&
-      activeThread?.messages.some(
-        (message) =>
-          message.senderId === currentUserId &&
-          (message.body.includes("Categoria:") || message.body.includes("Producto:"))
-      )
-  );
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -345,9 +337,10 @@ export function CollaborationInbox({
     const draft = (directBody ?? drafts[requestId] ?? "").trim();
     const mediaDraft = mediaDrafts[requestId];
     const metaDraft = metaDrafts[requestId];
+    const activeThreadData = items.find((thread) => thread.requestId === requestId)?.requestData;
     const shouldAttachProviderIntro =
       currentUserRole === "provider" &&
-      !providerHasSharedIntro &&
+      !(activeThreadData && (activeThreadData as { introSent?: unknown }).introSent === true) &&
       Boolean(metaDraft?.category?.trim() || metaDraft?.productName?.trim());
     const providerIntro =
       shouldAttachProviderIntro
@@ -398,20 +391,21 @@ export function CollaborationInbox({
         }
 
         const timestamp = new Date().toISOString();
-        const activeThreadData = items.find((thread) => thread.requestId === requestId)?.requestData;
+        const nextRequestData =
+          currentUserRole === "provider"
+            ? {
+                ...(activeThreadData || {}),
+                category: metaDraft?.category || "",
+                productName: metaDraft?.productName || "",
+                introSent: shouldAttachProviderIntro || (activeThreadData && (activeThreadData as { introSent?: unknown }).introSent === true) || false,
+              }
+            : undefined;
         await supabase
           .from("reviewer_contact_requests")
           .update({
             updated_at: timestamp,
             last_activity_at: timestamp,
-            request_data:
-              currentUserRole === "provider"
-                ? {
-                    ...(activeThreadData || {}),
-                    category: metaDraft?.category || "",
-                    productName: metaDraft?.productName || "",
-                  }
-                : undefined,
+            request_data: nextRequestData,
           })
           .eq("id", requestId);
 
@@ -421,6 +415,7 @@ export function CollaborationInbox({
               ? {
                   ...thread,
                   lastActivityAt: timestamp,
+                  requestData: nextRequestData ?? thread.requestData,
                   messages: thread.messages.some((item) => item.id === Number(data.id))
                     ? thread.messages
                     : [
