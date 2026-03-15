@@ -11,15 +11,19 @@ import { ProviderContactGrid } from "@/components/provider-contact-grid";
 import { normalizeUserRole } from "@/lib/onboarding";
 import { getReviewerContactMethods, mergeProfileData, type ReviewerAvailability } from "@/lib/profile-data";
 import { normalizeContactRequestData } from "@/lib/contact-requests";
+import { buildContactMethodsFromFields } from "@/lib/provider-contact";
 
 type ProviderContact = {
-  id: number;
+  id: string;
   title: string;
   network: string | null;
   url: string;
   notes: string | null;
   is_verified: boolean;
   contact_methods?: string | null;
+  source?: "admin" | "registered";
+  source_label?: string | null;
+  history_id?: number | null;
 };
 
 type ProfileRow = {
@@ -199,7 +203,7 @@ export default async function DashboardPage({
   const showWelcomeActivation = !isProvider && canSeeContacts;
 
   let contacts: ProviderContact[] = [];
-  let contactedIds: number[] = [];
+  let contactedIds: string[] = [];
   let reviewerDirectory: Array<{
     id: string;
     fullName: string;
@@ -243,20 +247,34 @@ export default async function DashboardPage({
         const fallback = await supabase.from("provider_contacts").select("id, title, network, url, notes").eq("is_active", true);
         contacts = (fallback.data || []).map((contact) => ({
           ...contact,
+          id: `admin:${contact.id}`,
           is_verified: false,
           contact_methods: null,
+          history_id: contact.id,
+          source: "admin",
+          source_label: "Equipo",
         })) as ProviderContact[];
       } else {
         contacts = (withVerification.data || []).map((contact) => ({
           ...contact,
+          id: `admin:${contact.id}`,
           contact_methods: null,
+          history_id: contact.id,
+          source: "admin",
+          source_label: "Equipo",
         })) as ProviderContact[];
       }
     } else {
-      contacts = (withMethods.data || []) as ProviderContact[];
+      contacts = ((withMethods.data || []) as Array<Omit<ProviderContact, "id"> & { id: number }>).map((contact) => ({
+        ...contact,
+        id: `admin:${contact.id}`,
+        history_id: contact.id,
+        source: "admin",
+        source_label: "Equipo",
+      }));
     }
 
-    const contactIds = contacts.map((contact) => contact.id);
+    const contactIds = contacts.map((contact) => contact.history_id).filter((value): value is number => Number.isFinite(value));
     if (contactIds.length) {
       const { data: contactHistory } = await supabase
         .from("reviewer_contact_history")
@@ -264,8 +282,58 @@ export default async function DashboardPage({
         .eq("reviewer_id", user.id)
         .in("provider_contact_id", contactIds);
 
-      contactedIds = (contactHistory || []).map((row) => Number(row.provider_contact_id)).filter((value) => Number.isFinite(value));
+      contactedIds = (contactHistory || [])
+        .map((row) => Number(row.provider_contact_id))
+        .filter((value) => Number.isFinite(value))
+        .map((value) => `admin:${value}`);
     }
+
+    const registeredProvidersResult = await supabase
+      .from("profiles")
+      .select("id, full_name, accepted_terms_at, profile_data")
+      .eq("role", "provider")
+      .not("accepted_terms_at", "is", null);
+
+    const registeredProviders = ((registeredProvidersResult.data || []) as ProfileRow[])
+      .map((provider) => {
+        const providerProfileData = mergeProfileData(provider.profile_data);
+        const contactMethods = buildContactMethodsFromFields({
+          whatsapp: providerProfileData.contact.whatsapp,
+          instagram: providerProfileData.contact.instagram,
+          messenger: providerProfileData.contact.messenger,
+        });
+        const primaryMethod = getReviewerContactMethods(providerProfileData)[0];
+
+        if (!providerProfileData.publicProfile || !providerProfileData.allowsDirectContact || !contactMethods || !primaryMethod?.value) {
+          return null;
+        }
+
+        return {
+          id: `registered:${provider.id}`,
+          title: provider.full_name || "Proveedor registrado",
+          network: providerProfileData.country || "Registrado en Amazona",
+          url: primaryMethod.value,
+          notes: providerProfileData.note || null,
+          is_verified: false,
+          contact_methods: contactMethods,
+          source: "registered" as const,
+          source_label: "Registrado",
+          history_id: null,
+        };
+      })
+      .filter(Boolean) as ProviderContact[];
+
+    contacts = [...contacts, ...registeredProviders].sort((left, right) => {
+      if (left.is_verified !== right.is_verified) {
+        return Number(right.is_verified) - Number(left.is_verified);
+      }
+
+      if ((left.source === "admin") !== (right.source === "admin")) {
+        return left.source === "admin" ? -1 : 1;
+      }
+
+      return left.title.localeCompare(right.title);
+    });
   }
 
   if (isProvider) {

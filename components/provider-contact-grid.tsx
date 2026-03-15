@@ -1,31 +1,55 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { ArrowUpRight, CircleX, MessageCircleMore } from "lucide-react";
 import { parseContactMethods } from "@/lib/provider-contact";
 import { createClient } from "@/lib/supabase/client";
 
 type ProviderContact = {
-  id: number;
+  id: string;
   title: string;
   network: string | null;
   url: string;
   notes: string | null;
   is_verified: boolean;
   contact_methods?: string | null;
+  source?: "admin" | "registered";
+  source_label?: string | null;
+  history_id?: number | null;
 };
 
 type ProviderContactGridProps = {
   contacts: ProviderContact[];
-  initialContactedIds: number[];
+  initialContactedIds: string[];
 };
 
 export function ProviderContactGrid({ contacts, initialContactedIds }: ProviderContactGridProps) {
-  const [selectedContactId, setSelectedContactId] = useState<number | null>(null);
+  const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"pending" | "contacted">("pending");
-  const [contactedIds, setContactedIds] = useState<number[]>(initialContactedIds);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const contactedStorageKey = "provider-contacted";
+  const [contactedIds, setContactedIds] = useState<string[]>(() => {
+    if (typeof window === "undefined") {
+      return initialContactedIds;
+    }
+
+    try {
+      const stored = window.localStorage.getItem(contactedStorageKey);
+      if (!stored) {
+        return initialContactedIds;
+      }
+
+      const parsed = JSON.parse(stored);
+      if (!Array.isArray(parsed)) {
+        return initialContactedIds;
+      }
+
+      return Array.from(new Set([...initialContactedIds, ...parsed.filter((item): item is string => typeof item === "string")]));
+    } catch {
+      return initialContactedIds;
+    }
+  });
 
   const selectedContact = useMemo(
     () => contacts.find((contact) => contact.id === selectedContactId) || null,
@@ -48,38 +72,48 @@ export function ProviderContactGrid({ contacts, initialContactedIds }: ProviderC
   );
   const visibleContacts = activeTab === "pending" ? pendingContacts : contactedContacts;
 
-  function markAsContacted(contactId: number) {
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    window.localStorage.setItem(contactedStorageKey, JSON.stringify(contactedIds));
+  }, [contactedIds]);
+
+  function markAsContacted(contactId: string) {
     setContactedIds((current) => (current.includes(contactId) ? current : [...current, contactId]));
     setActiveTab("contacted");
   }
 
-  function openMethod(contactId: number, href: string) {
+  function openMethod(contact: ProviderContact, href: string) {
     setError(null);
 
     startTransition(async () => {
-      const supabase = createClient();
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
+      if (contact.history_id) {
+        const supabase = createClient();
+        const {
+          data: { user },
+          error: userError,
+        } = await supabase.auth.getUser();
 
-      if (userError || !user) {
-        setError("No se pudo validar tu sesion.");
-        return;
+        if (userError || !user) {
+          setError("No se pudo validar tu sesion.");
+          return;
+        }
+
+        const { error: insertError } = await supabase.from("reviewer_contact_history").upsert({
+          reviewer_id: user.id,
+          provider_contact_id: contact.history_id,
+          contacted_at: new Date().toISOString(),
+        });
+
+        if (insertError) {
+          setError(insertError.message);
+          return;
+        }
       }
 
-      const { error: insertError } = await supabase.from("reviewer_contact_history").upsert({
-        reviewer_id: user.id,
-        provider_contact_id: contactId,
-        contacted_at: new Date().toISOString(),
-      });
-
-      if (insertError) {
-        setError(insertError.message);
-        return;
-      }
-
-      markAsContacted(contactId);
+      markAsContacted(contact.id);
       setSelectedContactId(null);
 
       if (href.startsWith("tel:")) {
@@ -122,11 +156,18 @@ export function ProviderContactGrid({ contacts, initialContactedIds }: ProviderC
                 <p className="font-semibold">{contact.title}</p>
                 <p className="text-xs text-[#62626d]">{contact.network || "Red no definida"}</p>
               </div>
-              {contact.is_verified ? (
-                <span className="rounded-full bg-[#fff3ec] px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-[#dc4f1f]">
-                  Verificado
-                </span>
-              ) : null}
+              <div className="flex flex-wrap justify-end gap-2">
+                {contact.source_label ? (
+                  <span className="rounded-full bg-[#f6f1ea] px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-[#7c7064]">
+                    {contact.source_label}
+                  </span>
+                ) : null}
+                {contact.is_verified ? (
+                  <span className="rounded-full bg-[#fff3ec] px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-[#dc4f1f]">
+                    Verificado
+                  </span>
+                ) : null}
+              </div>
             </div>
             {contact.notes ? <p className="mt-3 text-sm text-[#62626d]">{contact.notes}</p> : null}
             <button
@@ -176,7 +217,7 @@ export function ProviderContactGrid({ contacts, initialContactedIds }: ProviderC
                 <button
                   key={`${selectedContact.id}-${method.label}-${method.href}`}
                   type="button"
-                  onClick={() => openMethod(selectedContact.id, method.href)}
+                  onClick={() => openMethod(selectedContact, method.href)}
                   disabled={isPending}
                   className="inline-flex items-center justify-between rounded-[1.4rem] border border-[#ebdfd2] bg-[#fcfaf7] px-4 py-4 text-left"
                 >
