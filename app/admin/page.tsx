@@ -90,19 +90,53 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   const membershipByUser = new Map((memberships as MembershipRow[] | null)?.map((item) => [item.user_id, item.status]) ?? []);
   const kycByUser = new Map((kycRows as KycRow[] | null)?.map((item) => [item.user_id, item.status]) ?? []);
 
+  let contacts: ContactRow[] = [];
+
   const withMethods = await supabase
     .from("provider_contacts")
     .select("id, title, network, url, notes, is_active, is_verified, contact_methods")
     .order("created_at", { ascending: false });
 
-  const contacts = withMethods.error
-    ? (
-        await supabase
+  if (withMethods.error) {
+    const withVerification = await supabase
+      .from("provider_contacts")
+      .select("id, title, network, url, notes, is_active, is_verified")
+      .order("created_at", { ascending: false });
+
+    if (withVerification.error) {
+      const withNotes = await supabase
+        .from("provider_contacts")
+        .select("id, title, network, url, notes, is_active")
+        .order("created_at", { ascending: false });
+
+      if (withNotes.error) {
+        const fallback = await supabase
           .from("provider_contacts")
-          .select("id, title, network, url, notes, is_active, is_verified")
-          .order("created_at", { ascending: false })
-      ).data?.map((contact) => ({ ...contact, contact_methods: null })) || []
-    : withMethods.data || [];
+          .select("id, title, network, url, is_active")
+          .order("created_at", { ascending: false });
+
+        contacts = (fallback.data || []).map((contact) => ({
+          ...contact,
+          notes: null,
+          is_verified: false,
+          contact_methods: null,
+        })) as ContactRow[];
+      } else {
+        contacts = (withNotes.data || []).map((contact) => ({
+          ...contact,
+          is_verified: false,
+          contact_methods: null,
+        })) as ContactRow[];
+      }
+    } else {
+      contacts = (withVerification.data || []).map((contact) => ({
+        ...contact,
+        contact_methods: null,
+      })) as ContactRow[];
+    }
+  } else {
+    contacts = (withMethods.data || []) as ContactRow[];
+  }
 
   return (
     <div className="min-h-screen">
