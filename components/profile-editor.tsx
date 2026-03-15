@@ -54,11 +54,6 @@ export function ProfileEditor({ email, initialValues }: ProfileEditorProps) {
     setError(null);
     setSaved(null);
 
-    if (!values.firstName.trim() || !values.lastName.trim()) {
-      setError("Completa nombre y apellidos.");
-      return;
-    }
-
     if (!phoneRegex.test(values.phone.trim())) {
       setError("Ingresa un telefono valido.");
       return;
@@ -99,12 +94,9 @@ export function ProfileEditor({ email, initialValues }: ProfileEditorProps) {
       return;
     }
 
-    const fullName = `${values.firstName.trim()} ${values.lastName.trim()}`.trim();
-
     const { error: profileError } = await supabase
       .from("profiles")
       .update({
-        full_name: fullName,
         phone: values.phone.trim(),
         profile_data: {
           country: values.country,
@@ -173,9 +165,22 @@ export function ProfileEditor({ email, initialValues }: ProfileEditorProps) {
 
       <section className="card p-5">
         <h2 className="text-xl font-bold">Datos base</h2>
+        <p className="mt-2 text-sm text-[#62626d]">El nombre no se puede modificar aqui. Solo puedes actualizar tu telefono.</p>
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          <input className="input" value={values.firstName} onChange={(event) => updateValue("firstName", event.target.value)} placeholder="Nombre" />
-          <input className="input" value={values.lastName} onChange={(event) => updateValue("lastName", event.target.value)} placeholder="Apellidos" />
+          <input
+            className="input cursor-not-allowed bg-[#f3efe9] text-[#7d7368] opacity-90"
+            value={values.firstName}
+            placeholder="Nombre"
+            readOnly
+            disabled
+          />
+          <input
+            className="input cursor-not-allowed bg-[#f3efe9] text-[#7d7368] opacity-90"
+            value={values.lastName}
+            placeholder="Apellidos"
+            readOnly
+            disabled
+          />
         </div>
         <div className="mt-3">
           <input className="input" value={values.phone} onChange={(event) => updateValue("phone", event.target.value)} placeholder="Telefono" />
