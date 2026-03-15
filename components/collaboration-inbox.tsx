@@ -139,7 +139,8 @@ export function CollaborationInbox({
     }
 
     window.localStorage.setItem(seenStorageKey, JSON.stringify(seenMessageIds));
-  }, [seenMessageIds, seenStorageKey]);
+    window.dispatchEvent(new CustomEvent("chat-seen-updated", { detail: { userId: currentUserId } }));
+  }, [currentUserId, seenMessageIds, seenStorageKey]);
 
   useEffect(() => {
     if (!activeThread) {

@@ -95,10 +95,12 @@ export function AccountMenu({ user, items, messageHref, hasUnreadMessages = fals
     readSeenState();
     window.addEventListener("storage", readSeenState);
     window.addEventListener("focus", readSeenState);
+    window.addEventListener("chat-seen-updated", readSeenState as EventListener);
 
     return () => {
       window.removeEventListener("storage", readSeenState);
       window.removeEventListener("focus", readSeenState);
+      window.removeEventListener("chat-seen-updated", readSeenState as EventListener);
     };
   }, [user]);
 
