@@ -49,6 +49,7 @@ export function CollaborationInbox({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [items, setItems] = useState(threads);
   const [activeThreadId, setActiveThreadId] = useState<number | null>(null);
+  const [viewedThreadIds, setViewedThreadIds] = useState<number[]>([]);
   const [drafts, setDrafts] = useState<Record<number, string>>({});
   const [mediaDrafts, setMediaDrafts] = useState<Record<number, DraftMedia | undefined>>({});
   const [error, setError] = useState<string | null>(null);
@@ -131,6 +132,9 @@ export function CollaborationInbox({
               };
             })
           );
+          if (String(message.sender_id) !== currentUserId) {
+            setViewedThreadIds((current) => current.filter((item) => item !== Number(message.request_id)));
+          }
         }
       )
       .subscribe();
@@ -153,6 +157,7 @@ export function CollaborationInbox({
   function openChat(threadId: number) {
     setActiveThreadId(threadId);
     setError(null);
+    setViewedThreadIds((current) => (current.includes(threadId) ? current : [...current, threadId]));
   }
 
   function closeChat() {
@@ -324,7 +329,7 @@ export function CollaborationInbox({
           {sortedThreads.map((thread) => {
             const lastMessage = thread.messages[thread.messages.length - 1];
             const preview = lastMessage?.body || (lastMessage?.imageUrl ? "Te enviaron una imagen" : "Toca para abrir el chat");
-            const isUnread = lastMessage && lastMessage.senderId !== currentUserId;
+            const isUnread = Boolean(lastMessage && lastMessage.senderId !== currentUserId && !viewedThreadIds.includes(thread.requestId));
 
             return (
               <button
