@@ -481,63 +481,65 @@ export default async function DashboardPage({
     <div className="min-h-screen">
       <SiteHeader menuItems={menuItems} messageHref="/dashboard?section=messages" hasUnreadMessages={hasUnreadMessages} />
       <main className="container-x space-y-4 py-6">
-        <section className="overflow-hidden rounded-[1.8rem] border border-[#1f1b17] bg-[linear-gradient(135deg,#201915_0%,#2c221a_55%,#3f2a1d_100%)] p-5 text-white shadow-[0_26px_80px_rgba(35,22,13,0.22)]">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-xs uppercase tracking-[0.24em] text-white/55">{isProvider ? "Provider Hub" : "Reviewer Hub"}</p>
-              <h1 className="mt-2 text-3xl font-bold">Hola, {firstName}</h1>
+        {currentSection === "home" ? (
+          <section className="overflow-hidden rounded-[1.8rem] border border-[#1f1b17] bg-[linear-gradient(135deg,#201915_0%,#2c221a_55%,#3f2a1d_100%)] p-5 text-white shadow-[0_26px_80px_rgba(35,22,13,0.22)]">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs uppercase tracking-[0.24em] text-white/55">{isProvider ? "Provider Hub" : "Reviewer Hub"}</p>
+                <h1 className="mt-2 text-3xl font-bold">Hola, {firstName}</h1>
+              </div>
+              <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10">
+                <Sparkles className="h-5 w-5" />
+              </span>
             </div>
-            <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10">
-              <Sparkles className="h-5 w-5" />
-            </span>
-          </div>
 
-          <div className={`mt-5 grid gap-3 ${isProvider ? "sm:grid-cols-2" : "sm:grid-cols-2 lg:grid-cols-3"}`}>
-            <div className="rounded-[1.4rem] border border-white/10 bg-white/6 p-4">
-              <p className="text-xs uppercase tracking-[0.18em] text-white/50">Pais y nivel</p>
-              <div className="mt-2 flex items-center gap-2 text-sm text-white/85">
-                <MapPin className="h-4 w-4" />
-                <span>{country || "Sin pais"}</span>
+            <div className={`mt-5 grid gap-3 ${isProvider ? "sm:grid-cols-2" : "sm:grid-cols-2 lg:grid-cols-3"}`}>
+              <div className="rounded-[1.4rem] border border-white/10 bg-white/6 p-4">
+                <p className="text-xs uppercase tracking-[0.18em] text-white/50">Pais y nivel</p>
+                <div className="mt-2 flex items-center gap-2 text-sm text-white/85">
+                  <MapPin className="h-4 w-4" />
+                  <span>{country || "Sin pais"}</span>
+                </div>
+                <p className="mt-2 text-sm text-white/72">{experienceLevel || "Nivel pendiente"}</p>
               </div>
-              <p className="mt-2 text-sm text-white/72">{experienceLevel || "Nivel pendiente"}</p>
+              {!isProvider ? (
+                <div className="rounded-[1.4rem] border border-white/10 bg-white/6 p-4">
+                  <p className="text-xs uppercase tracking-[0.18em] text-white/50">Estado</p>
+                  <p className={`mt-2 text-sm font-semibold ${membershipStatus === "active" ? "text-emerald-300" : "text-amber-300"}`}>
+                    Membresia: {membershipStatus}
+                  </p>
+                  <p className={`mt-2 text-sm font-semibold ${kycStatus === "approved" ? "text-emerald-300" : "text-amber-300"}`}>
+                    Verificacion de ID: {kycStatus}
+                  </p>
+                </div>
+              ) : (
+                <div className="rounded-[1.4rem] border border-white/10 bg-white/6 p-4">
+                  <p className="text-xs uppercase tracking-[0.18em] text-white/50">Mensajes</p>
+                  <p className="mt-2 text-sm font-semibold text-white/85">{providerRequestStats.active} solicitudes activas</p>
+                  <p className="mt-2 text-sm font-semibold text-white/72">{providerRequestStats.conversations} conversaciones abiertas</p>
+                </div>
+              )}
+              {isAdmin ? (
+                <div className="rounded-[1.4rem] border border-white/10 bg-white/6 p-4">
+                  <p className="text-xs uppercase tracking-[0.18em] text-white/50">Permisos</p>
+                  <p className="mt-2 text-sm font-semibold text-white/85">Admin habilitado</p>
+                </div>
+              ) : null}
             </div>
-            {!isProvider ? (
-              <div className="rounded-[1.4rem] border border-white/10 bg-white/6 p-4">
-                <p className="text-xs uppercase tracking-[0.18em] text-white/50">Estado</p>
-                <p className={`mt-2 text-sm font-semibold ${membershipStatus === "active" ? "text-emerald-300" : "text-amber-300"}`}>
-                  Membresia: {membershipStatus}
-                </p>
-                <p className={`mt-2 text-sm font-semibold ${kycStatus === "approved" ? "text-emerald-300" : "text-amber-300"}`}>
-                  Verificacion de ID: {kycStatus}
-                </p>
-              </div>
-            ) : (
-              <div className="rounded-[1.4rem] border border-white/10 bg-white/6 p-4">
-                <p className="text-xs uppercase tracking-[0.18em] text-white/50">Mensajes</p>
-                <p className="mt-2 text-sm font-semibold text-white/85">{providerRequestStats.active} solicitudes activas</p>
-                <p className="mt-2 text-sm font-semibold text-white/72">{providerRequestStats.conversations} conversaciones abiertas</p>
-              </div>
-            )}
-            {isAdmin ? (
-              <div className="rounded-[1.4rem] border border-white/10 bg-white/6 p-4">
-                <p className="text-xs uppercase tracking-[0.18em] text-white/50">Permisos</p>
-                <p className="mt-2 text-sm font-semibold text-white/85">Admin habilitado</p>
+
+            {userInterests.length ? (
+              <div className="mt-5 flex flex-wrap gap-2">
+                {userInterests.map((interest) => (
+                  <span key={interest} className="rounded-full border border-white/12 bg-white/8 px-3 py-1 text-xs font-semibold text-white">
+                    {interest}
+                  </span>
+                ))}
               </div>
             ) : null}
-          </div>
 
-          {userInterests.length ? (
-            <div className="mt-5 flex flex-wrap gap-2">
-              {userInterests.map((interest) => (
-                <span key={interest} className="rounded-full border border-white/12 bg-white/8 px-3 py-1 text-xs font-semibold text-white">
-                  {interest}
-                </span>
-              ))}
-            </div>
-          ) : null}
-
-          {profileNote ? <p className="mt-4 max-w-2xl text-sm text-white/68">{profileNote}</p> : null}
-        </section>
+            {profileNote ? <p className="mt-4 max-w-2xl text-sm text-white/68">{profileNote}</p> : null}
+          </section>
+        ) : null}
         {currentSection === "home" && isProvider ? (
           <>
             <section className="grid gap-3 sm:grid-cols-3">
