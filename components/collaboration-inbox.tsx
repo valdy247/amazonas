@@ -47,6 +47,11 @@ type DraftMedia = {
   previewUrl: string;
 };
 
+function getLastIncomingMessageIdForThread(thread: ConversationThread, currentUserId: string) {
+  const lastIncoming = [...thread.messages].reverse().find((message) => message.senderId !== currentUserId);
+  return lastIncoming?.id ?? null;
+}
+
 export function CollaborationInbox({
   currentUserId,
   currentUserRole,
@@ -61,9 +66,38 @@ export function CollaborationInbox({
 }: CollaborationInboxProps) {
   const [supabase] = useState(() => createClient());
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const seenStorageKey = `chat-seen:${currentUserId}`;
   const [items, setItems] = useState(threads);
   const [activeThreadId, setActiveThreadId] = useState<number | null>(initialThreadId);
-  const [viewedThreadIds, setViewedThreadIds] = useState<number[]>([]);
+  const [seenMessageIds, setSeenMessageIds] = useState<Record<number, number>>(() => {
+    const initialSeenEntries = initialThreadId
+      ? threads
+          .filter((thread) => thread.requestId === initialThreadId)
+          .map((thread) => [thread.requestId, getLastIncomingMessageIdForThread(thread, currentUserId)])
+          .filter((entry): entry is [number, number] => typeof entry[1] === "number")
+      : [];
+
+    if (typeof window === "undefined") {
+      return Object.fromEntries(initialSeenEntries);
+    }
+
+    try {
+      const stored = window.localStorage.getItem(seenStorageKey);
+      if (!stored) {
+        return Object.fromEntries(initialSeenEntries);
+      }
+
+      const parsed = JSON.parse(stored) as Record<string, unknown>;
+      return Object.fromEntries([
+        ...Object.entries(parsed)
+          .map(([key, value]) => [Number(key), Number(value)])
+          .filter(([key, value]) => Number.isFinite(key) && Number.isFinite(value)),
+        ...initialSeenEntries,
+      ]);
+    } catch {
+      return Object.fromEntries(initialSeenEntries);
+    }
+  });
   const [drafts, setDrafts] = useState<Record<number, string>>({});
   const [metaDrafts, setMetaDrafts] = useState<Record<number, { category: string; productName: string }>>(
     Object.fromEntries(
@@ -98,6 +132,14 @@ export function CollaborationInbox({
   const providerHasSentMessage = Boolean(
     activeThread && activeThread.messages.some((message) => message.senderId === currentUserId)
   );
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    window.localStorage.setItem(seenStorageKey, JSON.stringify(seenMessageIds));
+  }, [seenMessageIds, seenStorageKey]);
 
   useEffect(() => {
     if (!activeThread) {
@@ -165,8 +207,11 @@ export function CollaborationInbox({
               };
             })
           );
-          if (String(message.sender_id) !== currentUserId) {
-            setViewedThreadIds((current) => current.filter((item) => item !== Number(message.request_id)));
+          if (String(message.sender_id) !== currentUserId && activeThreadId === Number(message.request_id)) {
+            setSeenMessageIds((current) => ({
+              ...current,
+              [Number(message.request_id)]: Number(message.id),
+            }));
           }
         }
       )
@@ -175,7 +220,24 @@ export function CollaborationInbox({
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [currentUserId, supabase]);
+  }, [activeThreadId, currentUserId, supabase]);
+
+  function markThreadAsSeen(threadId: number) {
+    const thread = items.find((item) => item.requestId === threadId);
+    if (!thread) {
+      return;
+    }
+
+    const lastIncomingMessageId = getLastIncomingMessageIdForThread(thread, currentUserId);
+    if (!lastIncomingMessageId) {
+      return;
+    }
+
+    setSeenMessageIds((current) => ({
+      ...current,
+      [threadId]: lastIncomingMessageId,
+    }));
+  }
 
   useEffect(() => {
     return () => {
@@ -190,7 +252,7 @@ export function CollaborationInbox({
   function openChat(threadId: number) {
     setActiveThreadId(threadId);
     setError(null);
-    setViewedThreadIds((current) => (current.includes(threadId) ? current : [...current, threadId]));
+    markThreadAsSeen(threadId);
   }
 
   function closeChat() {
@@ -410,7 +472,12 @@ export function CollaborationInbox({
           {sortedThreads.map((thread) => {
             const lastMessage = thread.messages[thread.messages.length - 1];
             const preview = lastMessage?.body || (lastMessage?.imageUrl ? "Te enviaron una imagen" : "Toca para abrir el chat");
-            const isUnread = Boolean(lastMessage && lastMessage.senderId !== currentUserId && !viewedThreadIds.includes(thread.requestId));
+            const lastIncomingMessageId = getLastIncomingMessageIdForThread(thread, currentUserId);
+            const isUnread = Boolean(
+              lastIncomingMessageId &&
+                thread.messages.some((message) => message.id === lastIncomingMessageId && message.senderId !== currentUserId) &&
+                seenMessageIds[thread.requestId] !== lastIncomingMessageId
+            );
 
             return (
               <button
