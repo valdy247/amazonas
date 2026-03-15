@@ -92,6 +92,9 @@ export function CollaborationInbox({
   );
 
   const activeThread = sortedThreads.find((thread) => thread.requestId === activeThreadId) || null;
+  const currentUserHasSentMessage = Boolean(
+    activeThread && activeThread.messages.some((message) => message.senderId === currentUserId)
+  );
   const providerHasSentMessage = Boolean(
     activeThread && activeThread.messages.some((message) => message.senderId === currentUserId)
   );
@@ -225,7 +228,7 @@ export function CollaborationInbox({
 
   async function uploadMedia(requestId: number, file: File) {
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "-");
-    const filePath = `${requestId}/${currentUserId}-${Date.now()}-${safeName}`;
+    const filePath = `${requestId}/${currentUserId}-${file.lastModified}-${safeName}`;
     const { error: uploadError } = await supabase.storage.from("request-message-media").upload(filePath, file, {
       cacheControl: "3600",
       upsert: false,
@@ -248,9 +251,12 @@ export function CollaborationInbox({
     setMediaDrafts((current) => ({ ...current, [requestId]: undefined }));
   }
 
-  function applyQuickReply(requestId: number, message: string) {
+  function sendQuickReply(requestId: number, message: string) {
     setDrafts((current) => ({ ...current, [requestId]: message }));
     setError(null);
+    window.requestAnimationFrame(() => {
+      sendMessage(requestId, message);
+    });
   }
 
   function updateMetaDraft(requestId: number, patch: Partial<{ category: string; productName: string }>) {
@@ -264,8 +270,8 @@ export function CollaborationInbox({
     }));
   }
 
-  function sendMessage(requestId: number) {
-    const draft = drafts[requestId]?.trim() || "";
+  function sendMessage(requestId: number, directBody?: string) {
+    const draft = (directBody ?? drafts[requestId] ?? "").trim();
     const mediaDraft = mediaDrafts[requestId];
     const metaDraft = metaDrafts[requestId];
     const providerIntro =
@@ -516,14 +522,14 @@ export function CollaborationInbox({
                 </div>
               ) : null}
 
-              {quickReplies.length ? (
+              {quickReplies.length && !currentUserHasSentMessage ? (
                 <div className="mb-3 flex flex-wrap gap-2">
                   {quickReplies.map((reply) => (
                     <button
                       key={`${activeThread.requestId}-${reply}`}
                       type="button"
                       className="rounded-full border border-[#efd8cb] bg-[#fff7f2] px-3 py-2 text-left text-xs font-semibold text-[#c4562a] transition hover:border-[#ffb596] hover:bg-[#fff0e8]"
-                      onClick={() => applyQuickReply(activeThread.requestId, reply)}
+                      onClick={() => sendQuickReply(activeThread.requestId, reply)}
                     >
                       {reply}
                     </button>
