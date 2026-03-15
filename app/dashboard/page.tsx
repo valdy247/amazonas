@@ -290,7 +290,7 @@ export default async function DashboardPage({
 
     const registeredProvidersResult = await supabase
       .from("profiles")
-      .select("id, full_name, accepted_terms_at, profile_data")
+      .select("id, full_name, accepted_terms_at, profile_data, phone")
       .eq("role", "provider")
       .not("accepted_terms_at", "is", null);
 
@@ -298,13 +298,14 @@ export default async function DashboardPage({
       .map((provider) => {
         const providerProfileData = mergeProfileData(provider.profile_data);
         const contactMethods = buildContactMethodsFromFields({
-          whatsapp: providerProfileData.contact.whatsapp,
+          whatsapp: providerProfileData.contact.whatsapp || provider.phone || "",
           instagram: providerProfileData.contact.instagram,
           messenger: providerProfileData.contact.messenger,
         });
         const primaryMethod = getReviewerContactMethods(providerProfileData)[0];
+        const primaryFallback = providerProfileData.contact.whatsapp || provider.phone || "";
 
-        if (!providerProfileData.publicProfile || !providerProfileData.allowsDirectContact || !contactMethods || !primaryMethod?.value) {
+        if (!providerProfileData.publicProfile || !contactMethods || (!providerProfileData.allowsDirectContact && !primaryFallback)) {
           return null;
         }
 
@@ -312,7 +313,7 @@ export default async function DashboardPage({
           id: `registered:${provider.id}`,
           title: provider.full_name || "Proveedor registrado",
           network: providerProfileData.country || "Registrado en Amazona",
-          url: primaryMethod.value,
+          url: primaryMethod?.value || primaryFallback,
           notes: providerProfileData.note || null,
           is_verified: false,
           contact_methods: contactMethods,

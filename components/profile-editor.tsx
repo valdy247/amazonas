@@ -69,7 +69,7 @@ export function ProfileEditor({ email, initialValues }: ProfileEditorProps) {
       return;
     }
 
-    if (values.role === "reviewer" && values.allowsDirectContact) {
+    if (values.allowsDirectContact) {
       const directContactCount = [values.contactWhatsapp, values.contactInstagram, values.contactMessenger]
         .map((item) => item.trim())
         .filter(Boolean).length;
@@ -251,33 +251,37 @@ export function ProfileEditor({ email, initialValues }: ProfileEditorProps) {
         </div>
       </section>
 
-      {values.role === "reviewer" ? (
+      {values.role === "reviewer" || values.role === "provider" ? (
         <section className="card p-5">
-          <h2 className="text-xl font-bold">Disponibilidad y contacto</h2>
+          <h2 className="text-xl font-bold">{values.role === "reviewer" ? "Disponibilidad y contacto" : "Visibilidad y contacto"}</h2>
           <p className="mt-2 text-sm text-[#62626d]">
-            Define si los providers pueden encontrarte y si deseas recibir contacto directo fuera de la plataforma.
+            {values.role === "reviewer"
+              ? "Define si los providers pueden encontrarte y si deseas recibir contacto directo fuera de la plataforma."
+              : "Define si tu perfil aparece para reviewers y que vias directas de contacto quieres compartir."}
           </p>
 
-          <div className="mt-4 grid gap-2">
-            {AVAILABILITY_OPTIONS.map((option) => (
-              <button
-                key={option.value}
-                type="button"
-                onClick={() => updateValue("availability", option.value)}
-                className={`rounded-2xl border px-4 py-3 text-left transition ${
-                  values.availability === option.value ? "border-[#ff6b35] bg-[#fff3ec]" : "border-[#e5e5df]"
-                }`}
-              >
-                <p className="font-semibold">{option.label}</p>
-                <p className="mt-1 text-sm text-[#62626d]">{option.description}</p>
-              </button>
-            ))}
-          </div>
+          {values.role === "reviewer" ? (
+            <div className="mt-4 grid gap-2">
+              {AVAILABILITY_OPTIONS.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => updateValue("availability", option.value)}
+                  className={`rounded-2xl border px-4 py-3 text-left transition ${
+                    values.availability === option.value ? "border-[#ff6b35] bg-[#fff3ec]" : "border-[#e5e5df]"
+                  }`}
+                >
+                  <p className="font-semibold">{option.label}</p>
+                  <p className="mt-1 text-sm text-[#62626d]">{option.description}</p>
+                </button>
+              ))}
+            </div>
+          ) : null}
 
           <div className="mt-4 grid gap-3">
             <label className="flex items-start gap-3 rounded-2xl border border-[#e5e5df] p-4 text-sm">
               <input type="checkbox" checked={values.publicProfile} onChange={(event) => updateValue("publicProfile", event.target.checked)} className="mt-1" />
-              <span>Mostrar mi perfil en el buscador de providers.</span>
+              <span>{values.role === "reviewer" ? "Mostrar mi perfil en el buscador de providers." : "Mostrar mi perfil en el directorio de proveedores para reviewers."}</span>
             </label>
             <label className="flex items-start gap-3 rounded-2xl border border-[#e5e5df] p-4 text-sm">
               <input type="checkbox" checked={values.allowsDirectContact} onChange={(event) => updateValue("allowsDirectContact", event.target.checked)} className="mt-1" />
