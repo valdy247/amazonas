@@ -130,6 +130,7 @@ export default async function DashboardPage({
   const canSeeContacts = !isProvider && membershipStatus === "active" && kycStatus === "approved";
   const squareStatus = typeof resolvedSearchParams.square === "string" ? resolvedSearchParams.square : null;
   const squareError = typeof resolvedSearchParams.square_error === "string" ? resolvedSearchParams.square_error : null;
+  const showWelcomeActivation = !isProvider && canSeeContacts;
 
   let contacts: ProviderContact[] = [];
   let contactedIds: number[] = [];
@@ -325,14 +326,14 @@ export default async function DashboardPage({
       icon: WalletCards,
     },
     {
-      title: "KYC",
-      description: kycStatus === "approved" ? "Tu validacion de prueba ya esta aprobada." : "Aprueba KYC de prueba para desbloquear el panel final.",
+      title: "Verificacion de ID",
+      description: kycStatus === "approved" ? "Tu verificacion de identidad ya esta aprobada." : "Completa tu verificacion de ID para desbloquear el panel final.",
       done: kycStatus === "approved",
       icon: BadgeCheck,
     },
     {
       title: "Contactos",
-      description: canSeeContacts ? "Ya puedes abrir los contactos disponibles." : "Se habilita cuando acceso y KYC esten listos.",
+      description: canSeeContacts ? "Ya puedes abrir los contactos disponibles." : "Se habilita cuando acceso y verificacion de ID esten listos.",
       done: canSeeContacts,
       icon: Compass,
     },
@@ -369,7 +370,7 @@ export default async function DashboardPage({
                   Membresia: {membershipStatus}
                 </p>
                 <p className={`mt-2 text-sm font-semibold ${kycStatus === "approved" ? "text-emerald-300" : "text-amber-300"}`}>
-                  KYC: {kycStatus}
+                  Verificacion de ID: {kycStatus}
                 </p>
               </div>
             ) : null}
@@ -428,6 +429,38 @@ export default async function DashboardPage({
           </section>
         ) : null}
 
+        {showWelcomeActivation ? (
+          <section className="overflow-hidden rounded-[1.9rem] border border-[#f2d2c0] bg-[linear-gradient(135deg,#fff3eb_0%,#fffaf6_48%,#ffffff_100%)] p-5 shadow-[0_24px_60px_rgba(220,79,31,0.08)]">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#dc4f1f]">Bienvenido</p>
+                <h2 className="mt-2 text-2xl font-bold text-[#131316]">Ya eres parte de la familia Amazona Review</h2>
+                <p className="mt-3 text-sm text-[#62626d]">
+                  Felicidades por activar tu acceso. Desde ahora compartiremos contigo proveedores confiables y tu perfil quedara visible para que proveedores compatibles puedan encontrarte y contactarte.
+                </p>
+              </div>
+              <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-[#ff6b35] text-white shadow-[0_18px_36px_rgba(255,107,53,0.22)]">
+                <Sparkles className="h-5 w-5" />
+              </span>
+            </div>
+
+            <div className="mt-5 grid gap-3">
+              <article className="rounded-[1.4rem] border border-white/70 bg-white/88 p-4">
+                <p className="text-sm font-semibold text-[#131316]">Proveedores confiables</p>
+                <p className="mt-1 text-sm text-[#62626d]">Te mostraremos oportunidades y contactos seleccionados para que avances con mas confianza.</p>
+              </article>
+              <article className="rounded-[1.4rem] border border-white/70 bg-white/88 p-4">
+                <p className="text-sm font-semibold text-[#131316]">Tu perfil ya esta visible</p>
+                <p className="mt-1 text-sm text-[#62626d]">Los proveedores podran encontrarte segun tus categorias, pais y disponibilidad para colaborar.</p>
+              </article>
+              <article className="rounded-[1.4rem] border border-white/70 bg-white/88 p-4">
+                <p className="text-sm font-semibold text-[#131316]">Sigue afinando tu perfil</p>
+                <p className="mt-1 text-sm text-[#62626d]">Mientras mas claro este tu perfil, mejores coincidencias y contactos recibirás desde la plataforma.</p>
+              </article>
+            </div>
+          </section>
+        ) : null}
+
         {!isProvider && membershipStatus !== "active" ? (
           <section className="rounded-[1.8rem] border border-[#f0d7ca] bg-[linear-gradient(180deg,#fff7f3_0%,#ffffff_100%)] p-5">
             <div className="flex items-center gap-3">
@@ -475,20 +508,20 @@ export default async function DashboardPage({
                 <LockKeyhole className="h-5 w-5" />
               </span>
               <div>
-                <h2 className="font-bold">Verificacion KYC</h2>
+                <h2 className="font-bold">Verificacion de ID</h2>
                 <p className="text-sm text-[#62626d]">Paso 2 del recorrido de prueba</p>
               </div>
             </div>
             {KYC_TEST_MODE ? (
               <>
                 <p className="mt-4 text-sm text-[#62626d]">
-                  El KYC real tambien esta pausado en pruebas. Puedes aprobarlo o reiniciarlo manualmente para validar el recorrido.
+                  La verificacion de ID real tambien esta pausada en pruebas. Puedes aprobarla o reiniciarla manualmente para validar el recorrido.
                 </p>
                 <TestingAccessControls stage="kyc" />
               </>
             ) : (
               <p className="mt-1 text-sm text-[#62626d]">
-                Tu membresia esta activa. Ahora toca validacion KYC economica. El admin te contactara para completar el proceso.
+                Tu membresia esta activa. Ahora toca tu verificacion de identidad. El admin te contactara para completar el proceso.
               </p>
             )}
           </section>
@@ -513,7 +546,7 @@ export default async function DashboardPage({
           <section className="rounded-[1.8rem] border border-dashed border-[#dfd4c8] bg-[#fffdf9] p-5">
             <h2 className="font-bold">Acceso a contactos</h2>
             <p className="mt-2 text-sm text-[#62626d]">
-              Se habilita automaticamente cuando membresia y KYC esten en estado aprobado.
+              Se habilita automaticamente cuando membresia y verificacion de ID esten en estado aprobado.
             </p>
             {KYC_TEST_MODE ? <TestingAccessControls stage="kyc" /> : null}
           </section>
