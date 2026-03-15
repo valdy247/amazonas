@@ -242,15 +242,13 @@ export default async function DashboardPage() {
           allowsDirectContact: reviewerData.allowsDirectContact,
           directContactMethods: reviewerData.allowsDirectContact ? getReviewerContactMethods(reviewerData) : [],
           isVerified: kycMap.get(row.id) === "approved",
-          isActiveMember: membershipMap.get(row.id) === "active",
+          isActiveMember: membershipMap.get(row.id) === "active" || Boolean(row.accepted_terms_at),
           score,
         };
       })
       .filter(
         (row) =>
-          row.isActiveMember &&
           row.availability !== "busy" &&
-          (row.interests.length || row.note || row.country) &&
           mergeProfileData((reviewerRows.find((item) => item.id === row.id) as ProfileRow | undefined)?.profile_data).publicProfile
       )
       .sort((a, b) => b.score - a.score || Number(b.isVerified) - Number(a.isVerified) || a.fullName.localeCompare(b.fullName));
