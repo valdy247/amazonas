@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { AdminProviderManager } from "@/components/admin-provider-manager";
+import { AdminUserManager } from "@/components/admin-user-manager";
 import { SiteHeader } from "@/components/site-header";
 import { createClient } from "@/lib/supabase/server";
 import { hasAdminAccess } from "@/lib/admin";
-import { createAdminUser, createProviderContact, updateMemberStatus } from "./actions";
+import { createAdminUser, createProviderContact } from "./actions";
 
 type ProfileRow = {
   id: string;
@@ -210,42 +211,52 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
           {activeSection === "providers" ? (
             <>
               <div className="card p-4">
-                <h2 className="font-bold">Agregar proveedor</h2>
-                <p className="mt-1 text-sm text-[#62626d]">Crea un contacto nuevo y define las vias que vera el reviewer.</p>
-                <form action={createProviderContact} noValidate className="mt-4 grid gap-2">
-                  <input className="input" name="title" placeholder="Nombre del proveedor" spellCheck={false} autoCorrect="off" autoCapitalize="off" />
-                  <div className="rounded-[1.35rem] border border-[#eadfd6] bg-[#fcfaf7] p-3">
-                    <p className="text-sm font-semibold text-[#131316]">WhatsApp</p>
-                    <p className="mt-1 text-xs text-[#62626d]">Selecciona el prefijo internacional y escribe el numero sin espacios.</p>
-                    <div className="mt-3 grid grid-cols-[minmax(0,152px)_1fr] gap-2">
-                      <select className="input bg-white" name="whatsapp_prefix" defaultValue="+1">
-                        {WHATSAPP_PREFIX_OPTIONS.map((option) => (
-                          <option key={`${option.label}-${option.value}`} value={option.value}>
-                            {option.flag} {option.label} {option.value}
-                          </option>
-                        ))}
-                      </select>
-                      <input
-                        className="input"
-                        name="whatsapp_number"
-                        placeholder="786703994"
-                        inputMode="numeric"
-                        spellCheck={false}
-                        autoCorrect="off"
-                        autoCapitalize="off"
-                      />
+                <details>
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-3">
+                    <div>
+                      <h2 className="font-bold">Agregar proveedor</h2>
+                      <p className="mt-1 text-sm text-[#62626d]">Toca para desplegar el formulario de alta.</p>
                     </div>
-                  </div>
-                  <input className="input" name="instagram" placeholder="Instagram. Ej: instagram.com/usuario o https://instagram.com/usuario" spellCheck={false} autoCorrect="off" autoCapitalize="off" />
-                  <input className="input" name="messenger" placeholder="Messenger. Ej: m.me/usuario o https://m.me/usuario" spellCheck={false} autoCorrect="off" autoCapitalize="off" />
-                  <textarea className="input min-h-24" name="notes" placeholder="Notas" spellCheck={false} autoCorrect="off" autoCapitalize="off" />
-                  <p className="text-xs text-[#62626d]">Debes completar al menos uno: WhatsApp, Instagram o Messenger.</p>
-                  <label className="flex items-center gap-2 text-sm text-[#62626d]">
-                    <input type="checkbox" name="is_verified" />
-                    <span>Marcar como verificado</span>
-                  </label>
-                  <button className="btn-primary" type="submit">Guardar contacto</button>
-                </form>
+                    <span className="rounded-full bg-[#fff2eb] px-3 py-2 text-xs font-bold uppercase tracking-[0.18em] text-[#dc4f1f]">
+                      Nuevo
+                    </span>
+                  </summary>
+
+                  <form action={createProviderContact} noValidate className="mt-4 grid gap-2">
+                    <input className="input" name="title" placeholder="Nombre del proveedor" spellCheck={false} autoCorrect="off" autoCapitalize="off" />
+                    <div className="rounded-[1.35rem] border border-[#eadfd6] bg-[#fcfaf7] p-3">
+                      <p className="text-sm font-semibold text-[#131316]">WhatsApp</p>
+                      <p className="mt-1 text-xs text-[#62626d]">Selecciona el prefijo internacional y escribe el numero sin espacios.</p>
+                      <div className="mt-3 grid grid-cols-[minmax(0,152px)_1fr] gap-2">
+                        <select className="input bg-white" name="whatsapp_prefix" defaultValue="+1">
+                          {WHATSAPP_PREFIX_OPTIONS.map((option) => (
+                            <option key={`${option.label}-${option.value}`} value={option.value}>
+                              {option.flag} {option.label} {option.value}
+                            </option>
+                          ))}
+                        </select>
+                        <input
+                          className="input"
+                          name="whatsapp_number"
+                          placeholder="786703994"
+                          inputMode="numeric"
+                          spellCheck={false}
+                          autoCorrect="off"
+                          autoCapitalize="off"
+                        />
+                      </div>
+                    </div>
+                    <input className="input" name="instagram" placeholder="Instagram. Ej: instagram.com/usuario o https://instagram.com/usuario" spellCheck={false} autoCorrect="off" autoCapitalize="off" />
+                    <input className="input" name="messenger" placeholder="Messenger. Ej: m.me/usuario o https://m.me/usuario" spellCheck={false} autoCorrect="off" autoCapitalize="off" />
+                    <textarea className="input min-h-24" name="notes" placeholder="Notas" spellCheck={false} autoCorrect="off" autoCapitalize="off" />
+                    <p className="text-xs text-[#62626d]">Debes completar al menos uno: WhatsApp, Instagram o Messenger.</p>
+                    <label className="flex items-center gap-2 text-sm text-[#62626d]">
+                      <input type="checkbox" name="is_verified" />
+                      <span>Marcar como verificado</span>
+                    </label>
+                    <button className="btn-primary" type="submit">Guardar contacto</button>
+                  </form>
+                </details>
               </div>
 
               <div className="card p-4">
@@ -283,30 +294,16 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                   {members?.length || 0} visibles
                 </span>
               </div>
-              <div className="mt-4 space-y-3">
-                {(members as ProfileRow[] | null)?.map((member) => (
-                  <article key={member.id} className="rounded-xl border border-[#e5e5df] p-3">
-                    <p className="font-semibold">{member.full_name || "Sin nombre"}</p>
-                    <p className="text-xs text-[#62626d]">{member.email} - rol: {member.role || "sin definir"}</p>
-                    <form action={updateMemberStatus} className="mt-2 grid gap-2 sm:grid-cols-4 sm:items-center">
-                      <input type="hidden" name="user_id" value={member.id} />
-                      <select className="input" name="membership_status" defaultValue={membershipByUser.get(member.id) || "pending_payment"}>
-                        <option value="pending_payment">pending_payment</option>
-                        <option value="paid">paid</option>
-                        <option value="active">active</option>
-                        <option value="suspended">suspended</option>
-                      </select>
-                      <select className="input" name="kyc_status" defaultValue={kycByUser.get(member.id) || "pending"}>
-                        <option value="pending">pending</option>
-                        <option value="in_review">in_review</option>
-                        <option value="approved">approved</option>
-                        <option value="rejected">rejected</option>
-                      </select>
-                      <button className="btn-secondary" type="submit">Actualizar</button>
-                    </form>
-                  </article>
-                ))}
-              </div>
+              <AdminUserManager
+                members={((members as ProfileRow[] | null) || []).map((member) => ({
+                  id: member.id,
+                  full_name: member.full_name,
+                  email: member.email,
+                  role: member.role,
+                  membershipStatus: membershipByUser.get(member.id) || "pending_payment",
+                  kycStatus: kycByUser.get(member.id) || "pending",
+                }))}
+              />
             </div>
           ) : null}
 
