@@ -72,6 +72,22 @@ export function CollaborationInbox({
   }, [threads]);
 
   useEffect(() => {
+    if (!activeThread) {
+      return;
+    }
+
+    const previousOverflow = document.body.style.overflow;
+    const previousOverscroll = document.body.style.overscrollBehavior;
+    document.body.style.overflow = "hidden";
+    document.body.style.overscrollBehavior = "none";
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.body.style.overscrollBehavior = previousOverscroll;
+    };
+  }, [activeThread]);
+
+  useEffect(() => {
     const channel = supabase
       .channel(`request-messages-${currentUserId}`)
       .on(
@@ -337,8 +353,8 @@ export function CollaborationInbox({
       </section>
 
       {activeThread ? (
-        <div className="fixed inset-0 z-40 bg-[#17120d]/35 backdrop-blur-sm">
-          <div className="mx-auto flex h-full w-full max-w-[430px] flex-col bg-[#f8f3ed]">
+        <div className="fixed inset-0 z-40 overflow-hidden bg-[#17120d]/35 backdrop-blur-sm [overscroll-behavior:none]">
+          <div className="mx-auto flex h-[100dvh] w-full max-w-[430px] flex-col overflow-hidden bg-[#f8f3ed]">
             <div className="flex items-center justify-between border-b border-[#eadfd6] bg-white px-4 py-3">
               <div className="flex items-center gap-3">
                 <button type="button" onClick={closeChat} className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#f7f1ea] text-[#131316]">
@@ -354,7 +370,7 @@ export function CollaborationInbox({
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-4 py-4">
+            <div className="flex-1 overflow-y-auto px-4 py-4 [overscroll-behavior:contain]">
               <div className="space-y-3">
                 {activeThread.messages.length ? (
                   activeThread.messages.map((message) => {
