@@ -36,12 +36,12 @@ type ContactRow = {
 };
 
 const WHATSAPP_PREFIX_OPTIONS = [
-  { flag: "US", label: "USA", value: "+1" },
+  { flag: "US", label: "USA", value: "us:+1" },
   { flag: "ES", label: "Espana", value: "+34" },
   { flag: "CU", label: "Cuba", value: "+53" },
   { flag: "MX", label: "Mexico", value: "+52" },
   { flag: "CO", label: "Colombia", value: "+57" },
-  { flag: "DO", label: "R. Dominicana", value: "+1" },
+  { flag: "DO", label: "R. Dominicana", value: "do:+1" },
 ] as const;
 
 const ADMIN_SECTIONS = [
@@ -195,10 +195,10 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                       <p className="text-sm font-semibold text-[#131316]">WhatsApp</p>
                       <p className="mt-1 text-xs text-[#62626d]">Selecciona el prefijo internacional y escribe el numero sin espacios.</p>
                       <div className="mt-3 grid grid-cols-[minmax(0,152px)_1fr] gap-2">
-                        <select className="input bg-white" name="whatsapp_prefix" defaultValue="+1">
+                        <select className="input bg-white" name="whatsapp_prefix" defaultValue="us:+1">
                           {WHATSAPP_PREFIX_OPTIONS.map((option) => (
                             <option key={`${option.label}-${option.value}`} value={option.value}>
-                              {option.flag} {option.label} {option.value}
+                              {option.flag} {option.label} {option.value.split(":").slice(-1)[0]}
                             </option>
                           ))}
                         </select>

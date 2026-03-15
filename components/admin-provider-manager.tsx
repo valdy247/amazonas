@@ -94,6 +94,8 @@ export function AdminProviderManager({ contacts, whatsappPrefixOptions }: AdminP
           const prefixMatch = whatsappValue.match(/^\+\d{1,3}/);
           const whatsappPrefix = prefixMatch?.[0] || "+1";
           const whatsappNumber = whatsappValue.replace(/^\+\d{1,3}/, "");
+          const selectedPrefixValue =
+            whatsappPrefixOptions.find((option) => option.value.endsWith(whatsappPrefix))?.value || `custom:${whatsappPrefix}`;
           const isOpen = openContactId === contact.id;
 
           return (
@@ -125,14 +127,14 @@ export function AdminProviderManager({ contacts, whatsappPrefixOptions }: AdminP
                     <div className="rounded-[1.2rem] border border-[#eadfd6] bg-[#fcfaf7] p-3">
                       <p className="text-sm font-semibold text-[#131316]">WhatsApp</p>
                       <div className="mt-3 grid grid-cols-[minmax(0,152px)_1fr] gap-2">
-                        <select className="input bg-white" name="whatsapp_prefix" defaultValue={whatsappPrefix}>
+                        <select className="input bg-white" name="whatsapp_prefix" defaultValue={selectedPrefixValue}>
                           {whatsappPrefixOptions.map((option) => (
                             <option key={`${contact.id}-${option.label}-${option.value}`} value={option.value}>
-                              {option.flag} {option.label} {option.value}
+                              {option.flag} {option.label} {option.value.split(":").slice(-1)[0]}
                             </option>
                           ))}
-                          {!whatsappPrefixOptions.some((option) => option.value === whatsappPrefix) ? (
-                            <option value={whatsappPrefix}>{whatsappPrefix}</option>
+                          {!whatsappPrefixOptions.some((option) => option.value === selectedPrefixValue) ? (
+                            <option value={selectedPrefixValue}>{whatsappPrefix}</option>
                           ) : null}
                         </select>
                         <input

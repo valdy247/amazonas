@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { hasAdminAccess } from "@/lib/admin";
-import { buildContactMethodsFromFields, getPrimaryContactUrl } from "@/lib/provider-contact";
+import { buildContactMethodsFromFields, getComparableContactMethods, getPrimaryContactUrl, normalizeContactValue, normalizeWhatsappPrefix } from "@/lib/provider-contact";
 
 async function assertAdmin() {
   const supabase = await createClient();
@@ -24,11 +24,58 @@ async function assertAdmin() {
   return { supabase, adminId: user.id };
 }
 
+async function assertUniqueProviderContact({
+  supabase,
+  contactId,
+  whatsapp,
+  instagram,
+  messenger,
+}: {
+  supabase: Awaited<ReturnType<typeof createClient>>;
+  contactId?: number;
+  whatsapp?: string;
+  instagram?: string;
+  messenger?: string;
+}) {
+  const requestedMethods = [whatsapp, instagram, messenger]
+    .map((value) => normalizeContactValue(value))
+    .filter(Boolean);
+
+  if (!requestedMethods.length) {
+    return;
+  }
+
+  const withMethods = await supabase
+    .from("provider_contacts")
+    .select("id, contact_methods, url, network");
+
+  const existingContacts = withMethods.error
+    ? (
+        await supabase
+          .from("provider_contacts")
+          .select("id, url, network")
+      ).data?.map((contact) => ({ ...contact, contact_methods: null })) || []
+    : withMethods.data || [];
+
+  const duplicate = existingContacts.find((contact) => {
+    if (contactId && Number(contact.id) === contactId) {
+      return false;
+    }
+
+    const comparable = getComparableContactMethods(contact.contact_methods, contact.url, contact.network);
+    return requestedMethods.some((method) => comparable.includes(method));
+  });
+
+  if (duplicate) {
+    throw new Error("Ya existe un proveedor con ese numero o enlace de contacto.");
+  }
+}
+
 export async function createProviderContact(formData: FormData) {
   const { supabase, adminId } = await assertAdmin();
 
   const title = String(formData.get("title") || "").trim();
-  const whatsappPrefix = String(formData.get("whatsapp_prefix") || "").trim();
+  const whatsappPrefix = normalizeWhatsappPrefix(String(formData.get("whatsapp_prefix") || ""));
   const whatsappNumber = String(formData.get("whatsapp_number") || "").trim();
   const whatsapp = `${whatsappPrefix}${whatsappNumber}`.trim();
   const instagram = String(formData.get("instagram") || "").trim();
@@ -46,6 +93,13 @@ export async function createProviderContact(formData: FormData) {
   if (!methodCount) {
     throw new Error("Debes agregar al menos un metodo de contacto.");
   }
+
+  await assertUniqueProviderContact({
+    supabase,
+    whatsapp,
+    instagram,
+    messenger,
+  });
 
   const payloads = [
     {
@@ -107,7 +161,7 @@ export async function updateProviderContact(formData: FormData) {
 
   const contactId = Number(formData.get("contact_id") || 0);
   const title = String(formData.get("title") || "").trim();
-  const whatsappPrefix = String(formData.get("whatsapp_prefix") || "").trim();
+  const whatsappPrefix = normalizeWhatsappPrefix(String(formData.get("whatsapp_prefix") || ""));
   const whatsappNumber = String(formData.get("whatsapp_number") || "").trim();
   const whatsapp = `${whatsappPrefix}${whatsappNumber}`.trim();
   const instagram = String(formData.get("instagram") || "").trim();
@@ -125,6 +179,14 @@ export async function updateProviderContact(formData: FormData) {
   if (!methodCount) {
     throw new Error("Debes agregar al menos un metodo de contacto.");
   }
+
+  await assertUniqueProviderContact({
+    supabase,
+    contactId,
+    whatsapp,
+    instagram,
+    messenger,
+  });
 
   const safeTitle = title || "Proveedor sin nombre";
   const safeUrl = getPrimaryContactUrl(contactMethods) || "#";

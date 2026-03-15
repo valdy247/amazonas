@@ -3,6 +3,15 @@ export type ContactMethod = {
   href: string;
 };
 
+export function normalizeWhatsappPrefix(value?: string | null) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  if (raw.includes(":")) {
+    return raw.split(":").slice(1).join(":").trim();
+  }
+  return raw;
+}
+
 function labelFromUrl(raw: string) {
   try {
     const url = new URL(raw);
@@ -95,6 +104,17 @@ export function buildContactMethodsFromFields({
   ].filter(Boolean);
 
   return rows.join("\n");
+}
+
+export function normalizeContactValue(raw?: string | null) {
+  const href = toHref(String(raw || ""));
+  return href ? href.toLowerCase() : "";
+}
+
+export function getComparableContactMethods(contactMethods?: string | null, fallbackUrl?: string | null, fallbackNetwork?: string | null) {
+  return parseContactMethods(contactMethods, fallbackUrl, fallbackNetwork)
+    .map((method) => normalizeContactValue(method.href))
+    .filter(Boolean);
 }
 
 export function getContactFieldValues(contactMethods?: string | null, fallbackUrl?: string | null, fallbackNetwork?: string | null) {
