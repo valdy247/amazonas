@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { hasAdminAccess } from "@/lib/admin";
 import { ProviderReviewerFinder } from "@/components/provider-reviewer-finder";
 import { ReviewerOpportunities } from "@/components/reviewer-opportunities";
+import { CollaborationInbox } from "@/components/collaboration-inbox";
 import { TestingAccessControls } from "@/components/testing-access-controls";
 import { ProviderContactGrid } from "@/components/provider-contact-grid";
 import { normalizeUserRole } from "@/lib/onboarding";
@@ -41,6 +42,14 @@ type RequestRow = {
   updated_at?: string;
   request_data?: unknown;
   response_message?: string | null;
+};
+
+type MessageRow = {
+  id: number;
+  request_id: number;
+  sender_id: string;
+  body: string;
+  created_at: string;
 };
 
 const PAYMENT_TEST_MODE = false;
@@ -172,6 +181,15 @@ export default async function DashboardPage({
     responseMessage?: string | null;
     requestData?: unknown;
   }> = [];
+  let collaborationThreads: Array<{
+    requestId: number;
+    counterpartId: string;
+    counterpartName: string;
+    counterpartCountry: string;
+    counterpartInterests: string[];
+    messages: Array<{ id: number; senderId: string; body: string; createdAt: string }>;
+    lastActivityAt: string;
+  }> = [];
 
   if (canSeeContacts) {
     const withMethods = await supabase
@@ -288,6 +306,52 @@ export default async function DashboardPage({
       .eq("provider_id", user.id);
 
     sentReviewerRequests = (requestRows || []) as Array<{ reviewer_id: string; status: string; message: string | null }>;
+
+    const acceptedRequestsResult = await supabase
+      .from("reviewer_contact_requests")
+      .select("id, reviewer_id, updated_at, last_activity_at")
+      .eq("provider_id", user.id)
+      .eq("status", "accepted");
+
+    const acceptedRequests = (acceptedRequestsResult.data || []) as Array<{
+      id: number;
+      reviewer_id: string;
+      updated_at?: string;
+      last_activity_at?: string;
+    }>;
+    const acceptedRequestIds = acceptedRequests.map((item) => item.id);
+
+    if (acceptedRequestIds.length) {
+      const { data: messageRows } = await supabase
+        .from("request_messages")
+        .select("id, request_id, sender_id, body, created_at")
+        .in("request_id", acceptedRequestIds)
+        .order("created_at", { ascending: true });
+
+      const messagesByRequest = new Map<number, MessageRow[]>();
+      ((messageRows || []) as MessageRow[]).forEach((message) => {
+        messagesByRequest.set(message.request_id, [...(messagesByRequest.get(message.request_id) || []), message]);
+      });
+
+      collaborationThreads = acceptedRequests.map((request) => {
+        const reviewer = reviewerDirectory.find((item) => item.id === request.reviewer_id);
+
+        return {
+          requestId: request.id,
+          counterpartId: request.reviewer_id,
+          counterpartName: reviewer?.fullName || "Reviewer",
+          counterpartCountry: reviewer?.country || "",
+          counterpartInterests: reviewer?.interests || [],
+          messages: (messagesByRequest.get(request.id) || []).map((message) => ({
+            id: message.id,
+            senderId: message.sender_id,
+            body: message.body,
+            createdAt: message.created_at,
+          })),
+          lastActivityAt: request.last_activity_at || request.updated_at || new Date(0).toISOString(),
+        };
+      });
+    }
   }
 
   if (!isProvider) {
@@ -299,6 +363,13 @@ export default async function DashboardPage({
 
     const requests = (requestRows || []) as RequestRow[];
     const providerIds = requests.map((item) => item.provider_id);
+    const providerMap = new Map<
+      string,
+      {
+        fullName: string;
+        profileData: ReturnType<typeof mergeProfileData>;
+      }
+    >();
 
     if (providerIds.length) {
       const providerProfilesResult = await supabase
@@ -307,7 +378,13 @@ export default async function DashboardPage({
         .in("id", providerIds);
 
       const providerProfiles = (providerProfilesResult.data || []) as ProfileRow[];
-      const providerMap = new Map(
+      providerProfiles.forEach((item) => {
+        providerMap.set(item.id, {
+          fullName: item.full_name || "Provider",
+          profileData: mergeProfileData(item.profile_data),
+        });
+      });
+      const providerPairs = new Map(
         providerProfiles.map((item) => [
           item.id,
           {
@@ -320,14 +397,45 @@ export default async function DashboardPage({
       reviewerOpportunities = requests.map((item) => ({
         id: item.id,
         providerId: item.provider_id,
-        providerName: providerMap.get(item.provider_id)?.fullName || "Provider",
-        providerCountry: providerMap.get(item.provider_id)?.profileData.country || "",
-        providerInterests: providerMap.get(item.provider_id)?.profileData.interests || [],
+        providerName: providerPairs.get(item.provider_id)?.fullName || "Provider",
+        providerCountry: providerPairs.get(item.provider_id)?.profileData.country || "",
+        providerInterests: providerPairs.get(item.provider_id)?.profileData.interests || [],
         message: item.message || "",
         status: item.status,
         createdAt: item.created_at,
         responseMessage: item.response_message || null,
         requestData: item.request_data,
+      }));
+    }
+
+    const acceptedRequests = requests.filter((item) => item.status === "accepted");
+    const acceptedRequestIds = acceptedRequests.map((item) => item.id);
+
+    if (acceptedRequestIds.length) {
+      const { data: messageRows } = await supabase
+        .from("request_messages")
+        .select("id, request_id, sender_id, body, created_at")
+        .in("request_id", acceptedRequestIds)
+        .order("created_at", { ascending: true });
+
+      const messagesByRequest = new Map<number, MessageRow[]>();
+      ((messageRows || []) as MessageRow[]).forEach((message) => {
+        messagesByRequest.set(message.request_id, [...(messagesByRequest.get(message.request_id) || []), message]);
+      });
+
+      collaborationThreads = acceptedRequests.map((request) => ({
+        requestId: request.id,
+        counterpartId: request.provider_id,
+        counterpartName: providerMap.get(request.provider_id)?.fullName || "Provider",
+        counterpartCountry: providerMap.get(request.provider_id)?.profileData.country || "",
+        counterpartInterests: providerMap.get(request.provider_id)?.profileData.interests || [],
+        messages: (messagesByRequest.get(request.id) || []).map((message) => ({
+          id: message.id,
+          senderId: message.sender_id,
+          body: message.body,
+          createdAt: message.created_at,
+        })),
+        lastActivityAt: request.updated_at || request.created_at,
       }));
     }
   }
@@ -410,6 +518,17 @@ export default async function DashboardPage({
         </section>
 
         {isProvider ? <ProviderReviewerFinder reviewers={reviewerDirectory} sentRequests={sentReviewerRequests} providerInterests={userInterests} /> : null}
+
+        {isProvider ? (
+          <CollaborationInbox
+            currentUserId={user.id}
+            title="Mensajeria activa"
+            description="Cuando un reviewer acepte tu solicitud, la conversacion aparece aqui para seguir dentro de la plataforma."
+            emptyTitle="Todavia no tienes conversaciones activas"
+            emptyDescription="Cuando un reviewer acepte una solicitud, se abrira aqui una ventana de mensajeria para ambos."
+            threads={collaborationThreads}
+          />
+        ) : null}
 
         {!isProvider ? (
           <section className="grid gap-3 sm:grid-cols-3">
@@ -567,6 +686,17 @@ export default async function DashboardPage({
         ) : null}
 
         {!isProvider ? <ReviewerOpportunities opportunities={reviewerOpportunities} /> : null}
+
+        {!isProvider ? (
+          <CollaborationInbox
+            currentUserId={user.id}
+            title="Mensajes de colaboracion"
+            description="Cuando aceptes una solicitud, la conversacion con ese provider seguira aqui."
+            emptyTitle="Todavia no tienes conversaciones activas"
+            emptyDescription="Acepta una solicitud de colaboracion y se abrira aqui una ventana de mensajeria entre ustedes."
+            threads={collaborationThreads}
+          />
+        ) : null}
 
         {isAdmin ? (
           <div className="flex flex-wrap gap-3">

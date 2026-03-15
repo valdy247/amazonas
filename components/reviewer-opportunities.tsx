@@ -59,6 +59,20 @@ export function ReviewerOpportunities({ opportunities }: ReviewerOpportunitiesPr
         return;
       }
 
+      if (status === "accepted" && responseMessage) {
+        const { error: messageError } = await supabase.from("request_messages").insert({
+          request_id: id,
+          sender_id: (await supabase.auth.getUser()).data.user?.id,
+          body: responseMessage,
+        });
+
+        if (messageError) {
+          setError(messageError.message);
+          setPendingId(null);
+          return;
+        }
+      }
+
       setItems((current) => current.map((item) => (item.id === id ? { ...item, status, responseMessage } : item)));
       setPendingId(null);
     });
