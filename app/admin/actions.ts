@@ -28,7 +28,9 @@ export async function createProviderContact(formData: FormData) {
   const { supabase, adminId } = await assertAdmin();
 
   const title = String(formData.get("title") || "").trim();
-  const whatsapp = String(formData.get("whatsapp") || "").trim();
+  const whatsappPrefix = String(formData.get("whatsapp_prefix") || "").trim();
+  const whatsappNumber = String(formData.get("whatsapp_number") || "").trim();
+  const whatsapp = `${whatsappPrefix}${whatsappNumber}`.trim();
   const instagram = String(formData.get("instagram") || "").trim();
   const messenger = String(formData.get("messenger") || "").trim();
   const notes = String(formData.get("notes") || "").trim();

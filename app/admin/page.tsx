@@ -31,6 +31,15 @@ type ContactRow = {
   contact_methods?: string | null;
 };
 
+const WHATSAPP_PREFIX_OPTIONS = [
+  { flag: "🇺🇸", label: "USA", value: "+1" },
+  { flag: "🇪🇸", label: "España", value: "+34" },
+  { flag: "🇨🇺", label: "Cuba", value: "+53" },
+  { flag: "🇲🇽", label: "México", value: "+52" },
+  { flag: "🇨🇴", label: "Colombia", value: "+57" },
+  { flag: "🇩🇴", label: "R. Dominicana", value: "+1" },
+] as const;
+
 export default async function AdminPage() {
   const supabase = await createClient();
   const {
@@ -105,7 +114,28 @@ export default async function AdminPage() {
             <h2 className="font-bold">Agregar contacto</h2>
             <form action={createProviderContact} noValidate className="mt-3 grid gap-2">
               <input className="input" name="title" placeholder="Nombre del proveedor" spellCheck={false} autoCorrect="off" autoCapitalize="off" />
-              <input className="input" name="whatsapp" placeholder="WhatsApp con prefijo. Ej: +1786703994" spellCheck={false} autoCorrect="off" autoCapitalize="off" />
+              <div className="rounded-[1.35rem] border border-[#eadfd6] bg-[#fcfaf7] p-3">
+                <p className="text-sm font-semibold text-[#131316]">WhatsApp</p>
+                <p className="mt-1 text-xs text-[#62626d]">Selecciona el prefijo internacional y escribe el numero sin espacios.</p>
+                <div className="mt-3 grid grid-cols-[minmax(0,152px)_1fr] gap-2">
+                  <select className="input bg-white" name="whatsapp_prefix" defaultValue="+1">
+                    {WHATSAPP_PREFIX_OPTIONS.map((option) => (
+                      <option key={`${option.label}-${option.value}`} value={option.value}>
+                        {option.flag} {option.label} {option.value}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    className="input"
+                    name="whatsapp_number"
+                    placeholder="786703994"
+                    inputMode="numeric"
+                    spellCheck={false}
+                    autoCorrect="off"
+                    autoCapitalize="off"
+                  />
+                </div>
+              </div>
               <input className="input" name="instagram" placeholder="Instagram. Ej: instagram.com/usuario o https://instagram.com/usuario" spellCheck={false} autoCorrect="off" autoCapitalize="off" />
               <input className="input" name="messenger" placeholder="Messenger. Ej: m.me/usuario o https://m.me/usuario" spellCheck={false} autoCorrect="off" autoCapitalize="off" />
               <textarea className="input min-h-24" name="notes" placeholder="Notas" spellCheck={false} autoCorrect="off" autoCapitalize="off" />
