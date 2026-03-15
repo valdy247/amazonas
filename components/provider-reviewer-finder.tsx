@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { NotebookTabs, Sparkles, Star } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { EXPERIENCE_LABELS } from "@/lib/onboarding";
@@ -149,6 +149,23 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
       return true;
     });
   }, [reviewers, selectedCountry, selectedInterest]);
+  const activeContactReviewer = contactOptionsId ? reviewers.find((reviewer) => reviewer.id === contactOptionsId) || null : null;
+
+  useEffect(() => {
+    if (!activeContactReviewer) {
+      return;
+    }
+
+    const previousOverflow = document.body.style.overflow;
+    const previousHtmlOverflow = document.documentElement.style.overflow;
+    document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.documentElement.style.overflow = previousHtmlOverflow;
+    };
+  }, [activeContactReviewer]);
 
   function openPlatformChat(reviewerId: string) {
     setError(null);
@@ -381,9 +398,6 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
         {filteredReviewers.map((reviewer) => {
           const currentRequest = latestRequestByReviewer[reviewer.id];
           const isExpanded = expandedId === reviewer.id;
-          const showContactOptions = contactOptionsId === reviewer.id;
-          const whatsappMethod = reviewer.directContactMethods.find((method) => method.label === "WhatsApp");
-          const otherDirectMethods = reviewer.directContactMethods.filter((method) => method.label !== "WhatsApp");
 
           return (
             <article
@@ -455,38 +469,6 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
                         Contactar
                       </button>
                     </div>
-
-                    {showContactOptions ? (
-                      <div className="mt-4 space-y-3 rounded-[1.2rem] border border-[#e9ddd2] bg-white p-4">
-                        <p className="text-sm font-semibold text-[#131316]">Elige una via</p>
-                        <div className="flex flex-wrap gap-2">
-                          <button
-                            type="button"
-                            className="btn-secondary"
-                            onClick={() => openPlatformChat(reviewer.id)}
-                            disabled={isPending && pendingAction === reviewer.id}
-                          >
-                            {isPending && pendingAction === reviewer.id ? "Abriendo..." : "A traves de la pagina"}
-                          </button>
-                          {whatsappMethod ? (
-                            <a
-                              href={toHref(whatsappMethod.value)}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="inline-flex items-center rounded-full bg-[#1f9d55] px-4 py-2 text-sm font-semibold text-white shadow-[0_14px_32px_rgba(31,157,85,0.22)] transition hover:brightness-105"
-                            >
-                              WhatsApp
-                            </a>
-                          ) : null}
-                          {otherDirectMethods.map((method) => (
-                            <a key={`${reviewer.id}-${method.label}`} href={toHref(method.value)} target="_blank" rel="noreferrer" className="btn-secondary">
-                              {method.label}
-                            </a>
-                          ))}
-                        </div>
-                      </div>
-                    ) : null}
-
                   </div>
                 </div>
               ) : null}
@@ -496,6 +478,51 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
       </div>
 
       {error ? <p className="text-sm font-semibold text-red-600">{error}</p> : null}
+
+      {activeContactReviewer ? (
+        <div className="fixed inset-0 z-40 bg-[#17120d]/35 backdrop-blur-sm" onClick={() => setContactOptionsId(null)}>
+          <div className="flex min-h-screen items-end justify-center p-4 sm:items-center">
+            <div className="w-full max-w-[360px] rounded-[1.8rem] border border-[#eadfd6] bg-white p-5 shadow-[0_24px_60px_rgba(22,18,14,0.16)]" onClick={(event) => event.stopPropagation()}>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-[#dc4f1f]">Metodos de contacto</p>
+                  <h3 className="mt-1 text-xl font-bold text-[#131316]">{activeContactReviewer.fullName}</h3>
+                  <p className="mt-1 text-sm text-[#62626d]">Elige la via mas comoda para empezar la conversacion.</p>
+                </div>
+                <button
+                  type="button"
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#f7f1ea] text-[#131316]"
+                  onClick={() => setContactOptionsId(null)}
+                >
+                  ×
+                </button>
+              </div>
+
+              <div className="mt-5 flex flex-col gap-3">
+                <button
+                  type="button"
+                  className="btn-primary"
+                  onClick={() => openPlatformChat(activeContactReviewer.id)}
+                  disabled={isPending && pendingAction === activeContactReviewer.id}
+                >
+                  {isPending && pendingAction === activeContactReviewer.id ? "Abriendo..." : "A traves de la pagina"}
+                </button>
+                {activeContactReviewer.directContactMethods.map((method) => (
+                  <a
+                    key={`${activeContactReviewer.id}-${method.label}`}
+                    href={toHref(method.value)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className={method.label === "WhatsApp" ? "inline-flex items-center justify-center rounded-full bg-[#1f9d55] px-4 py-3 text-sm font-semibold text-white shadow-[0_14px_32px_rgba(31,157,85,0.22)] transition hover:brightness-105" : "btn-secondary justify-center"}
+                  >
+                    {method.label}
+                  </a>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

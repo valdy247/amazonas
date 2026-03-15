@@ -525,6 +525,7 @@ export default async function DashboardPage({
         ) : null}
         {currentSection === "home" && isProvider ? (
           <>
+            <ProviderReviewerFinder reviewers={reviewerDirectory} sentRequests={sentReviewerRequests} providerInterests={userInterests} />
             <section className="grid gap-3 sm:grid-cols-3">
               {[
                 { label: "Chats abiertos", value: providerRequestStats.active, href: "/dashboard?section=messages" },
@@ -537,7 +538,6 @@ export default async function DashboardPage({
                 </Link>
               ))}
             </section>
-            <ProviderReviewerFinder reviewers={reviewerDirectory} sentRequests={sentReviewerRequests} providerInterests={userInterests} />
           </>
         ) : null}
 
