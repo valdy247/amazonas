@@ -142,6 +142,15 @@ on public.profiles
 for select
 using (auth.uid() = id or public.is_admin(auth.uid()));
 
+create policy "providers read public reviewer profiles"
+on public.profiles
+for select
+using (
+  role in ('reviewer', 'tester')
+  and accepted_terms_at is not null
+  and coalesce((profile_data ->> 'publicProfile')::boolean, true) = true
+);
+
 create policy "users update own profile"
 on public.profiles
 for update
