@@ -78,6 +78,11 @@ export async function createProviderContact(formData: FormData) {
       url: safeUrl,
       notes,
     },
+    {
+      title: safeTitle,
+      network: primaryNetwork,
+      url: safeUrl,
+    },
   ];
 
   let lastError: string | null = null;
