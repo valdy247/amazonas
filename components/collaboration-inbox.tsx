@@ -45,7 +45,7 @@ export function CollaborationInbox({
   emptyDescription,
   threads,
 }: CollaborationInboxProps) {
-  const supabase = createClient();
+  const [supabase] = useState(() => createClient());
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [items, setItems] = useState(threads);
   const [activeThreadId, setActiveThreadId] = useState<number | null>(null);
