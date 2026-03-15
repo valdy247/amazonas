@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { BadgeCheck, Compass, LockKeyhole, MapPin, MessageCircleMore, Sparkles, WalletCards } from "lucide-react";
+import { BadgeCheck, Compass, LockKeyhole, MessageCircleMore, Sparkles, WalletCards } from "lucide-react";
 import { SiteHeader } from "@/components/site-header";
 import { createClient } from "@/lib/supabase/server";
 import { hasAdminAccess } from "@/lib/admin";
@@ -163,7 +163,6 @@ export default async function DashboardPage({
   }
 
   const userInterests = profileData.interests;
-  const experienceLevel = profileData.experienceLevel;
   const profileNote = profileData.note;
   const country = profileData.country || null;
   const testingMembershipStatus = typeof metadata.testing_payment_state === "string" ? metadata.testing_payment_state : null;
@@ -183,10 +182,11 @@ export default async function DashboardPage({
     typeof resolvedSearchParams.thread === "string" && Number.isFinite(Number(resolvedSearchParams.thread))
       ? Number(resolvedSearchParams.thread)
       : null;
+  const requestedOfferFilter = typeof resolvedSearchParams.filter === "string" ? resolvedSearchParams.filter : "all";
   const requestedSection = typeof resolvedSearchParams.section === "string" ? resolvedSearchParams.section : "home";
   const currentSection = isProvider
-    ? requestedSection === "messages"
-      ? "messages"
+    ? requestedSection === "messages" || requestedSection === "offers"
+      ? requestedSection
       : "home"
     : requestedSection === "messages" || requestedSection === "contacts"
       ? requestedSection
@@ -498,6 +498,7 @@ export default async function DashboardPage({
   const hasUnreadMessages = pendingMessageRequests || latestConversationHasReply;
   const menuItems = [
     { href: "/dashboard", label: "Inicio" },
+    isProvider ? { href: "/dashboard?section=offers", label: "Seguimiento" } : null,
     !isProvider ? { href: "/dashboard?section=contacts", label: "Contactos de proveedores", locked: !canSeeContacts } : null,
     { href: "/profile", label: "Editar perfil" },
     isAdmin ? { href: "/admin", label: "Panel admin" } : null,
@@ -511,6 +512,17 @@ export default async function DashboardPage({
     requests: reviewerOpportunities.filter((request) => request.status === "sent" || request.status === "read").length,
     conversations: collaborationThreads.length,
   };
+  const providerOfferList = sentReviewerRequests
+    .filter((request) => {
+      if (requestedOfferFilter === "active") {
+        return request.status === "sent" || request.status === "read";
+      }
+      if (requestedOfferFilter === "accepted") {
+        return request.status === "accepted";
+      }
+      return true;
+    })
+    .sort((left, right) => new Date(right.updated_at || right.created_at || 0).getTime() - new Date(left.updated_at || left.created_at || 0).getTime());
 
   return (
     <div className="min-h-screen">
@@ -520,31 +532,12 @@ export default async function DashboardPage({
           <section className="overflow-hidden rounded-[1.8rem] border border-[#1f1b17] bg-[linear-gradient(135deg,#201915_0%,#2c221a_55%,#3f2a1d_100%)] p-5 text-white shadow-[0_26px_80px_rgba(35,22,13,0.22)]">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-xs uppercase tracking-[0.24em] text-white/55">{isProvider ? "Provider Hub" : "Reviewer Hub"}</p>
                 <h1 className="mt-2 text-3xl font-bold">Hola, {firstName}</h1>
               </div>
               <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10">
                 <Sparkles className="h-5 w-5" />
               </span>
             </div>
-
-            {isProvider ? (
-              <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                <div className="rounded-[1.4rem] border border-white/10 bg-white/6 p-4">
-                  <p className="text-xs uppercase tracking-[0.18em] text-white/50">Pais y nivel</p>
-                  <div className="mt-2 flex items-center gap-2 text-sm text-white/85">
-                    <MapPin className="h-4 w-4" />
-                    <span>{country || "Sin pais"}</span>
-                  </div>
-                  <p className="mt-2 text-sm text-white/72">{experienceLevel || "Nivel pendiente"}</p>
-                </div>
-                <div className="rounded-[1.4rem] border border-white/10 bg-white/6 p-4">
-                  <p className="text-xs uppercase tracking-[0.18em] text-white/50">Mensajes</p>
-                  <p className="mt-2 text-sm font-semibold text-white/85">{providerRequestStats.active} solicitudes activas</p>
-                  <p className="mt-2 text-sm font-semibold text-white/72">{providerRequestStats.conversations} conversaciones abiertas</p>
-                </div>
-              </div>
-            ) : null}
 
             {userInterests.length ? (
               <div className="mt-5 flex flex-wrap gap-2">
@@ -563,18 +556,88 @@ export default async function DashboardPage({
           <>
             <section className="grid gap-3 sm:grid-cols-3">
               {[
-                { label: "Solicitudes activas", value: providerRequestStats.active },
-                { label: "Aceptadas", value: providerRequestStats.accepted },
-                { label: "Conversaciones", value: providerRequestStats.conversations },
+                { label: "Solicitudes activas", value: providerRequestStats.active, href: "/dashboard?section=offers&filter=active" },
+                { label: "Aceptadas", value: providerRequestStats.accepted, href: "/dashboard?section=offers&filter=accepted" },
+                { label: "Conversaciones", value: providerRequestStats.conversations, href: "/dashboard?section=messages" },
               ].map((item) => (
-                <article key={item.label} className="rounded-[1.6rem] border border-[#eadfd6] bg-white p-4 shadow-[0_18px_36px_rgba(22,18,14,0.04)]">
+                <Link key={item.label} href={item.href} className="rounded-[1.6rem] border border-[#eadfd6] bg-white p-4 shadow-[0_18px_36px_rgba(22,18,14,0.04)] transition hover:border-[#ffcfbe] hover:bg-[#fffaf6]">
                   <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8f857b]">{item.label}</p>
                   <p className="mt-2 text-3xl font-bold text-[#131316]">{item.value}</p>
-                </article>
+                </Link>
               ))}
             </section>
             <ProviderReviewerFinder reviewers={reviewerDirectory} sentRequests={sentReviewerRequests} providerInterests={userInterests} />
           </>
+        ) : null}
+
+        {currentSection === "offers" && isProvider ? (
+          <section className="rounded-[1.8rem] border border-[#e6ddd1] bg-white p-5 shadow-[0_18px_36px_rgba(22,18,14,0.04)]">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#dc4f1f]">Seguimiento</p>
+                <h2 className="mt-2 text-2xl font-bold text-[#131316]">Tus ofertas enviadas</h2>
+                <p className="mt-2 text-sm text-[#62626d]">Aqui ves tus solicitudes activas y las aceptadas sin cargar de mas el inicio del provider.</p>
+              </div>
+            </div>
+
+            <div className="mt-5 flex flex-wrap gap-2">
+              {[
+                { label: "Todas", href: "/dashboard?section=offers", active: requestedOfferFilter === "all" },
+                { label: "Solicitudes activas", href: "/dashboard?section=offers&filter=active", active: requestedOfferFilter === "active" },
+                { label: "Aceptadas", href: "/dashboard?section=offers&filter=accepted", active: requestedOfferFilter === "accepted" },
+              ].map((item) => (
+                <Link
+                  key={item.label}
+                  href={item.href}
+                  className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                    item.active ? "bg-[#ff6b35] text-white" : "border border-[#eadfd6] bg-white text-[#62564a]"
+                  }`}
+                >
+                  {item.label}
+                </Link>
+              ))}
+            </div>
+
+            <div className="mt-5 space-y-3">
+              {providerOfferList.length ? (
+                providerOfferList.map((request) => {
+                  const reviewer = reviewerDirectory.find((item) => item.id === request.reviewer_id);
+                  const requestData =
+                    request.request_data && typeof request.request_data === "object"
+                      ? (request.request_data as { productName?: unknown; category?: unknown })
+                      : null;
+
+                  return (
+                    <article key={request.id} className="rounded-[1.4rem] border border-[#efe4d9] bg-[#fffdfa] p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="font-semibold text-[#131316]">{reviewer?.fullName || "Reviewer"}</p>
+                          <p className="mt-1 text-sm text-[#62626d]">
+                            {typeof requestData?.productName === "string" && requestData.productName.trim() ? requestData.productName : "Oferta sin titulo"}
+                          </p>
+                          {typeof requestData?.category === "string" && requestData.category.trim() ? (
+                            <p className="mt-1 text-xs font-semibold uppercase tracking-[0.16em] text-[#8f857b]">{requestData.category}</p>
+                          ) : null}
+                        </div>
+                        <span className="rounded-full bg-[#fff3ec] px-3 py-1 text-xs font-semibold text-[#dc4f1f]">
+                          {request.status === "sent" || request.status === "read" ? "Activa" : request.status === "accepted" ? "Aceptada" : request.status}
+                        </span>
+                      </div>
+                      {request.response_message ? (
+                        <p className="mt-3 rounded-2xl border border-[#e6ddd1] bg-white px-3 py-3 text-sm text-[#62564a]">
+                          Ultima respuesta del reviewer: {request.response_message}
+                        </p>
+                      ) : null}
+                    </article>
+                  );
+                })
+              ) : (
+                <div className="rounded-[1.4rem] border border-dashed border-[#e8ddd2] bg-[#fffaf6] px-4 py-6 text-center text-sm text-[#8f857b]">
+                  No hay ofertas en esta vista todavia.
+                </div>
+              )}
+            </div>
+          </section>
         ) : null}
 
         {currentSection === "home" && !isProvider ? (

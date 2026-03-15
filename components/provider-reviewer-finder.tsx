@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { BellDot, NotebookTabs, Sparkles, Star } from "lucide-react";
+import { NotebookTabs, Sparkles, Star } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { EXPERIENCE_LABELS } from "@/lib/onboarding";
 import { AVAILABILITY_OPTIONS, type ReviewerAvailability } from "@/lib/profile-data";
@@ -160,17 +160,6 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
     [requestLog]
   );
 
-  const requestStats = useMemo(() => {
-    const requests = requestLog;
-    return {
-      total: requests.length,
-      sent: requests.filter((item) => item.status === "sent").length,
-      read: requests.filter((item) => item.status === "read").length,
-      accepted: requests.filter((item) => item.status === "accepted").length,
-      declined: requests.filter((item) => item.status === "declined").length,
-    };
-  }, [requestLog]);
-
   const filteredReviewers = useMemo(() => {
     return reviewers.filter((reviewer) => {
       if (selectedInterest && !reviewer.interests.some((interest) => normalizeFilterValue(interest) === normalizeFilterValue(selectedInterest))) {
@@ -298,9 +287,7 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
           <div>
             <p className="text-sm font-semibold text-[#dc4f1f]">Discovery Studio</p>
             <h2 className="mt-2 text-3xl font-bold">Encuentra reviewers alineados con tus productos</h2>
-            <p className="mt-2 max-w-2xl text-sm text-[#62626d]">
-              Tus mismas etiquetas se usan como categorias de producto. El sistema prioriza compatibilidad por categoria, pais y disponibilidad.
-            </p>
+            <p className="mt-2 max-w-2xl text-sm text-[#62626d]">Filtra por pais o categoria para descubrir reviewers que encajen con tu marca.</p>
           </div>
           <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-[#dc4f1f] shadow-sm">
             <Sparkles className="h-5 w-5" />
@@ -309,21 +296,6 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
 
         <div className="mt-5 rounded-[1.6rem] border border-white/80 bg-white/80 p-4 backdrop-blur">
           <div className="grid gap-4">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8f857b]">Tus categorias</p>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {providerInterests.length ? (
-                  providerInterests.map((interest) => (
-                    <span key={interest} className="rounded-full bg-[#fff2eb] px-3 py-2 text-xs font-semibold text-[#dc4f1f]">
-                      {interest}
-                    </span>
-                  ))
-                ) : (
-                  <span className="text-sm text-[#8f857b]">Todavia no has definido categorias de producto en tu perfil.</span>
-                )}
-              </div>
-            </div>
-
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8f857b]">Filtrar por pais</p>
               <div className="mt-2 flex flex-wrap gap-2">
@@ -398,7 +370,11 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
               <button
                 key={`recommended-${reviewer.id}`}
                 type="button"
-                onClick={() => setExpandedId(reviewer.id)}
+                onClick={() => {
+                  setExpandedId(reviewer.id);
+                  setContactOptionsId(reviewer.id);
+                  setPlatformFormId(null);
+                }}
                 className="rounded-[1.4rem] border border-[#ece3d9] bg-[linear-gradient(180deg,#fff8f3_0%,#ffffff_100%)] p-4 text-left transition hover:border-[#ffcfbe]"
               >
                 <div className="flex items-start justify-between gap-3">
@@ -417,63 +393,6 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
                 </div>
               </button>
             ))}
-          </div>
-        </section>
-      ) : null}
-
-      {requestStats.total ? (
-        <section className="rounded-[1.8rem] border border-[#eadfd6] bg-white p-5 shadow-[0_18px_36px_rgba(22,18,14,0.04)]">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-sm font-semibold text-[#dc4f1f]">Seguimiento</p>
-              <h3 className="mt-1 text-xl font-bold">Tus contactos enviados</h3>
-            </div>
-            <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-[#fff3ec] text-[#dc4f1f]">
-              <BellDot className="h-5 w-5" />
-            </span>
-          </div>
-
-          <div className="mt-4 grid grid-cols-2 gap-3">
-            {[
-              { label: "Enviadas", value: requestStats.sent },
-              { label: "Vistas", value: requestStats.read },
-              { label: "Aceptadas", value: requestStats.accepted },
-              { label: "No ahora", value: requestStats.declined },
-            ].map((item) => (
-              <article key={item.label} className="rounded-[1.25rem] border border-[#efe4d9] bg-[#fffaf6] p-4">
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8f857b]">{item.label}</p>
-                <p className="mt-2 text-2xl font-bold text-[#131316]">{item.value}</p>
-              </article>
-            ))}
-          </div>
-
-          <div className="mt-4 space-y-3">
-            {requestLog
-              .sort((left, right) => new Date(right.updatedAt || right.createdAt || 0).getTime() - new Date(left.updatedAt || left.createdAt || 0).getTime())
-              .slice(0, 4)
-              .map((request) => {
-                const reviewer = reviewers.find((item) => item.id === request.reviewerId);
-                if (!reviewer) return null;
-
-                return (
-                  <article key={`request-${request.id}`} className="rounded-[1.25rem] border border-[#efe4d9] bg-[#fffdfa] p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="font-semibold text-[#131316]">{reviewer.fullName}</p>
-                        <p className="mt-1 text-sm text-[#62626d]">{request.requestData.productName || "Solicitud sin titulo"}</p>
-                      </div>
-                      <span className="rounded-full bg-[#fff3ec] px-3 py-1 text-xs font-semibold text-[#dc4f1f]">
-                        {getRequestStatusLabel(request.status)}
-                      </span>
-                    </div>
-                    {request.responseMessage ? (
-                      <p className="mt-3 rounded-2xl border border-[#e6ddd1] bg-white px-3 py-3 text-sm text-[#62564a]">
-                        Respuesta del reviewer: {request.responseMessage}
-                      </p>
-                    ) : null}
-                  </article>
-                );
-              })}
           </div>
         </section>
       ) : null}
@@ -497,7 +416,6 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
       <div className="space-y-3">
         {filteredReviewers.map((reviewer) => {
           const currentRequest = latestRequestByReviewer[reviewer.id];
-          const reviewerRequestCount = requestLog.filter((request) => request.reviewerId === reviewer.id).length;
           const isExpanded = expandedId === reviewer.id;
           const showContactOptions = contactOptionsId === reviewer.id;
           const showPlatformForm = platformFormId === reviewer.id;
@@ -549,31 +467,7 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
                       {reviewer.country || "Sin pais"} · {EXPERIENCE_LABELS[reviewer.experienceLevel]} · {AVAILABILITY_OPTIONS.find((item) => item.value === reviewer.availability)?.label}
                     </p>
                   </div>
-                  <p className="text-sm text-[#62626d]">{reviewer.note || "Este reviewer aun no ha completado una bio detallada."}</p>
-
-                  {reviewer.allowsDirectContact && reviewer.directContactMethods.length ? (
-                    <div className="mt-4 rounded-[1.35rem] border border-[#d7eadf] bg-[linear-gradient(180deg,#f7fff8_0%,#ffffff_100%)] p-4">
-                      <p className="text-sm font-semibold text-[#131316]">Contacto directo habilitado</p>
-                      <p className="mt-1 text-sm text-[#62626d]">Este reviewer te permite escribirle fuera de la plataforma si prefieres ir directo.</p>
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {whatsappMethod ? (
-                          <a
-                            href={toHref(whatsappMethod.value)}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-flex items-center rounded-full bg-[#1f9d55] px-4 py-2 text-sm font-semibold text-white shadow-[0_14px_32px_rgba(31,157,85,0.22)] transition hover:brightness-105"
-                          >
-                            Escribir por WhatsApp
-                          </a>
-                        ) : null}
-                        {otherDirectMethods.map((method) => (
-                          <a key={`${reviewer.id}-${method.label}`} href={toHref(method.value)} target="_blank" rel="noreferrer" className="btn-secondary">
-                            {method.label}
-                          </a>
-                        ))}
-                      </div>
-                    </div>
-                  ) : null}
+                  {reviewer.note ? <p className="text-sm text-[#62626d]">{reviewer.note}</p> : <div className="h-2" />}
 
                   <div className="mt-4 rounded-[1.35rem] border border-[#eadfd6] bg-[linear-gradient(180deg,#fcfaf7_0%,#fff5ef_100%)] p-4">
                     <div className="flex items-start justify-between gap-3">
@@ -621,11 +515,6 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
                             </a>
                           ))}
                         </div>
-                        {reviewerRequestCount ? (
-                          <p className="text-sm text-[#8f857b]">
-                            {reviewerRequestCount} {reviewerRequestCount === 1 ? "oferta enviada a este reviewer" : "ofertas enviadas a este reviewer"}.
-                          </p>
-                        ) : null}
                       </div>
                     ) : null}
 
@@ -713,7 +602,7 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
                           >
                             {isPending && pendingAction === reviewer.id
                               ? "Enviando..."
-                              : reviewerRequestCount
+                              : requestLog.some((request) => request.reviewerId === reviewer.id)
                                 ? "Enviar nueva oferta"
                                 : "Enviar solicitud"}
                           </button>
