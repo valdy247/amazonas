@@ -5,12 +5,12 @@ import { SiteHeader } from "@/components/site-header";
 import { createClient } from "@/lib/supabase/server";
 import { hasAdminAccess } from "@/lib/admin";
 import { ProviderReviewerFinder } from "@/components/provider-reviewer-finder";
-import { ReviewerOpportunities } from "@/components/reviewer-opportunities";
 import { CollaborationInbox } from "@/components/collaboration-inbox";
 import { TestingAccessControls } from "@/components/testing-access-controls";
 import { ProviderContactGrid } from "@/components/provider-contact-grid";
 import { normalizeUserRole } from "@/lib/onboarding";
 import { getReviewerContactMethods, mergeProfileData, type ReviewerAvailability } from "@/lib/profile-data";
+import { normalizeContactRequestData } from "@/lib/contact-requests";
 
 type ProviderContact = {
   id: number;
@@ -61,6 +61,12 @@ type ConversationThread = {
   counterpartName: string;
   counterpartCountry: string;
   counterpartInterests: string[];
+  requestData?: Record<string, unknown> | null;
+  requestMeta?: {
+    category: string;
+    productName: string;
+    note: string;
+  };
   messages: Array<{
     id: number;
     senderId: string;
@@ -182,10 +188,9 @@ export default async function DashboardPage({
     typeof resolvedSearchParams.thread === "string" && Number.isFinite(Number(resolvedSearchParams.thread))
       ? Number(resolvedSearchParams.thread)
       : null;
-  const requestedOfferFilter = typeof resolvedSearchParams.filter === "string" ? resolvedSearchParams.filter : "all";
   const requestedSection = typeof resolvedSearchParams.section === "string" ? resolvedSearchParams.section : "home";
   const currentSection = isProvider
-    ? requestedSection === "messages" || requestedSection === "offers"
+    ? requestedSection === "messages"
       ? requestedSection
       : "home"
     : requestedSection === "messages" || requestedSection === "contacts"
@@ -219,18 +224,6 @@ export default async function DashboardPage({
     response_message?: string | null;
     created_at?: string;
     updated_at?: string;
-  }> = [];
-  let reviewerOpportunities: Array<{
-    id: number;
-    providerId: string;
-    providerName: string;
-    providerCountry: string;
-    providerInterests: string[];
-    message: string;
-    status: string;
-    createdAt: string;
-    responseMessage?: string | null;
-    requestData?: unknown;
   }> = [];
   let collaborationThreads: ConversationThread[] = [];
 
@@ -343,19 +336,22 @@ export default async function DashboardPage({
 
     sentReviewerRequests = ((requestRows || []) as typeof sentReviewerRequests).filter((request) => request.status !== "declined");
 
-    const acceptedRequestsResult = await supabase
+    const conversationRequestsResult = await supabase
       .from("reviewer_contact_requests")
-      .select("id, reviewer_id, updated_at, last_activity_at")
+      .select("id, reviewer_id, updated_at, last_activity_at, request_data, status, created_at")
       .eq("provider_id", user.id)
-      .eq("status", "accepted");
+      .neq("status", "declined");
 
-    const acceptedRequests = (acceptedRequestsResult.data || []) as Array<{
+    const conversationRequests = (conversationRequestsResult.data || []) as Array<{
       id: number;
       reviewer_id: string;
       updated_at?: string;
       last_activity_at?: string;
+      request_data?: unknown;
+      status?: string;
+      created_at?: string;
     }>;
-    const acceptedRequestIds = acceptedRequests.map((item) => item.id);
+    const acceptedRequestIds = conversationRequests.map((item) => item.id);
 
     if (acceptedRequestIds.length) {
       const { data: messageRows } = await supabase
@@ -369,7 +365,7 @@ export default async function DashboardPage({
         messagesByRequest.set(message.request_id, [...(messagesByRequest.get(message.request_id) || []), message]);
       });
 
-      collaborationThreads = acceptedRequests.map((request) => {
+      collaborationThreads = conversationRequests.map((request) => {
         const reviewer = reviewerDirectory.find((item) => item.id === request.reviewer_id);
         return {
           requestId: request.id,
@@ -377,6 +373,8 @@ export default async function DashboardPage({
           counterpartName: reviewer?.fullName || "Reviewer",
           counterpartCountry: reviewer?.country || "",
           counterpartInterests: reviewer?.interests || [],
+          requestData: request.request_data && typeof request.request_data === "object" ? (request.request_data as Record<string, unknown>) : null,
+          requestMeta: normalizeContactRequestData(request.request_data),
           messages: (messagesByRequest.get(request.id) || []).map((message) => ({
             id: message.id,
             senderId: message.sender_id,
@@ -385,7 +383,7 @@ export default async function DashboardPage({
             imageUrl: message.image_url || null,
             imagePath: message.image_path || null,
           })),
-          lastActivityAt: request.last_activity_at || request.updated_at || new Date(0).toISOString(),
+          lastActivityAt: request.last_activity_at || request.updated_at || request.created_at || new Date(0).toISOString(),
         };
       });
     }
@@ -413,25 +411,10 @@ export default async function DashboardPage({
         });
       });
 
-      reviewerOpportunities = requests.map((item) => {
-        const snapshot = getProviderSnapshot(item.request_data);
-        return {
-        id: item.id,
-        providerId: item.provider_id,
-        providerName: providerMap.get(item.provider_id)?.fullName || snapshot?.fullName || "Provider",
-        providerCountry: providerMap.get(item.provider_id)?.profileData.country || snapshot?.country || "",
-        providerInterests: providerMap.get(item.provider_id)?.profileData.interests || snapshot?.interests || [],
-        message: item.message || "",
-        status: item.status,
-        createdAt: item.created_at,
-        responseMessage: item.response_message || null,
-        requestData: item.request_data,
-        };
-      });
     }
 
-    const acceptedRequests = requests.filter((item) => item.status === "accepted");
-    const acceptedRequestIds = acceptedRequests.map((item) => item.id);
+    const conversationRequests = requests.filter((item) => item.status !== "declined");
+    const acceptedRequestIds = conversationRequests.map((item) => item.id);
 
     if (acceptedRequestIds.length) {
       const { data: messageRows } = await supabase
@@ -445,7 +428,7 @@ export default async function DashboardPage({
         messagesByRequest.set(message.request_id, [...(messagesByRequest.get(message.request_id) || []), message]);
       });
 
-      collaborationThreads = acceptedRequests.map((request) => {
+      collaborationThreads = conversationRequests.map((request) => {
         const snapshot = getProviderSnapshot(request.request_data);
         return {
           requestId: request.id,
@@ -453,6 +436,8 @@ export default async function DashboardPage({
           counterpartName: providerMap.get(request.provider_id)?.fullName || snapshot?.fullName || "Provider",
           counterpartCountry: providerMap.get(request.provider_id)?.profileData.country || snapshot?.country || "",
           counterpartInterests: providerMap.get(request.provider_id)?.profileData.interests || snapshot?.interests || [],
+          requestData: request.request_data && typeof request.request_data === "object" ? (request.request_data as Record<string, unknown>) : null,
+          requestMeta: normalizeContactRequestData(request.request_data),
           messages: (messagesByRequest.get(request.id) || []).map((message) => ({
             id: message.id,
             senderId: message.sender_id,
@@ -488,41 +473,29 @@ export default async function DashboardPage({
     },
   ];
 
-  const latestConversationHasReply = collaborationThreads.some((thread) => {
+  const unreadConversationCount = collaborationThreads.filter((thread) => {
     const lastMessage = thread.messages[thread.messages.length - 1];
     return lastMessage && lastMessage.senderId !== user.id;
-  });
-  const pendingMessageRequests = isProvider
-    ? sentReviewerRequests.some((request) => request.status === "accepted" || request.status === "read")
-    : reviewerOpportunities.some((request) => request.status === "sent" || request.status === "read");
-  const hasUnreadMessages = pendingMessageRequests || latestConversationHasReply;
+  }).length;
+  const hasUnreadMessages = unreadConversationCount > 0;
   const menuItems = [
     { href: "/dashboard", label: "Inicio" },
-    isProvider ? { href: "/dashboard?section=offers", label: "Seguimiento" } : null,
     !isProvider ? { href: "/dashboard?section=contacts", label: "Contactos de proveedores", locked: !canSeeContacts } : null,
     { href: "/profile", label: "Editar perfil" },
     isAdmin ? { href: "/admin", label: "Panel admin" } : null,
   ].filter(Boolean) as Array<{ href: string; label: string; locked?: boolean }>;
   const providerRequestStats = {
-    active: sentReviewerRequests.filter((request) => request.status === "sent" || request.status === "read").length,
-    accepted: sentReviewerRequests.filter((request) => request.status === "accepted").length,
+    active: sentReviewerRequests.length,
+    accepted: unreadConversationCount,
     conversations: collaborationThreads.length,
   };
   const reviewerMessageStats = {
-    requests: reviewerOpportunities.filter((request) => request.status === "sent" || request.status === "read").length,
+    requests: unreadConversationCount,
     conversations: collaborationThreads.length,
   };
-  const providerOfferList = sentReviewerRequests
-    .filter((request) => {
-      if (requestedOfferFilter === "active") {
-        return request.status === "sent" || request.status === "read";
-      }
-      if (requestedOfferFilter === "accepted") {
-        return request.status === "accepted";
-      }
-      return true;
-    })
-    .sort((left, right) => new Date(right.updated_at || right.created_at || 0).getTime() - new Date(left.updated_at || left.created_at || 0).getTime());
+  const collaborationInboxKey = `${user.id}-${requestedThreadId || "none"}-${collaborationThreads
+    .map((thread) => `${thread.requestId}:${thread.lastActivityAt}`)
+    .join("|")}`;
 
   return (
     <div className="min-h-screen">
@@ -556,8 +529,8 @@ export default async function DashboardPage({
           <>
             <section className="grid gap-3 sm:grid-cols-3">
               {[
-                { label: "Solicitudes activas", value: providerRequestStats.active, href: "/dashboard?section=offers&filter=active" },
-                { label: "Aceptadas", value: providerRequestStats.accepted, href: "/dashboard?section=offers&filter=accepted" },
+                { label: "Chats abiertos", value: providerRequestStats.active, href: "/dashboard?section=messages" },
+                { label: "Mensajes nuevos", value: providerRequestStats.accepted, href: "/dashboard?section=messages" },
                 { label: "Conversaciones", value: providerRequestStats.conversations, href: "/dashboard?section=messages" },
               ].map((item) => (
                 <Link key={item.label} href={item.href} className="rounded-[1.6rem] border border-[#eadfd6] bg-white p-4 shadow-[0_18px_36px_rgba(22,18,14,0.04)] transition hover:border-[#ffcfbe] hover:bg-[#fffaf6]">
@@ -568,76 +541,6 @@ export default async function DashboardPage({
             </section>
             <ProviderReviewerFinder reviewers={reviewerDirectory} sentRequests={sentReviewerRequests} providerInterests={userInterests} />
           </>
-        ) : null}
-
-        {currentSection === "offers" && isProvider ? (
-          <section className="rounded-[1.8rem] border border-[#e6ddd1] bg-white p-5 shadow-[0_18px_36px_rgba(22,18,14,0.04)]">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#dc4f1f]">Seguimiento</p>
-                <h2 className="mt-2 text-2xl font-bold text-[#131316]">Tus ofertas enviadas</h2>
-                <p className="mt-2 text-sm text-[#62626d]">Aqui ves tus solicitudes activas y las aceptadas sin cargar de mas el inicio del provider.</p>
-              </div>
-            </div>
-
-            <div className="mt-5 flex flex-wrap gap-2">
-              {[
-                { label: "Todas", href: "/dashboard?section=offers", active: requestedOfferFilter === "all" },
-                { label: "Solicitudes activas", href: "/dashboard?section=offers&filter=active", active: requestedOfferFilter === "active" },
-                { label: "Aceptadas", href: "/dashboard?section=offers&filter=accepted", active: requestedOfferFilter === "accepted" },
-              ].map((item) => (
-                <Link
-                  key={item.label}
-                  href={item.href}
-                  className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-                    item.active ? "bg-[#ff6b35] text-white" : "border border-[#eadfd6] bg-white text-[#62564a]"
-                  }`}
-                >
-                  {item.label}
-                </Link>
-              ))}
-            </div>
-
-            <div className="mt-5 space-y-3">
-              {providerOfferList.length ? (
-                providerOfferList.map((request) => {
-                  const reviewer = reviewerDirectory.find((item) => item.id === request.reviewer_id);
-                  const requestData =
-                    request.request_data && typeof request.request_data === "object"
-                      ? (request.request_data as { productName?: unknown; category?: unknown })
-                      : null;
-
-                  return (
-                    <article key={request.id} className="rounded-[1.4rem] border border-[#efe4d9] bg-[#fffdfa] p-4">
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="font-semibold text-[#131316]">{reviewer?.fullName || "Reviewer"}</p>
-                          <p className="mt-1 text-sm text-[#62626d]">
-                            {typeof requestData?.productName === "string" && requestData.productName.trim() ? requestData.productName : "Oferta sin titulo"}
-                          </p>
-                          {typeof requestData?.category === "string" && requestData.category.trim() ? (
-                            <p className="mt-1 text-xs font-semibold uppercase tracking-[0.16em] text-[#8f857b]">{requestData.category}</p>
-                          ) : null}
-                        </div>
-                        <span className="rounded-full bg-[#fff3ec] px-3 py-1 text-xs font-semibold text-[#dc4f1f]">
-                          {request.status === "sent" || request.status === "read" ? "Activa" : request.status === "accepted" ? "Aceptada" : request.status}
-                        </span>
-                      </div>
-                      {request.response_message ? (
-                        <p className="mt-3 rounded-2xl border border-[#e6ddd1] bg-white px-3 py-3 text-sm text-[#62564a]">
-                          Ultima respuesta del reviewer: {request.response_message}
-                        </p>
-                      ) : null}
-                    </article>
-                  );
-                })
-              ) : (
-                <div className="rounded-[1.4rem] border border-dashed border-[#e8ddd2] bg-[#fffaf6] px-4 py-6 text-center text-sm text-[#8f857b]">
-                  No hay ofertas en esta vista todavia.
-                </div>
-              )}
-            </div>
-          </section>
         ) : null}
 
         {currentSection === "home" && !isProvider ? (
@@ -826,11 +729,11 @@ export default async function DashboardPage({
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#dc4f1f]">Mensajeria</p>
-                  <h2 className="mt-2 text-2xl font-bold text-[#131316]">{isProvider ? "Tus conversaciones y ofertas" : "Tus solicitudes y conversaciones"}</h2>
+                  <h2 className="mt-2 text-2xl font-bold text-[#131316]">{isProvider ? "Tus conversaciones" : "Tus conversaciones"}</h2>
                   <p className="mt-2 text-sm text-[#62626d]">
                     {isProvider
-                      ? "Cuando un reviewer acepte una oferta, la conversacion seguira aqui. Si la rechaza, no le mostraremos ese rechazo al provider."
-                      : "Aqui ves solicitudes nuevas y tus conversaciones activas. Si rechazas una solicitud, el provider no recibira una notificacion de rechazo."}
+                      ? "Cuando elijas contactar dentro de la pagina, el chat se abrira aqui y podras compartir producto, categoria, texto e imagenes."
+                      : "Aqui ves tus conversaciones activas con proveedores y puedes responder en tiempo real."}
                   </p>
                 </div>
                 <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-[#fff3ec] text-[#dc4f1f]">
@@ -840,12 +743,12 @@ export default async function DashboardPage({
               <div className={`mt-5 grid gap-3 ${isProvider ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
                 {(isProvider
                   ? [
-                      { label: "Ofertas activas", value: providerRequestStats.active },
-                      { label: "Aceptadas", value: providerRequestStats.accepted },
+                      { label: "Chats abiertos", value: providerRequestStats.active },
+                      { label: "Mensajes nuevos", value: providerRequestStats.accepted },
                       { label: "Conversaciones", value: providerRequestStats.conversations },
                     ]
                   : [
-                      { label: "Solicitudes nuevas", value: reviewerMessageStats.requests },
+                      { label: "Mensajes nuevos", value: reviewerMessageStats.requests },
                       { label: "Conversaciones", value: reviewerMessageStats.conversations },
                     ]
                 ).map((item) => (
@@ -857,24 +760,25 @@ export default async function DashboardPage({
               </div>
             </section>
 
-            {!isProvider ? <ReviewerOpportunities opportunities={reviewerOpportunities} /> : null}
-
             <CollaborationInbox
+              key={collaborationInboxKey}
               currentUserId={user.id}
+              currentUserRole={isProvider ? "provider" : "reviewer"}
               title="Conversaciones activas"
               description={
                 isProvider
-                  ? "Responde desde aqui y comparte imagenes cuando una colaboracion ya fue aceptada."
-                  : "Cuando aceptes una solicitud, la conversacion privada aparecera aqui para seguir hablando y compartir imagenes."
+                  ? "Selecciona categoria, agrega el nombre del producto y habla con el reviewer desde un solo lugar."
+                  : "Habla con proveedores desde aqui y comparte imagenes cuando lo necesites."
               }
               emptyTitle="Todavia no tienes conversaciones activas"
               emptyDescription={
                 isProvider
-                  ? "Cuando un reviewer acepte una de tus ofertas, la conversacion aparecera aqui."
-                  : "Acepta una solicitud de colaboracion y se abrira aqui una ventana de mensajeria entre ustedes."
+                  ? "Contacta a un reviewer desde la pagina y la conversacion aparecera aqui al instante."
+                  : "Cuando un proveedor te escriba dentro de la plataforma, la conversacion aparecera aqui."
               }
               threads={collaborationThreads}
               initialThreadId={requestedThreadId}
+              categorySuggestions={isProvider ? userInterests : []}
               quickReplies={
                 isProvider
                   ? []

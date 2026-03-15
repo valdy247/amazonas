@@ -19,18 +19,26 @@ type ConversationThread = {
   counterpartName: string;
   counterpartCountry: string;
   counterpartInterests: string[];
+  requestData?: Record<string, unknown> | null;
+  requestMeta?: {
+    category: string;
+    productName: string;
+    note: string;
+  };
   messages: ConversationMessage[];
   lastActivityAt: string;
 };
 
 type CollaborationInboxProps = {
   currentUserId: string;
+  currentUserRole: "provider" | "reviewer";
   title: string;
   description: string;
   emptyTitle: string;
   emptyDescription: string;
   threads: ConversationThread[];
   initialThreadId?: number | null;
+  categorySuggestions?: string[];
   quickReplies?: string[];
 };
 
@@ -41,12 +49,14 @@ type DraftMedia = {
 
 export function CollaborationInbox({
   currentUserId,
+  currentUserRole,
   title,
   description,
   emptyTitle,
   emptyDescription,
   threads,
   initialThreadId = null,
+  categorySuggestions = [],
   quickReplies = [],
 }: CollaborationInboxProps) {
   const [supabase] = useState(() => createClient());
@@ -55,6 +65,17 @@ export function CollaborationInbox({
   const [activeThreadId, setActiveThreadId] = useState<number | null>(initialThreadId);
   const [viewedThreadIds, setViewedThreadIds] = useState<number[]>([]);
   const [drafts, setDrafts] = useState<Record<number, string>>({});
+  const [metaDrafts, setMetaDrafts] = useState<Record<number, { category: string; productName: string }>>(
+    Object.fromEntries(
+      threads.map((thread) => [
+        thread.requestId,
+        {
+          category: thread.requestMeta?.category || categorySuggestions[0] || "",
+          productName: thread.requestMeta?.productName || "",
+        },
+      ])
+    )
+  );
   const [mediaDrafts, setMediaDrafts] = useState<Record<number, DraftMedia | undefined>>({});
   const [error, setError] = useState<string | null>(null);
   const [pendingId, setPendingId] = useState<number | null>(null);
@@ -71,22 +92,6 @@ export function CollaborationInbox({
   );
 
   const activeThread = sortedThreads.find((thread) => thread.requestId === activeThreadId) || null;
-
-  useEffect(() => {
-    setItems(threads);
-  }, [threads]);
-
-  useEffect(() => {
-    if (!initialThreadId) {
-      return;
-    }
-
-    const threadExists = threads.some((thread) => thread.requestId === initialThreadId);
-    if (threadExists) {
-      setActiveThreadId(initialThreadId);
-      setViewedThreadIds((current) => (current.includes(initialThreadId) ? current : [...current, initialThreadId]));
-    }
-  }, [initialThreadId, threads]);
 
   useEffect(() => {
     if (!activeThread) {
@@ -245,11 +250,33 @@ export function CollaborationInbox({
     setError(null);
   }
 
+  function updateMetaDraft(requestId: number, patch: Partial<{ category: string; productName: string }>) {
+    setMetaDrafts((current) => ({
+      ...current,
+      [requestId]: {
+        category: current[requestId]?.category || categorySuggestions[0] || "",
+        productName: current[requestId]?.productName || "",
+        ...patch,
+      },
+    }));
+  }
+
   function sendMessage(requestId: number) {
     const draft = drafts[requestId]?.trim() || "";
     const mediaDraft = mediaDrafts[requestId];
+    const metaDraft = metaDrafts[requestId];
+    const providerIntro =
+      currentUserRole === "provider"
+        ? [
+            metaDraft?.category ? `Categoria: ${metaDraft.category}` : null,
+            metaDraft?.productName ? `Producto: ${metaDraft.productName}` : null,
+          ]
+            .filter(Boolean)
+            .join("\n")
+        : "";
+    const finalBody = [providerIntro, draft].filter(Boolean).join(providerIntro && draft ? "\n\n" : "");
 
-    if (!draft && !mediaDraft) {
+    if (!finalBody && !mediaDraft) {
       setError("Escribe un mensaje o adjunta una imagen antes de enviarlo.");
       return;
     }
@@ -273,7 +300,7 @@ export function CollaborationInbox({
           .insert({
             request_id: requestId,
             sender_id: currentUserId,
-            body: draft,
+            body: finalBody,
             image_url: imageUrl,
             image_path: imagePath,
           })
@@ -287,11 +314,20 @@ export function CollaborationInbox({
         }
 
         const timestamp = new Date().toISOString();
+        const activeThreadData = items.find((thread) => thread.requestId === requestId)?.requestData;
         await supabase
           .from("reviewer_contact_requests")
           .update({
             updated_at: timestamp,
             last_activity_at: timestamp,
+            request_data:
+              currentUserRole === "provider"
+                ? {
+                    ...(activeThreadData || {}),
+                    category: metaDraft?.category || "",
+                    productName: metaDraft?.productName || "",
+                  }
+                : undefined,
           })
           .eq("id", requestId);
 
@@ -319,6 +355,15 @@ export function CollaborationInbox({
           )
         );
         setDrafts((current) => ({ ...current, [requestId]: "" }));
+        if (currentUserRole === "provider") {
+          setMetaDrafts((current) => ({
+            ...current,
+            [requestId]: {
+              category: current[requestId]?.category || "",
+              productName: "",
+            },
+          }));
+        }
         clearMediaDraft(requestId);
         setPendingId(null);
       } catch (caughtError) {
@@ -438,6 +483,35 @@ export function CollaborationInbox({
             </div>
 
             <div className="border-t border-[#eadfd6] bg-white px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+              {currentUserRole === "provider" ? (
+                <div className="mb-3 rounded-[1.3rem] border border-[#efe4d9] bg-[#fff8f3] p-3">
+                  <p className="text-sm font-semibold text-[#131316]">Prepara tu mensaje</p>
+                  <p className="mt-1 text-sm text-[#7b6e63]">Selecciona la categoria y anade el producto. Si quieres, luego adjunta una foto y escribe tu mensaje.</p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {categorySuggestions.map((category) => (
+                      <button
+                        key={`${activeThread.requestId}-${category}`}
+                        type="button"
+                        className={`rounded-full px-3 py-2 text-xs font-semibold transition ${
+                          metaDrafts[activeThread.requestId]?.category === category
+                            ? "bg-[#ff6b35] text-white"
+                            : "border border-[#eadfd6] bg-white text-[#62564a]"
+                        }`}
+                        onClick={() => updateMetaDraft(activeThread.requestId, { category })}
+                      >
+                        {category}
+                      </button>
+                    ))}
+                  </div>
+                  <input
+                    className="input mt-3"
+                    value={metaDrafts[activeThread.requestId]?.productName || ""}
+                    onChange={(event) => updateMetaDraft(activeThread.requestId, { productName: event.target.value })}
+                    placeholder="Nombre del producto o servicio"
+                  />
+                </div>
+              ) : null}
+
               {quickReplies.length ? (
                 <div className="mb-3 flex flex-wrap gap-2">
                   {quickReplies.map((reply) => (

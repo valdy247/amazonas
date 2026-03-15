@@ -1,20 +1,12 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useMemo, useRef, useState, useTransition } from "react";
 import { NotebookTabs, Sparkles, Star } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { EXPERIENCE_LABELS } from "@/lib/onboarding";
 import { AVAILABILITY_OPTIONS, type ReviewerAvailability } from "@/lib/profile-data";
-import {
-  buildContactRequestMessage,
-  CONTACT_REQUEST_CHANNEL_OPTIONS,
-  CONTACT_REQUEST_INTENT_OPTIONS,
-  CONTACT_REQUEST_TIMELINE_OPTIONS,
-  DEFAULT_CONTACT_REQUEST_DATA,
-  getRequestStatusLabel,
-  normalizeContactRequestData,
-  type ContactRequestData,
-} from "@/lib/contact-requests";
+import { getRequestStatusLabel } from "@/lib/contact-requests";
 
 type ReviewerDirectoryItem = {
   id: string;
@@ -84,24 +76,13 @@ function mergeProfileSnapshotCountry(profileData: unknown, metadata: Record<stri
 }
 
 export function ProviderReviewerFinder({ reviewers, sentRequests, providerInterests }: ProviderReviewerFinderProps) {
+  const router = useRouter();
   const supabase = createClient();
   const reviewerRefs = useRef<Record<string, HTMLElement | null>>({});
   const [selectedInterest, setSelectedInterest] = useState("");
   const [selectedCountry, setSelectedCountry] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(reviewers[0]?.id ?? null);
   const [contactOptionsId, setContactOptionsId] = useState<string | null>(null);
-  const [platformFormId, setPlatformFormId] = useState<string | null>(null);
-  const [draftRequests, setDraftRequests] = useState<Record<string, ContactRequestData>>(
-    Object.fromEntries(
-      reviewers.map((reviewer) => [
-        reviewer.id,
-        {
-          ...DEFAULT_CONTACT_REQUEST_DATA,
-          category: providerInterests[0] || reviewer.interests[0] || "",
-        },
-      ])
-    )
-  );
   const [error, setError] = useState<string | null>(null);
   const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [requestLog, setRequestLog] = useState<
@@ -109,9 +90,6 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
       id: number;
       reviewerId: string;
       status: string;
-      message: string | null;
-      requestData: ContactRequestData;
-      responseMessage: string | null;
       createdAt?: string;
       updatedAt?: string;
     }>
@@ -120,9 +98,6 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
       id: request.id,
       reviewerId: request.reviewer_id,
       status: request.status,
-      message: request.message,
-      requestData: normalizeContactRequestData(request.request_data),
-      responseMessage: request.response_message || null,
       createdAt: request.created_at,
       updatedAt: request.updated_at,
     }))
@@ -175,26 +150,11 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
     });
   }, [reviewers, selectedCountry, selectedInterest]);
 
-  function submitRequest(reviewerId: string) {
+  function openPlatformChat(reviewerId: string) {
     setError(null);
     setPendingAction(reviewerId);
 
     startTransition(async () => {
-      const requestData = normalizeContactRequestData(draftRequests[reviewerId]);
-      const message = buildContactRequestMessage(requestData);
-
-      if (!requestData.productName.trim()) {
-        setError("Escribe el nombre del producto o servicio que quieres presentar.");
-        setPendingAction(null);
-        return;
-      }
-
-      if (!requestData.category.trim()) {
-        setError("Selecciona una categoria para contextualizar la solicitud.");
-        setPendingAction(null);
-        return;
-      }
-
       const { data: userResult, error: userError } = await supabase.auth.getUser();
 
       if (userError || !userResult.user) {
@@ -224,22 +184,30 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
           : providerInterests,
       };
 
+      const existingThread = requestLog.find((request) => request.reviewerId === reviewerId);
+      if (existingThread) {
+        setPendingAction(null);
+        router.push(`/dashboard?section=messages&thread=${existingThread.id}`);
+        router.refresh();
+        return;
+      }
+
       const timestamp = new Date().toISOString();
       const { data: createdRequest, error: requestError } = await supabase
         .from("reviewer_contact_requests")
         .insert({
           provider_id: userResult.user.id,
           reviewer_id: reviewerId,
-          message,
           request_data: {
-            ...requestData,
             providerSnapshot,
+            category: providerInterests[0] || "",
+            productName: "",
           },
-          status: "sent",
+          status: "accepted",
           updated_at: timestamp,
           last_activity_at: timestamp,
         })
-        .select("id, reviewer_id, status, message, request_data, response_message, created_at, updated_at")
+        .select("id, reviewer_id, status, created_at, updated_at")
         .single();
 
       if (requestError) {
@@ -252,39 +220,25 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
         {
           id: Number(createdRequest.id),
           reviewerId: String(createdRequest.reviewer_id),
-          status: "sent",
-          message,
-          requestData,
-          responseMessage: null,
+          status: "accepted",
           createdAt: String(createdRequest.created_at || timestamp),
           updatedAt: String(createdRequest.updated_at || timestamp),
         },
         ...current,
       ]);
       setPendingAction(null);
+      router.push(`/dashboard?section=messages&thread=${createdRequest.id}`);
+      router.refresh();
     });
-  }
-
-  function updateDraftRequest(reviewerId: string, patch: Partial<ContactRequestData>) {
-    setDraftRequests((current) => ({
-      ...current,
-      [reviewerId]: {
-        ...DEFAULT_CONTACT_REQUEST_DATA,
-        ...(current[reviewerId] || {}),
-        ...patch,
-      },
-    }));
   }
 
   function openContactOptions(reviewerId: string) {
     setContactOptionsId((current) => (current === reviewerId ? null : reviewerId));
-    setPlatformFormId((current) => (current === reviewerId ? current : null));
   }
 
   function openReviewerContact(reviewerId: string) {
     setExpandedId(reviewerId);
     setContactOptionsId(reviewerId);
-    setPlatformFormId(null);
 
     window.requestAnimationFrame(() => {
       reviewerRefs.current[reviewerId]?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -426,10 +380,8 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
           const currentRequest = latestRequestByReviewer[reviewer.id];
           const isExpanded = expandedId === reviewer.id;
           const showContactOptions = contactOptionsId === reviewer.id;
-          const showPlatformForm = platformFormId === reviewer.id;
           const whatsappMethod = reviewer.directContactMethods.find((method) => method.label === "WhatsApp");
           const otherDirectMethods = reviewer.directContactMethods.filter((method) => method.label !== "WhatsApp");
-          const draftRequest = draftRequests[reviewer.id] || DEFAULT_CONTACT_REQUEST_DATA;
 
           return (
             <article
@@ -508,10 +460,11 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
                         <div className="flex flex-wrap gap-2">
                           <button
                             type="button"
-                            className={`btn-secondary ${showPlatformForm ? "border-[#ff6b35] text-[#dc4f1f]" : ""}`}
-                            onClick={() => setPlatformFormId((current) => (current === reviewer.id ? null : reviewer.id))}
+                            className="btn-secondary"
+                            onClick={() => openPlatformChat(reviewer.id)}
+                            disabled={isPending && pendingAction === reviewer.id}
                           >
-                            A traves de la pagina
+                            {isPending && pendingAction === reviewer.id ? "Abriendo..." : "A traves de la pagina"}
                           </button>
                           {whatsappMethod ? (
                             <a
@@ -532,97 +485,6 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
                       </div>
                     ) : null}
 
-                    {showPlatformForm ? (
-                      <div className="mt-4 rounded-[1.2rem] border border-[#e9ddd2] bg-white p-4">
-                        <p className="text-sm font-semibold text-[#131316]">Nueva oferta dentro de la plataforma</p>
-                        <p className="mt-1 text-sm text-[#62626d]">Cada oferta se guarda por separado para que puedas manejar varias colaboraciones con el mismo reviewer.</p>
-                        <div className="mt-4 grid gap-3">
-                          <input
-                            className="input"
-                            value={draftRequest.productName}
-                            onChange={(event) => updateDraftRequest(reviewer.id, { productName: event.target.value })}
-                            placeholder="Producto o servicio"
-                          />
-                          <div className="grid gap-3 sm:grid-cols-2">
-                            <select
-                              className="input"
-                              value={draftRequest.category}
-                              onChange={(event) => updateDraftRequest(reviewer.id, { category: event.target.value })}
-                            >
-                              <option value="">Selecciona categoria</option>
-                              {providerInterests.map((interest) => (
-                                <option key={`${reviewer.id}-${interest}`} value={interest}>
-                                  {interest}
-                                </option>
-                              ))}
-                            </select>
-                            <select
-                              className="input"
-                              value={draftRequest.intent}
-                              onChange={(event) => updateDraftRequest(reviewer.id, { intent: event.target.value as ContactRequestData["intent"] })}
-                            >
-                              {CONTACT_REQUEST_INTENT_OPTIONS.map((option) => (
-                                <option key={option.value} value={option.value}>
-                                  {option.label}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                          <div className="grid gap-3 sm:grid-cols-2">
-                            <select
-                              className="input"
-                              value={draftRequest.timeline}
-                              onChange={(event) => updateDraftRequest(reviewer.id, { timeline: event.target.value as ContactRequestData["timeline"] })}
-                            >
-                              {CONTACT_REQUEST_TIMELINE_OPTIONS.map((option) => (
-                                <option key={option.value} value={option.value}>
-                                  {option.label}
-                                </option>
-                              ))}
-                            </select>
-                            <select
-                              className="input"
-                              value={draftRequest.preferredChannel}
-                              onChange={(event) => updateDraftRequest(reviewer.id, { preferredChannel: event.target.value as ContactRequestData["preferredChannel"] })}
-                            >
-                              {CONTACT_REQUEST_CHANNEL_OPTIONS.map((option) => (
-                                <option key={option.value} value={option.value}>
-                                  {option.label}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                        </div>
-                        <p className="mt-3 text-sm text-[#62626d]">
-                          El reviewer vera estos detalles en su panel y podra aceptar, pedir mas informacion o dejarlo para despues.
-                        </p>
-                        <textarea
-                          className="input mt-3 min-h-28 resize-none"
-                          value={draftRequest.note}
-                          onChange={(event) => updateDraftRequest(reviewer.id, { note: event.target.value })}
-                          placeholder="Describe que esperas del reviewer, por que encaja contigo y cualquier detalle importante."
-                        />
-                        {currentRequest?.responseMessage ? (
-                          <p className="mt-3 rounded-2xl border border-[#e6ddd1] bg-[#fffaf6] px-3 py-3 text-sm text-[#62564a]">
-                            Ultima respuesta del reviewer: {currentRequest.responseMessage}
-                          </p>
-                        ) : null}
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          <button
-                            type="button"
-                            className="btn-primary"
-                            disabled={isPending && pendingAction === reviewer.id}
-                            onClick={() => submitRequest(reviewer.id)}
-                          >
-                            {isPending && pendingAction === reviewer.id
-                              ? "Enviando..."
-                              : requestLog.some((request) => request.reviewerId === reviewer.id)
-                                ? "Enviar nueva oferta"
-                                : "Enviar solicitud"}
-                          </button>
-                        </div>
-                      </div>
-                    ) : null}
                   </div>
                 </div>
               ) : null}
