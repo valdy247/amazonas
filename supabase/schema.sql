@@ -76,11 +76,18 @@ create table if not exists public.reviewer_contact_requests (
   provider_id uuid references public.profiles(id) on delete cascade,
   reviewer_id uuid references public.profiles(id) on delete cascade,
   message text,
+  request_data jsonb default '{}'::jsonb,
+  response_message text,
   status text default 'sent' check (status in ('sent', 'read', 'accepted', 'declined')),
   created_at timestamptz default now(),
   updated_at timestamptz default now(),
+  last_activity_at timestamptz default now(),
   unique (provider_id, reviewer_id)
 );
+
+alter table public.reviewer_contact_requests add column if not exists request_data jsonb default '{}'::jsonb;
+alter table public.reviewer_contact_requests add column if not exists response_message text;
+alter table public.reviewer_contact_requests add column if not exists last_activity_at timestamptz default now();
 
 create or replace function public.handle_new_user()
 returns trigger

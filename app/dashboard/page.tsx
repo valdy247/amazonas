@@ -38,6 +38,9 @@ type RequestRow = {
   message: string | null;
   status: string;
   created_at: string;
+  updated_at?: string;
+  request_data?: unknown;
+  response_message?: string | null;
 };
 
 const PAYMENT_TEST_MODE = false;
@@ -149,7 +152,14 @@ export default async function DashboardPage({
     isActiveMember: boolean;
     matchPercent: number;
   }> = [];
-  let sentReviewerRequests: Array<{ reviewer_id: string; status: string; message: string | null }> = [];
+  let sentReviewerRequests: Array<{
+    reviewer_id: string;
+    status: string;
+    message: string | null;
+    request_data?: unknown;
+    response_message?: string | null;
+    updated_at?: string;
+  }> = [];
   let reviewerOpportunities: Array<{
     id: number;
     providerId: string;
@@ -159,6 +169,8 @@ export default async function DashboardPage({
     message: string;
     status: string;
     createdAt: string;
+    responseMessage?: string | null;
+    requestData?: unknown;
   }> = [];
 
   if (canSeeContacts) {
@@ -272,7 +284,7 @@ export default async function DashboardPage({
 
     const { data: requestRows } = await supabase
       .from("reviewer_contact_requests")
-      .select("reviewer_id, status, message")
+      .select("reviewer_id, status, message, request_data, response_message, updated_at")
       .eq("provider_id", user.id);
 
     sentReviewerRequests = (requestRows || []) as Array<{ reviewer_id: string; status: string; message: string | null }>;
@@ -281,7 +293,7 @@ export default async function DashboardPage({
   if (!isProvider) {
     const { data: requestRows } = await supabase
       .from("reviewer_contact_requests")
-      .select("id, provider_id, reviewer_id, message, status, created_at")
+      .select("id, provider_id, reviewer_id, message, status, created_at, request_data, response_message, updated_at")
       .eq("reviewer_id", user.id)
       .order("created_at", { ascending: false });
 
@@ -314,6 +326,8 @@ export default async function DashboardPage({
         message: item.message || "",
         status: item.status,
         createdAt: item.created_at,
+        responseMessage: item.response_message || null,
+        requestData: item.request_data,
       }));
     }
   }

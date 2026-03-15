@@ -1,10 +1,20 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { Sparkles, Star } from "lucide-react";
+import { BellDot, NotebookTabs, Sparkles, Star } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { EXPERIENCE_LABELS } from "@/lib/onboarding";
 import { AVAILABILITY_OPTIONS, type ReviewerAvailability } from "@/lib/profile-data";
+import {
+  buildContactRequestMessage,
+  CONTACT_REQUEST_CHANNEL_OPTIONS,
+  CONTACT_REQUEST_INTENT_OPTIONS,
+  CONTACT_REQUEST_TIMELINE_OPTIONS,
+  DEFAULT_CONTACT_REQUEST_DATA,
+  getRequestStatusLabel,
+  normalizeContactRequestData,
+  type ContactRequestData,
+} from "@/lib/contact-requests";
 
 type ReviewerDirectoryItem = {
   id: string;
@@ -26,6 +36,9 @@ type SentRequest = {
   reviewer_id: string;
   status: string;
   message: string | null;
+  request_data?: unknown;
+  response_message?: string | null;
+  updated_at?: string;
 };
 
 type ProviderReviewerFinderProps = {
@@ -61,11 +74,34 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
   const [selectedInterest, setSelectedInterest] = useState("");
   const [selectedCountry, setSelectedCountry] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(reviewers[0]?.id ?? null);
-  const [draftMessages, setDraftMessages] = useState<Record<string, string>>({});
+  const [draftRequests, setDraftRequests] = useState<Record<string, ContactRequestData>>(
+    Object.fromEntries(
+      reviewers.map((reviewer) => [
+        reviewer.id,
+        {
+          ...DEFAULT_CONTACT_REQUEST_DATA,
+          category: providerInterests[0] || reviewer.interests[0] || "",
+        },
+      ])
+    )
+  );
   const [error, setError] = useState<string | null>(null);
   const [pendingAction, setPendingAction] = useState<string | null>(null);
-  const [requestState, setRequestState] = useState<Record<string, { status: string; message: string | null }>>(
-    Object.fromEntries(sentRequests.map((request) => [request.reviewer_id, { status: request.status, message: request.message }]))
+  const [requestState, setRequestState] = useState<
+    Record<string, { status: string; message: string | null; requestData: ContactRequestData; responseMessage: string | null; updatedAt?: string }>
+  >(
+    Object.fromEntries(
+      sentRequests.map((request) => [
+        request.reviewer_id,
+        {
+          status: request.status,
+          message: request.message,
+          requestData: normalizeContactRequestData(request.request_data),
+          responseMessage: request.response_message || null,
+          updatedAt: request.updated_at,
+        },
+      ])
+    )
   );
   const [isPending, startTransition] = useTransition();
   const availableCountries = useMemo(
@@ -84,6 +120,17 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
         .slice(0, 4),
     [reviewers]
   );
+
+  const requestStats = useMemo(() => {
+    const requests = Object.values(requestState);
+    return {
+      total: requests.length,
+      sent: requests.filter((item) => item.status === "sent").length,
+      read: requests.filter((item) => item.status === "read").length,
+      accepted: requests.filter((item) => item.status === "accepted").length,
+      declined: requests.filter((item) => item.status === "declined").length,
+    };
+  }, [requestState]);
 
   const filteredReviewers = useMemo(() => {
     return reviewers.filter((reviewer) => {
@@ -104,7 +151,21 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
     setPendingAction(reviewerId);
 
     startTransition(async () => {
-      const message = draftMessages[reviewerId]?.trim() || "";
+      const requestData = normalizeContactRequestData(draftRequests[reviewerId]);
+      const message = buildContactRequestMessage(requestData);
+
+      if (!requestData.productName.trim()) {
+        setError("Escribe el nombre del producto o servicio que quieres presentar.");
+        setPendingAction(null);
+        return;
+      }
+
+      if (!requestData.category.trim()) {
+        setError("Selecciona una categoria para contextualizar la solicitud.");
+        setPendingAction(null);
+        return;
+      }
+
       const { data: userResult, error: userError } = await supabase.auth.getUser();
 
       if (userError || !userResult.user) {
@@ -117,8 +178,10 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
         provider_id: userResult.user.id,
         reviewer_id: reviewerId,
         message,
+        request_data: requestData,
         status: "sent",
         updated_at: new Date().toISOString(),
+        last_activity_at: new Date().toISOString(),
       });
 
       if (requestError) {
@@ -132,10 +195,24 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
         [reviewerId]: {
           status: "sent",
           message,
+          requestData,
+          responseMessage: current[reviewerId]?.responseMessage || null,
+          updatedAt: new Date().toISOString(),
         },
       }));
       setPendingAction(null);
     });
+  }
+
+  function updateDraftRequest(reviewerId: string, patch: Partial<ContactRequestData>) {
+    setDraftRequests((current) => ({
+      ...current,
+      [reviewerId]: {
+        ...DEFAULT_CONTACT_REQUEST_DATA,
+        ...(current[reviewerId] || {}),
+        ...patch,
+      },
+    }));
   }
 
   return (
@@ -268,6 +345,63 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
         </section>
       ) : null}
 
+      {requestStats.total ? (
+        <section className="rounded-[1.8rem] border border-[#eadfd6] bg-white p-5 shadow-[0_18px_36px_rgba(22,18,14,0.04)]">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-[#dc4f1f]">Seguimiento</p>
+              <h3 className="mt-1 text-xl font-bold">Tus contactos enviados</h3>
+            </div>
+            <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-[#fff3ec] text-[#dc4f1f]">
+              <BellDot className="h-5 w-5" />
+            </span>
+          </div>
+
+          <div className="mt-4 grid grid-cols-2 gap-3">
+            {[
+              { label: "Enviadas", value: requestStats.sent },
+              { label: "Vistas", value: requestStats.read },
+              { label: "Aceptadas", value: requestStats.accepted },
+              { label: "No ahora", value: requestStats.declined },
+            ].map((item) => (
+              <article key={item.label} className="rounded-[1.25rem] border border-[#efe4d9] bg-[#fffaf6] p-4">
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8f857b]">{item.label}</p>
+                <p className="mt-2 text-2xl font-bold text-[#131316]">{item.value}</p>
+              </article>
+            ))}
+          </div>
+
+          <div className="mt-4 space-y-3">
+            {Object.entries(requestState)
+              .sort(([, left], [, right]) => new Date(right.updatedAt || 0).getTime() - new Date(left.updatedAt || 0).getTime())
+              .slice(0, 4)
+              .map(([reviewerId, request]) => {
+                const reviewer = reviewers.find((item) => item.id === reviewerId);
+                if (!reviewer) return null;
+
+                return (
+                  <article key={`request-${reviewerId}`} className="rounded-[1.25rem] border border-[#efe4d9] bg-[#fffdfa] p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="font-semibold text-[#131316]">{reviewer.fullName}</p>
+                        <p className="mt-1 text-sm text-[#62626d]">{request.requestData.productName || "Solicitud sin titulo"}</p>
+                      </div>
+                      <span className="rounded-full bg-[#fff3ec] px-3 py-1 text-xs font-semibold text-[#dc4f1f]">
+                        {getRequestStatusLabel(request.status)}
+                      </span>
+                    </div>
+                    {request.responseMessage ? (
+                      <p className="mt-3 rounded-2xl border border-[#e6ddd1] bg-white px-3 py-3 text-sm text-[#62564a]">
+                        Respuesta del reviewer: {request.responseMessage}
+                      </p>
+                    ) : null}
+                  </article>
+                );
+              })}
+          </div>
+        </section>
+      ) : null}
+
       <div className="flex items-center justify-between gap-3 text-sm text-[#62626d]">
         <span>{filteredReviewers.length} reviewers encontrados</span>
         {(selectedCountry || selectedInterest) ? (
@@ -290,6 +424,7 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
           const isExpanded = expandedId === reviewer.id;
           const whatsappMethod = reviewer.directContactMethods.find((method) => method.label === "WhatsApp");
           const otherDirectMethods = reviewer.directContactMethods.filter((method) => method.label !== "WhatsApp");
+          const draftRequest = draftRequests[reviewer.id] || DEFAULT_CONTACT_REQUEST_DATA;
 
           return (
             <article key={reviewer.id} className="overflow-hidden rounded-[1.6rem] border border-[#e6ddd1] bg-[linear-gradient(180deg,#ffffff_0%,#fffdfa_100%)] shadow-[0_18px_36px_rgba(22,18,14,0.04)]">
@@ -306,7 +441,7 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
                     ) : null}
                     {currentRequest ? (
                       <span className="rounded-full bg-[#fff3ec] px-3 py-1 text-xs font-semibold text-[#dc4f1f]">
-                        Solicitud {currentRequest.status}
+                        {getRequestStatusLabel(currentRequest.status)}
                       </span>
                     ) : null}
                   </div>
@@ -360,21 +495,86 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
                   ) : null}
 
                   <div className="mt-4 rounded-[1.35rem] border border-[#eadfd6] bg-[linear-gradient(180deg,#fcfaf7_0%,#fff5ef_100%)] p-4">
-                    <p className="text-sm font-semibold text-[#131316]">Contactar a traves de la pagina</p>
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold text-[#131316]">Contactar a traves de la pagina</p>
+                        <p className="mt-1 text-sm text-[#62626d]">Enviale una invitacion clara para que entienda rapido si encaja contigo.</p>
+                      </div>
+                      <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-white text-[#dc4f1f] shadow-sm">
+                        <NotebookTabs className="h-5 w-5" />
+                      </span>
+                    </div>
+                    <div className="mt-4 grid gap-3">
+                      <input
+                        className="input"
+                        value={draftRequest.productName}
+                        onChange={(event) => updateDraftRequest(reviewer.id, { productName: event.target.value })}
+                        placeholder="Producto o servicio"
+                      />
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <select
+                          className="input"
+                          value={draftRequest.category}
+                          onChange={(event) => updateDraftRequest(reviewer.id, { category: event.target.value })}
+                        >
+                          <option value="">Selecciona categoria</option>
+                          {providerInterests.map((interest) => (
+                            <option key={`${reviewer.id}-${interest}`} value={interest}>
+                              {interest}
+                            </option>
+                          ))}
+                        </select>
+                        <select
+                          className="input"
+                          value={draftRequest.intent}
+                          onChange={(event) => updateDraftRequest(reviewer.id, { intent: event.target.value as ContactRequestData["intent"] })}
+                        >
+                          {CONTACT_REQUEST_INTENT_OPTIONS.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <select
+                          className="input"
+                          value={draftRequest.timeline}
+                          onChange={(event) => updateDraftRequest(reviewer.id, { timeline: event.target.value as ContactRequestData["timeline"] })}
+                        >
+                          {CONTACT_REQUEST_TIMELINE_OPTIONS.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                        <select
+                          className="input"
+                          value={draftRequest.preferredChannel}
+                          onChange={(event) => updateDraftRequest(reviewer.id, { preferredChannel: event.target.value as ContactRequestData["preferredChannel"] })}
+                        >
+                          {CONTACT_REQUEST_CHANNEL_OPTIONS.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
                     <p className="mt-1 text-sm text-[#62626d]">
-                      Envia una solicitud breve. El reviewer la vera en su panel y podra responder desde la plataforma.
+                      El reviewer vera estos detalles en su panel y podra aceptar, pedir mas informacion o dejarlo para despues.
                     </p>
                     <textarea
                       className="input mt-3 min-h-28 resize-none"
-                      value={draftMessages[reviewer.id] || currentRequest?.message || ""}
-                      onChange={(event) =>
-                        setDraftMessages((current) => ({
-                          ...current,
-                          [reviewer.id]: event.target.value,
-                        }))
-                      }
-                      placeholder="Describe el producto, categoria y por que este reviewer encaja contigo."
+                      value={draftRequest.note}
+                      onChange={(event) => updateDraftRequest(reviewer.id, { note: event.target.value })}
+                      placeholder="Describe que esperas del reviewer, por que encaja contigo y cualquier detalle importante."
                     />
+                    {currentRequest?.responseMessage ? (
+                      <p className="mt-3 rounded-2xl border border-[#e6ddd1] bg-white px-3 py-3 text-sm text-[#62564a]">
+                        Respuesta del reviewer: {currentRequest.responseMessage}
+                      </p>
+                    ) : null}
                     <div className="mt-3 flex flex-wrap gap-2">
                       <button
                         type="button"
