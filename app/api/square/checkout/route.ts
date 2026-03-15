@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createSquarePaymentLink } from "@/lib/square";
 
 export async function GET(request: NextRequest) {
@@ -20,6 +21,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    const admin = createAdminClient();
     const { orderId, url } = await createSquarePaymentLink({
       userId: user.id,
       email: user.email || "",
@@ -27,13 +29,17 @@ export async function GET(request: NextRequest) {
       redirectUrl: `${origin}/dashboard?square=processing`,
     });
 
-    await supabase
+    const { error: membershipError } = await admin
       .from("memberships")
       .update({
         status: "pending_payment",
         square_subscription_id: orderId,
       })
       .eq("user_id", user.id);
+
+    if (membershipError) {
+      throw new Error(membershipError.message);
+    }
 
     return NextResponse.redirect(url);
   } catch (error) {
