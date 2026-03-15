@@ -33,11 +33,13 @@ type ReviewerDirectoryItem = {
 };
 
 type SentRequest = {
+  id: number;
   reviewer_id: string;
   status: string;
   message: string | null;
   request_data?: unknown;
   response_message?: string | null;
+  created_at?: string;
   updated_at?: string;
 };
 
@@ -87,21 +89,28 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
   );
   const [error, setError] = useState<string | null>(null);
   const [pendingAction, setPendingAction] = useState<string | null>(null);
-  const [requestState, setRequestState] = useState<
-    Record<string, { status: string; message: string | null; requestData: ContactRequestData; responseMessage: string | null; updatedAt?: string }>
+  const [requestLog, setRequestLog] = useState<
+    Array<{
+      id: number;
+      reviewerId: string;
+      status: string;
+      message: string | null;
+      requestData: ContactRequestData;
+      responseMessage: string | null;
+      createdAt?: string;
+      updatedAt?: string;
+    }>
   >(
-    Object.fromEntries(
-      sentRequests.map((request) => [
-        request.reviewer_id,
-        {
-          status: request.status,
-          message: request.message,
-          requestData: normalizeContactRequestData(request.request_data),
-          responseMessage: request.response_message || null,
-          updatedAt: request.updated_at,
-        },
-      ])
-    )
+    sentRequests.map((request) => ({
+      id: request.id,
+      reviewerId: request.reviewer_id,
+      status: request.status,
+      message: request.message,
+      requestData: normalizeContactRequestData(request.request_data),
+      responseMessage: request.response_message || null,
+      createdAt: request.created_at,
+      updatedAt: request.updated_at,
+    }))
   );
   const [isPending, startTransition] = useTransition();
   const availableCountries = useMemo(
@@ -121,8 +130,24 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
     [reviewers]
   );
 
+  const latestRequestByReviewer = useMemo(
+    () =>
+      requestLog.reduce<Record<string, (typeof requestLog)[number]>>((current, request) => {
+        const existing = current[request.reviewerId];
+        const requestTime = new Date(request.updatedAt || request.createdAt || 0).getTime();
+        const existingTime = existing ? new Date(existing.updatedAt || existing.createdAt || 0).getTime() : -1;
+
+        if (!existing || requestTime >= existingTime) {
+          current[request.reviewerId] = request;
+        }
+
+        return current;
+      }, {}),
+    [requestLog]
+  );
+
   const requestStats = useMemo(() => {
-    const requests = Object.values(requestState);
+    const requests = requestLog;
     return {
       total: requests.length,
       sent: requests.filter((item) => item.status === "sent").length,
@@ -130,7 +155,7 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
       accepted: requests.filter((item) => item.status === "accepted").length,
       declined: requests.filter((item) => item.status === "declined").length,
     };
-  }, [requestState]);
+  }, [requestLog]);
 
   const filteredReviewers = useMemo(() => {
     return reviewers.filter((reviewer) => {
@@ -174,15 +199,20 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
         return;
       }
 
-      const { error: requestError } = await supabase.from("reviewer_contact_requests").upsert({
-        provider_id: userResult.user.id,
-        reviewer_id: reviewerId,
-        message,
-        request_data: requestData,
-        status: "sent",
-        updated_at: new Date().toISOString(),
-        last_activity_at: new Date().toISOString(),
-      });
+      const timestamp = new Date().toISOString();
+      const { data: createdRequest, error: requestError } = await supabase
+        .from("reviewer_contact_requests")
+        .insert({
+          provider_id: userResult.user.id,
+          reviewer_id: reviewerId,
+          message,
+          request_data: requestData,
+          status: "sent",
+          updated_at: timestamp,
+          last_activity_at: timestamp,
+        })
+        .select("id, reviewer_id, status, message, request_data, response_message, created_at, updated_at")
+        .single();
 
       if (requestError) {
         setError(requestError.message);
@@ -190,16 +220,19 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
         return;
       }
 
-      setRequestState((current) => ({
-        ...current,
-        [reviewerId]: {
+      setRequestLog((current) => [
+        {
+          id: Number(createdRequest.id),
+          reviewerId: String(createdRequest.reviewer_id),
           status: "sent",
           message,
           requestData,
-          responseMessage: current[reviewerId]?.responseMessage || null,
-          updatedAt: new Date().toISOString(),
+          responseMessage: null,
+          createdAt: String(createdRequest.created_at || timestamp),
+          updatedAt: String(createdRequest.updated_at || timestamp),
         },
-      }));
+        ...current,
+      ]);
       setPendingAction(null);
     });
   }
@@ -372,15 +405,15 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
           </div>
 
           <div className="mt-4 space-y-3">
-            {Object.entries(requestState)
-              .sort(([, left], [, right]) => new Date(right.updatedAt || 0).getTime() - new Date(left.updatedAt || 0).getTime())
+            {requestLog
+              .sort((left, right) => new Date(right.updatedAt || right.createdAt || 0).getTime() - new Date(left.updatedAt || left.createdAt || 0).getTime())
               .slice(0, 4)
-              .map(([reviewerId, request]) => {
-                const reviewer = reviewers.find((item) => item.id === reviewerId);
+              .map((request) => {
+                const reviewer = reviewers.find((item) => item.id === request.reviewerId);
                 if (!reviewer) return null;
 
                 return (
-                  <article key={`request-${reviewerId}`} className="rounded-[1.25rem] border border-[#efe4d9] bg-[#fffdfa] p-4">
+                  <article key={`request-${request.id}`} className="rounded-[1.25rem] border border-[#efe4d9] bg-[#fffdfa] p-4">
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <p className="font-semibold text-[#131316]">{reviewer.fullName}</p>
@@ -420,7 +453,8 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
 
       <div className="space-y-3">
         {filteredReviewers.map((reviewer) => {
-          const currentRequest = requestState[reviewer.id];
+          const currentRequest = latestRequestByReviewer[reviewer.id];
+          const reviewerRequestCount = requestLog.filter((request) => request.reviewerId === reviewer.id).length;
           const isExpanded = expandedId === reviewer.id;
           const whatsappMethod = reviewer.directContactMethods.find((method) => method.label === "WhatsApp");
           const otherDirectMethods = reviewer.directContactMethods.filter((method) => method.label !== "WhatsApp");
@@ -498,7 +532,7 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <p className="text-sm font-semibold text-[#131316]">Contactar a traves de la pagina</p>
-                        <p className="mt-1 text-sm text-[#62626d]">Enviale una invitacion clara para que entienda rapido si encaja contigo.</p>
+                        <p className="mt-1 text-sm text-[#62626d]">Cada oferta se guarda por separado. Puedes enviar nuevas propuestas a este reviewer cuando tengas otra colaboracion.</p>
                       </div>
                       <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-white text-[#dc4f1f] shadow-sm">
                         <NotebookTabs className="h-5 w-5" />
@@ -572,7 +606,12 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
                     />
                     {currentRequest?.responseMessage ? (
                       <p className="mt-3 rounded-2xl border border-[#e6ddd1] bg-white px-3 py-3 text-sm text-[#62564a]">
-                        Respuesta del reviewer: {currentRequest.responseMessage}
+                        Ultima respuesta del reviewer: {currentRequest.responseMessage}
+                      </p>
+                    ) : null}
+                    {reviewerRequestCount ? (
+                      <p className="mt-3 text-sm text-[#8f857b]">
+                        {reviewerRequestCount} {reviewerRequestCount === 1 ? "oferta enviada a este reviewer" : "ofertas enviadas a este reviewer"}.
                       </p>
                     ) : null}
                     <div className="mt-3 flex flex-wrap gap-2">
@@ -584,8 +623,8 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
                       >
                         {isPending && pendingAction === reviewer.id
                           ? "Enviando..."
-                          : currentRequest
-                            ? "Actualizar solicitud"
+                          : reviewerRequestCount
+                            ? "Enviar nueva oferta"
                             : "Enviar solicitud"}
                       </button>
                     </div>

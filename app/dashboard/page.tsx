@@ -162,11 +162,13 @@ export default async function DashboardPage({
     matchPercent: number;
   }> = [];
   let sentReviewerRequests: Array<{
+    id: number;
     reviewer_id: string;
     status: string;
     message: string | null;
     request_data?: unknown;
     response_message?: string | null;
+    created_at?: string;
     updated_at?: string;
   }> = [];
   let reviewerOpportunities: Array<{
@@ -302,10 +304,19 @@ export default async function DashboardPage({
 
     const { data: requestRows } = await supabase
       .from("reviewer_contact_requests")
-      .select("reviewer_id, status, message, request_data, response_message, updated_at")
+      .select("id, reviewer_id, status, message, request_data, response_message, created_at, updated_at")
       .eq("provider_id", user.id);
 
-    sentReviewerRequests = (requestRows || []) as Array<{ reviewer_id: string; status: string; message: string | null }>;
+    sentReviewerRequests = (requestRows || []) as Array<{
+      id: number;
+      reviewer_id: string;
+      status: string;
+      message: string | null;
+      request_data?: unknown;
+      response_message?: string | null;
+      created_at?: string;
+      updated_at?: string;
+    }>;
 
     const acceptedRequestsResult = await supabase
       .from("reviewer_contact_requests")
