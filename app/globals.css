@@ -22,6 +22,18 @@ body {
   background: radial-gradient(circle at 20% 10%, #fff3ec, transparent 35%), var(--bg);
   color: var(--ink);
   font-family: var(--font-manrope), sans-serif;
+  min-height: 100vh;
+}
+
+body {
+  padding: 0;
+}
+
+.app-shell {
+  width: min(100%, 28rem);
+  min-height: 100vh;
+  margin-inline: auto;
+  background: radial-gradient(circle at 20% 10%, #fff3ec, transparent 35%), var(--bg);
 }
 
 h1,
@@ -37,7 +49,7 @@ a {
 }
 
 .container-x {
-  width: min(100%, 1120px);
+  width: 100%;
   margin-inline: auto;
   padding-inline: 1rem;
 }
@@ -91,4 +103,21 @@ a {
 
 textarea.input {
   font: inherit;
+}
+
+@media (min-width: 768px) {
+  body {
+    padding: 1.25rem 0;
+    background:
+      linear-gradient(180deg, rgba(34, 28, 23, 0.9), rgba(54, 47, 41, 0.94)),
+      radial-gradient(circle at top, rgba(255, 126, 75, 0.18), transparent 28%);
+  }
+
+  .app-shell {
+    min-height: calc(100vh - 2.5rem);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 2rem;
+    box-shadow: 0 30px 100px rgba(0, 0, 0, 0.28);
+    overflow: clip;
+  }
 }

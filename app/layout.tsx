@@ -25,7 +25,7 @@ export default function RootLayout({
   return (
     <html lang="es">
       <body className={`${manrope.variable} ${spaceGrotesk.variable} antialiased`}>
-        {children}
+        <div className="app-shell">{children}</div>
       </body>
     </html>
   );
