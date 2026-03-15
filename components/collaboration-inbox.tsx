@@ -132,6 +132,14 @@ export function CollaborationInbox({
   const providerHasSentMessage = Boolean(
     activeThread && activeThread.messages.some((message) => message.senderId === currentUserId)
   );
+  const providerHasSharedIntro = Boolean(
+    currentUserRole === "provider" &&
+      activeThread?.messages.some(
+        (message) =>
+          message.senderId === currentUserId &&
+          (message.body.includes("Categoria:") || message.body.includes("Producto:"))
+      )
+  );
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -337,11 +345,15 @@ export function CollaborationInbox({
     const draft = (directBody ?? drafts[requestId] ?? "").trim();
     const mediaDraft = mediaDrafts[requestId];
     const metaDraft = metaDrafts[requestId];
+    const shouldAttachProviderIntro =
+      currentUserRole === "provider" &&
+      !providerHasSharedIntro &&
+      Boolean(metaDraft?.category?.trim() || metaDraft?.productName?.trim());
     const providerIntro =
-      currentUserRole === "provider"
+      shouldAttachProviderIntro
         ? [
-            metaDraft?.category ? `Categoria: ${metaDraft.category}` : null,
-            metaDraft?.productName ? `Producto: ${metaDraft.productName}` : null,
+            metaDraft?.category?.trim() ? `Categoria: ${metaDraft.category.trim()}` : null,
+            metaDraft?.productName?.trim() ? `Producto: ${metaDraft.productName.trim()}` : null,
           ]
             .filter(Boolean)
             .join("\n")
