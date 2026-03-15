@@ -62,6 +62,7 @@ export function ProfileWizard({ initialValues, email }: ProfileWizardProps) {
 
   const currentStep = steps[step];
   const isLastStep = step === steps.length - 1;
+  const progressPercent = Math.round(((step + 1) / steps.length) * 100);
   const selectedCountryLabel = values.country || "Sin pais seleccionado";
   const roleCopy =
     values.role === "reviewer"
@@ -218,25 +219,70 @@ export function ProfileWizard({ initialValues, email }: ProfileWizardProps) {
               <h1 className="mt-2 text-3xl font-bold">Perfil paso a paso</h1>
               <p className="mt-2 max-w-xs text-sm text-white/72">{currentStep.description}</p>
             </div>
-            <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-white/10">
-              <Sparkles className="h-5 w-5" />
-            </span>
-          </div>
-
-          <div className="mt-5 flex gap-2">
-            {steps.map((item, index) => (
-              <div key={item.id} className="h-2 flex-1 rounded-full bg-white/12">
-                <div
-                  className="h-full rounded-full bg-[#ff8a5b] transition-all"
-                  style={{ width: index <= step ? "100%" : "0%" }}
-                />
+            <div className="flex flex-col items-end gap-2">
+              <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-white/10">
+                <Sparkles className="h-5 w-5" />
+              </span>
+              <div className="rounded-[1.1rem] border border-white/10 bg-white/8 px-3 py-2 text-right">
+                <p className="text-[11px] uppercase tracking-[0.18em] text-white/55">Progreso</p>
+                <p className="mt-1 text-lg font-bold">{progressPercent}%</p>
               </div>
-            ))}
+            </div>
           </div>
 
-          <p className="mt-3 text-sm text-white/72">
-            Paso {step + 1} de {steps.length}: {currentStep?.title}
-          </p>
+          <div className="mt-5 rounded-[1.5rem] border border-white/10 bg-white/6 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.22em] text-white/50">Etapa actual</p>
+                <p className="mt-1 text-base font-semibold">
+                  Paso {step + 1} de {steps.length}: {currentStep?.title}
+                </p>
+              </div>
+              <div className="rounded-full bg-white/10 px-3 py-2 text-xs font-semibold text-white/75">
+                {steps.length - step - 1} pendientes
+              </div>
+            </div>
+
+            <div className="mt-4 h-3 overflow-hidden rounded-full bg-white/10">
+              <div
+                className="relative h-full rounded-full bg-[linear-gradient(90deg,#ff8a5b_0%,#ff6b35_65%,#ffd0bc_100%)] transition-all"
+                style={{ width: `${progressPercent}%` }}
+              >
+                <span className="absolute inset-y-0 right-0 w-10 bg-[linear-gradient(90deg,transparent_0%,rgba(255,255,255,0.42)_100%)]" />
+              </div>
+            </div>
+
+            <div className="mt-4 grid grid-cols-4 gap-2">
+              {steps.map((item, index) => {
+                const isDone = index < step;
+                const isCurrent = index === step;
+
+                return (
+                  <div
+                    key={item.id}
+                    className={`rounded-[1.2rem] border px-3 py-3 transition ${
+                      isCurrent
+                        ? "border-[#ff9b74] bg-[#ff8a5b] text-white shadow-[0_14px_28px_rgba(255,107,53,0.22)]"
+                        : isDone
+                          ? "border-white/10 bg-white/10 text-white"
+                          : "border-white/8 bg-black/10 text-white/52"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span
+                        className={`inline-flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${
+                          isCurrent ? "bg-white/18 text-white" : isDone ? "bg-[#ff8a5b] text-white" : "bg-white/8 text-white/55"
+                        }`}
+                      >
+                        {isDone ? <Check className="h-4 w-4" /> : index + 1}
+                      </span>
+                    </div>
+                    <p className="mt-3 text-xs font-semibold leading-tight">{item.title}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </div>
 
         <div className="card space-y-5 p-5">
