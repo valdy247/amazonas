@@ -1,6 +1,6 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { AdminProviderManager } from "@/components/admin-provider-manager";
+import { AdminSectionNav } from "@/components/admin-section-nav";
 import { AdminUserManager } from "@/components/admin-user-manager";
 import { SiteHeader } from "@/components/site-header";
 import { createClient } from "@/lib/supabase/server";
@@ -75,7 +75,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   const requestedSection = Array.isArray(resolvedSearchParams.section)
     ? resolvedSearchParams.section[0]
     : resolvedSearchParams.section;
-  const activeSection = ADMIN_SECTIONS.some((section) => section.id === requestedSection) ? requestedSection : "providers";
+  const activeSection: string = ADMIN_SECTIONS.some((section) => section.id === requestedSection) ? String(requestedSection) : "providers";
 
   const { data: members } = await supabase
     .from("profiles")
@@ -152,40 +152,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                 La lista de proveedores ahora vive en su propia seccion para que no quede escondida debajo del resto del panel.
               </p>
             </div>
-            <details className="relative sm:hidden">
-              <summary className="flex h-12 w-12 cursor-pointer list-none items-center justify-center rounded-2xl border border-white/15 bg-white/10 text-xl text-white">
-                ≡
-              </summary>
-              <div className="absolute right-0 top-14 z-20 min-w-56 rounded-[1.2rem] border border-white/12 bg-[#1e1713] p-2 shadow-2xl">
-                {ADMIN_SECTIONS.map((section) => (
-                  <Link
-                    key={section.id}
-                    href={`/admin?section=${section.id}`}
-                    className={`block rounded-[0.95rem] px-3 py-3 text-sm font-semibold ${
-                      activeSection === section.id ? "bg-[#ff6b35] text-white" : "text-white/78"
-                    }`}
-                  >
-                    {section.label}
-                  </Link>
-                ))}
-              </div>
-            </details>
-          </div>
-
-          <div className="mt-5 hidden flex-wrap gap-2 sm:flex">
-            {ADMIN_SECTIONS.map((section) => (
-              <Link
-                key={section.id}
-                href={`/admin?section=${section.id}`}
-                className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-                  activeSection === section.id
-                    ? "bg-[#ff6b35] text-white"
-                    : "border border-white/12 bg-white/8 text-white/75"
-                }`}
-              >
-                {section.label}
-              </Link>
-            ))}
+            <AdminSectionNav sections={ADMIN_SECTIONS} activeSection={activeSection} />
           </div>
 
           <div className="mt-5 grid gap-3 sm:grid-cols-3">
@@ -270,10 +237,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                   </span>
                 </div>
                 {contacts.length ? (
-                  <AdminProviderManager
-                    contacts={contacts}
-                    whatsappPrefixOptions={WHATSAPP_PREFIX_OPTIONS}
-                  />
+                  <AdminProviderManager contacts={contacts} whatsappPrefixOptions={WHATSAPP_PREFIX_OPTIONS} />
                 ) : (
                   <div className="mt-4 rounded-[1.2rem] border border-dashed border-[#e2d8cc] bg-[#fffaf5] p-5 text-sm text-[#62626d]">
                     No hay contactos de proveedores cargados todavia.
