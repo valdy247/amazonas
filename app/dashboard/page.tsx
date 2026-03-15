@@ -40,13 +40,19 @@ type RequestRow = {
   created_at: string;
 };
 
-const ACCESS_TEST_MODE = true;
+const PAYMENT_TEST_MODE = false;
+const KYC_TEST_MODE = true;
 
 function normalizeComparable(value: string | null | undefined) {
   return (value || "").trim().toLowerCase();
 }
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const resolvedSearchParams = searchParams ? await searchParams : {};
   const supabase = await createClient();
   const {
     data: { user },
@@ -119,9 +125,11 @@ export default async function DashboardPage() {
     .eq("user_id", user.id)
     .single();
 
-  const membershipStatus = ACCESS_TEST_MODE && testingMembershipStatus ? testingMembershipStatus : membership?.status || "pending_payment";
-  const kycStatus = ACCESS_TEST_MODE && testingKycStatus ? testingKycStatus : kyc?.status || "pending";
+  const membershipStatus = PAYMENT_TEST_MODE && testingMembershipStatus ? testingMembershipStatus : membership?.status || "pending_payment";
+  const kycStatus = KYC_TEST_MODE && testingKycStatus ? testingKycStatus : kyc?.status || "pending";
   const canSeeContacts = !isProvider && membershipStatus === "active" && kycStatus === "approved";
+  const squareStatus = typeof resolvedSearchParams.square === "string" ? resolvedSearchParams.square : null;
+  const squareError = typeof resolvedSearchParams.square_error === "string" ? resolvedSearchParams.square_error : null;
 
   let contacts: ProviderContact[] = [];
   let contactedIds: number[] = [];
@@ -312,7 +320,7 @@ export default async function DashboardPage() {
   const reviewerSteps = [
     {
       title: "Acceso",
-      description: membershipStatus === "active" ? "Tu acceso de prueba ya esta activo." : "Activa la membresia de prueba para seguir.",
+      description: membershipStatus === "active" ? "Tu acceso ya esta activo." : "Completa tu pago con Square para seguir.",
       done: membershipStatus === "active",
       icon: WalletCards,
     },
@@ -428,10 +436,10 @@ export default async function DashboardPage() {
               </span>
               <div>
                 <h2 className="font-bold">Activar membresia</h2>
-                <p className="text-sm text-[#62626d]">Paso 1 del recorrido de prueba</p>
+                <p className="text-sm text-[#62626d]">Paso 1 del recorrido</p>
               </div>
             </div>
-            {ACCESS_TEST_MODE ? (
+            {PAYMENT_TEST_MODE ? (
               <>
                 <p className="mt-4 text-sm text-[#62626d]">
                   Square esta deshabilitado durante pruebas. Puedes marcar manualmente tu acceso para seguir validando el flujo.
@@ -440,13 +448,17 @@ export default async function DashboardPage() {
               </>
             ) : (
               <>
-                <p className="mt-1 text-sm text-[#62626d]">
-                  Usa Square para pagar tu acceso. Cuando se confirme, admin marcara tu cuenta como activa.
-                </p>
+                <p className="mt-1 text-sm text-[#62626d]">Usa Square para pagar tu acceso. Cuando Square confirme el pago, tu membresia se activara automaticamente.</p>
+                {squareStatus === "processing" ? (
+                  <p className="mt-3 rounded-2xl border border-[#f6d1c0] bg-[#fff4ed] px-4 py-3 text-sm font-semibold text-[#c64b1e]">
+                    Regresaste desde Square. Estamos validando tu pago y activaremos tu membresia en cuanto llegue el webhook.
+                  </p>
+                ) : null}
+                {squareError ? (
+                  <p className="mt-3 rounded-2xl border border-[#f2d7d7] bg-[#fff7f7] px-4 py-3 text-sm font-semibold text-red-600">{squareError}</p>
+                ) : null}
                 <a
-                  href={process.env.NEXT_PUBLIC_SQUARE_PAYMENT_LINK || "#"}
-                  target="_blank"
-                  rel="noreferrer"
+                  href="/api/square/checkout"
                   className="btn-primary mt-3"
                 >
                   Pagar con Square
@@ -467,7 +479,7 @@ export default async function DashboardPage() {
                 <p className="text-sm text-[#62626d]">Paso 2 del recorrido de prueba</p>
               </div>
             </div>
-            {ACCESS_TEST_MODE ? (
+            {KYC_TEST_MODE ? (
               <>
                 <p className="mt-4 text-sm text-[#62626d]">
                   El KYC real tambien esta pausado en pruebas. Puedes aprobarlo o reiniciarlo manualmente para validar el recorrido.
@@ -503,7 +515,7 @@ export default async function DashboardPage() {
             <p className="mt-2 text-sm text-[#62626d]">
               Se habilita automaticamente cuando membresia y KYC esten en estado aprobado.
             </p>
-            {ACCESS_TEST_MODE ? <TestingAccessControls stage="reset" /> : null}
+            {KYC_TEST_MODE ? <TestingAccessControls stage="kyc" /> : null}
           </section>
         ) : null}
 
