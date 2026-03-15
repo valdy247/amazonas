@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useRef, useState, useTransition } from "react";
 import { NotebookTabs, Sparkles, Star } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { EXPERIENCE_LABELS } from "@/lib/onboarding";
@@ -85,6 +85,7 @@ function mergeProfileSnapshotCountry(profileData: unknown, metadata: Record<stri
 
 export function ProviderReviewerFinder({ reviewers, sentRequests, providerInterests }: ProviderReviewerFinderProps) {
   const supabase = createClient();
+  const reviewerRefs = useRef<Record<string, HTMLElement | null>>({});
   const [selectedInterest, setSelectedInterest] = useState("");
   const [selectedCountry, setSelectedCountry] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(reviewers[0]?.id ?? null);
@@ -280,6 +281,16 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
     setPlatformFormId((current) => (current === reviewerId ? current : null));
   }
 
+  function openReviewerContact(reviewerId: string) {
+    setExpandedId(reviewerId);
+    setContactOptionsId(reviewerId);
+    setPlatformFormId(null);
+
+    window.requestAnimationFrame(() => {
+      reviewerRefs.current[reviewerId]?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }
+
   return (
     <div className="space-y-4">
       <section className="overflow-hidden rounded-[2rem] border border-[#ecd8cb] bg-[radial-gradient(circle_at_top_left,#fff9f5_0%,#fff2e7_42%,#fffdfb_100%)] p-5 shadow-[0_28px_70px_rgba(220,79,31,0.08)]">
@@ -370,11 +381,7 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
               <button
                 key={`recommended-${reviewer.id}`}
                 type="button"
-                onClick={() => {
-                  setExpandedId(reviewer.id);
-                  setContactOptionsId(reviewer.id);
-                  setPlatformFormId(null);
-                }}
+                onClick={() => openReviewerContact(reviewer.id)}
                 className="rounded-[1.4rem] border border-[#ece3d9] bg-[linear-gradient(180deg,#fff8f3_0%,#ffffff_100%)] p-4 text-left transition hover:border-[#ffcfbe]"
               >
                 <div className="flex items-start justify-between gap-3">
@@ -391,6 +398,7 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
                     </span>
                   ))}
                 </div>
+                <span className="mt-4 inline-flex rounded-full bg-[#ff6b35] px-4 py-2 text-sm font-semibold text-white">Contactar</span>
               </button>
             ))}
           </div>
@@ -424,7 +432,13 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
           const draftRequest = draftRequests[reviewer.id] || DEFAULT_CONTACT_REQUEST_DATA;
 
           return (
-            <article key={reviewer.id} className="overflow-hidden rounded-[1.6rem] border border-[#e6ddd1] bg-[linear-gradient(180deg,#ffffff_0%,#fffdfa_100%)] shadow-[0_18px_36px_rgba(22,18,14,0.04)]">
+            <article
+              key={reviewer.id}
+              ref={(node) => {
+                reviewerRefs.current[reviewer.id] = node;
+              }}
+              className="overflow-hidden rounded-[1.6rem] border border-[#e6ddd1] bg-[linear-gradient(180deg,#ffffff_0%,#fffdfa_100%)] shadow-[0_18px_36px_rgba(22,18,14,0.04)]"
+            >
               <button
                 type="button"
                 className="flex w-full items-start justify-between gap-4 px-4 py-4 text-left"
