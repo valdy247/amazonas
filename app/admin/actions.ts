@@ -102,6 +102,111 @@ export async function createProviderContact(formData: FormData) {
   throw new Error(lastError || "No se pudo crear el contacto del proveedor.");
 }
 
+export async function updateProviderContact(formData: FormData) {
+  const { supabase, adminId } = await assertAdmin();
+
+  const contactId = Number(formData.get("contact_id") || 0);
+  const title = String(formData.get("title") || "").trim();
+  const whatsappPrefix = String(formData.get("whatsapp_prefix") || "").trim();
+  const whatsappNumber = String(formData.get("whatsapp_number") || "").trim();
+  const whatsapp = `${whatsappPrefix}${whatsappNumber}`.trim();
+  const instagram = String(formData.get("instagram") || "").trim();
+  const messenger = String(formData.get("messenger") || "").trim();
+  const notes = String(formData.get("notes") || "").trim();
+  const isVerified = String(formData.get("is_verified") || "") === "on";
+  const isActive = String(formData.get("is_active") || "") === "on";
+  const contactMethods = buildContactMethodsFromFields({ whatsapp, instagram, messenger });
+  const methodCount = [whatsapp, instagram, messenger].filter(Boolean).length;
+
+  if (!Number.isFinite(contactId) || contactId <= 0) {
+    throw new Error("Contacto invalido.");
+  }
+
+  if (!methodCount) {
+    throw new Error("Debes agregar al menos un metodo de contacto.");
+  }
+
+  const safeTitle = title || "Proveedor sin nombre";
+  const safeUrl = getPrimaryContactUrl(contactMethods) || "#";
+  const primaryNetwork = whatsapp ? "WhatsApp" : instagram ? "Instagram" : messenger ? "Messenger" : "";
+
+  const payloads = [
+    {
+      title: safeTitle,
+      network: primaryNetwork,
+      url: safeUrl,
+      contact_methods: contactMethods || null,
+      notes,
+      is_verified: isVerified,
+      is_active: isActive,
+      created_by: adminId,
+    },
+    {
+      title: safeTitle,
+      network: primaryNetwork,
+      url: safeUrl,
+      notes,
+      is_verified: isVerified,
+      is_active: isActive,
+      created_by: adminId,
+    },
+    {
+      title: safeTitle,
+      network: primaryNetwork,
+      url: safeUrl,
+      notes,
+      is_active: isActive,
+      created_by: adminId,
+    },
+    {
+      title: safeTitle,
+      network: primaryNetwork,
+      url: safeUrl,
+      notes,
+      is_active: isActive,
+    },
+    {
+      title: safeTitle,
+      network: primaryNetwork,
+      url: safeUrl,
+    },
+  ];
+
+  let lastError: string | null = null;
+
+  for (const payload of payloads) {
+    const { error } = await supabase.from("provider_contacts").update(payload).eq("id", contactId);
+
+    if (!error) {
+      revalidatePath("/admin");
+      revalidatePath("/dashboard");
+      return;
+    }
+
+    lastError = error.message;
+  }
+
+  throw new Error(lastError || "No se pudo actualizar el contacto del proveedor.");
+}
+
+export async function deleteProviderContact(formData: FormData) {
+  const { supabase } = await assertAdmin();
+  const contactId = Number(formData.get("contact_id") || 0);
+
+  if (!Number.isFinite(contactId) || contactId <= 0) {
+    throw new Error("Contacto invalido.");
+  }
+
+  const { error } = await supabase.from("provider_contacts").delete().eq("id", contactId);
+
+  if (error) {
+    throw new Error(error.message || "No se pudo eliminar el contacto.");
+  }
+
+  revalidatePath("/admin");
+  revalidatePath("/dashboard");
+}
+
 export async function updateMemberStatus(formData: FormData) {
   const { supabase } = await assertAdmin();
   const userId = String(formData.get("user_id") || "");

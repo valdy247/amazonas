@@ -89,3 +89,32 @@ export function buildContactMethodsFromFields({
 
   return rows.join("\n");
 }
+
+export function getContactFieldValues(contactMethods?: string | null, fallbackUrl?: string | null, fallbackNetwork?: string | null) {
+  const methods = parseContactMethods(contactMethods, fallbackUrl, fallbackNetwork);
+  let whatsapp = "";
+  let instagram = "";
+  let messenger = "";
+
+  methods.forEach((method) => {
+    const href = method.href.trim();
+    const label = method.label.toLowerCase();
+
+    if (!whatsapp && (label.includes("whatsapp") || href.includes("wa.me/"))) {
+      const match = href.match(/wa\.me\/(\d+)/i);
+      whatsapp = match ? `+${match[1]}` : href;
+      return;
+    }
+
+    if (!instagram && (label.includes("instagram") || href.includes("instagram.com"))) {
+      instagram = href;
+      return;
+    }
+
+    if (!messenger && (label.includes("messenger") || href.includes("m.me/") || href.includes("facebook.com"))) {
+      messenger = href;
+    }
+  });
+
+  return { whatsapp, instagram, messenger };
+}
