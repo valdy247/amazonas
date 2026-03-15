@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { User } from "@supabase/supabase-js";
 import { LockKeyhole, Menu, MessageCircleMore, X } from "lucide-react";
 
@@ -16,10 +16,12 @@ type AccountMenuProps = {
   items?: AccountMenuItem[];
   messageHref?: string;
   hasUnreadMessages?: boolean;
+  unreadThreads?: Array<{ threadId: number; lastIncomingMessageId: number }>;
 };
 
-export function AccountMenu({ user, items, messageHref, hasUnreadMessages = false }: AccountMenuProps) {
+export function AccountMenu({ user, items, messageHref, hasUnreadMessages = false, unreadThreads = [] }: AccountMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [storedSeenMap, setStoredSeenMap] = useState<Record<number, number>>({});
   const containerRef = useRef<HTMLDivElement | null>(null);
   const resolvedItems =
     items ||
@@ -32,6 +34,13 @@ export function AccountMenu({ user, items, messageHref, hasUnreadMessages = fals
           { href: "/auth?mode=signup", label: "Crear cuenta" },
           { href: "/auth?mode=signin", label: "Iniciar sesion" },
         ]);
+  const resolvedHasUnreadMessages = useMemo(() => {
+    if (!user || !unreadThreads.length) {
+      return hasUnreadMessages;
+    }
+
+    return unreadThreads.some((thread) => storedSeenMap[thread.threadId] !== thread.lastIncomingMessageId);
+  }, [hasUnreadMessages, storedSeenMap, unreadThreads, user]);
 
   useEffect(() => {
     function handlePointerDown(event: MouseEvent) {
@@ -55,6 +64,44 @@ export function AccountMenu({ user, items, messageHref, hasUnreadMessages = fals
     };
   }, []);
 
+  useEffect(() => {
+    if (!user || typeof window === "undefined") {
+      return;
+    }
+
+    const storageKey = `chat-seen:${user.id}`;
+
+    function readSeenState() {
+      try {
+        const raw = window.localStorage.getItem(storageKey);
+        if (!raw) {
+          setStoredSeenMap({});
+          return;
+        }
+
+        const parsed = JSON.parse(raw) as Record<string, unknown>;
+        setStoredSeenMap(
+          Object.fromEntries(
+            Object.entries(parsed)
+              .map(([key, value]) => [Number(key), Number(value)])
+              .filter(([key, value]) => Number.isFinite(key) && Number.isFinite(value))
+          )
+        );
+      } catch {
+        setStoredSeenMap({});
+      }
+    }
+
+    readSeenState();
+    window.addEventListener("storage", readSeenState);
+    window.addEventListener("focus", readSeenState);
+
+    return () => {
+      window.removeEventListener("storage", readSeenState);
+      window.removeEventListener("focus", readSeenState);
+    };
+  }, [user]);
+
   return (
     <div ref={containerRef} className="relative flex items-center gap-2">
       {user && messageHref ? (
@@ -64,7 +111,7 @@ export function AccountMenu({ user, items, messageHref, hasUnreadMessages = fals
           className="relative inline-flex h-12 w-12 items-center justify-center rounded-full border border-[#e5e5df] bg-white text-[#131316] shadow-sm transition hover:bg-[#fff3ec]"
         >
           <MessageCircleMore className="h-5 w-5" />
-          {hasUnreadMessages ? <span className="absolute right-2 top-2 h-2.5 w-2.5 rounded-full bg-[#ff3b30]" /> : null}
+          {resolvedHasUnreadMessages ? <span className="absolute right-2 top-2 h-2.5 w-2.5 rounded-full bg-[#ff3b30]" /> : null}
         </Link>
       ) : null}
 

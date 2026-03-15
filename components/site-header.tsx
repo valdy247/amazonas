@@ -10,9 +10,10 @@ type SiteHeaderProps = {
   }>;
   messageHref?: string;
   hasUnreadMessages?: boolean;
+  unreadThreads?: Array<{ threadId: number; lastIncomingMessageId: number }>;
 };
 
-export async function SiteHeader({ menuItems, messageHref, hasUnreadMessages = false }: SiteHeaderProps = {}) {
+export async function SiteHeader({ menuItems, messageHref, hasUnreadMessages = false, unreadThreads = [] }: SiteHeaderProps = {}) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -24,7 +25,7 @@ export async function SiteHeader({ menuItems, messageHref, hasUnreadMessages = f
         <Link href="/" className="text-base font-extrabold tracking-tight">
           Amazona Review
         </Link>
-        <AccountMenu user={user} items={menuItems} messageHref={messageHref} hasUnreadMessages={hasUnreadMessages} />
+        <AccountMenu user={user} items={menuItems} messageHref={messageHref} hasUnreadMessages={hasUnreadMessages} unreadThreads={unreadThreads} />
       </div>
     </header>
   );
