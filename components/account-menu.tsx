@@ -23,7 +23,27 @@ type AccountMenuProps = {
 export function AccountMenu({ user, items, messageHref, hasUnreadMessages = false, unreadThreads = [] }: AccountMenuProps) {
   const [supabase] = useState(() => createClient());
   const [isOpen, setIsOpen] = useState(false);
-  const [storedSeenMap, setStoredSeenMap] = useState<Record<number, number>>({});
+  const [storedSeenMap, setStoredSeenMap] = useState<Record<number, number>>(() => {
+    if (!user || typeof window === "undefined") {
+      return {};
+    }
+
+    try {
+      const raw = window.localStorage.getItem(`chat-seen:${user.id}`);
+      if (!raw) {
+        return {};
+      }
+
+      const parsed = JSON.parse(raw) as Record<string, unknown>;
+      return Object.fromEntries(
+        Object.entries(parsed)
+          .map(([key, value]) => [Number(key), Number(value)])
+          .filter(([key, value]) => Number.isFinite(key) && Number.isFinite(value))
+      );
+    } catch {
+      return {};
+    }
+  });
   const [liveIncomingMap, setLiveIncomingMap] = useState<Record<number, number>>({});
   const containerRef = useRef<HTMLDivElement | null>(null);
   const resolvedItems =
@@ -38,11 +58,19 @@ export function AccountMenu({ user, items, messageHref, hasUnreadMessages = fals
           { href: "/auth?mode=signin", label: "Iniciar sesion" },
         ]);
   const resolvedHasUnreadMessages = useMemo(() => {
-    if (!user || !unreadThreads.length) {
+    if (!user) {
       return hasUnreadMessages;
     }
 
-    return unreadThreads.some((thread) => {
+    const eligibleThreads = unreadThreads.filter((thread) => thread.lastIncomingMessageId > 0 || (liveIncomingMap[thread.threadId] || 0) > 0);
+    if (!eligibleThreads.length) {
+      return false;
+    }
+
+    return eligibleThreads.some((thread) => {
+      if (!thread.lastIncomingMessageId) {
+        return (liveIncomingMap[thread.threadId] || 0) > 0;
+      }
       const latestIncomingId = Math.max(thread.lastIncomingMessageId, liveIncomingMap[thread.threadId] || 0);
       return storedSeenMap[thread.threadId] !== latestIncomingId;
     });
@@ -111,11 +139,13 @@ export function AccountMenu({ user, items, messageHref, hasUnreadMessages = fals
   }, [user]);
 
   useEffect(() => {
-    if (!user || !unreadThreads.length) {
+    const eligibleThreads = unreadThreads.filter((thread) => thread.lastIncomingMessageId > 0);
+
+    if (!user || !eligibleThreads.length) {
       return;
     }
 
-    const threadIds = unreadThreads.map((thread) => thread.threadId);
+    const threadIds = eligibleThreads.map((thread) => thread.threadId);
     const channel = supabase
       .channel(`header-unread-${user.id}`)
       .on(
