@@ -1,7 +1,7 @@
 "use client";
 
-import { useDeferredValue, useMemo, useState, useTransition } from "react";
-import { Search, Sparkles } from "lucide-react";
+import { useMemo, useState, useTransition } from "react";
+import { Sparkles, Star } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { EXPERIENCE_LABELS } from "@/lib/onboarding";
 import { AVAILABILITY_OPTIONS, type ReviewerAvailability } from "@/lib/profile-data";
@@ -58,10 +58,8 @@ function normalizeFilterValue(value: string) {
 
 export function ProviderReviewerFinder({ reviewers, sentRequests, providerInterests }: ProviderReviewerFinderProps) {
   const supabase = createClient();
-  const [query, setQuery] = useState("");
   const [selectedInterest, setSelectedInterest] = useState("");
   const [selectedCountry, setSelectedCountry] = useState("");
-  const [selectedAvailability, setSelectedAvailability] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(reviewers[0]?.id ?? null);
   const [draftMessages, setDraftMessages] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
@@ -70,7 +68,6 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
     Object.fromEntries(sentRequests.map((request) => [request.reviewer_id, { status: request.status, message: request.message }]))
   );
   const [isPending, startTransition] = useTransition();
-  const deferredQuery = useDeferredValue(query);
   const availableCountries = useMemo(
     () => Array.from(new Set(reviewers.map((reviewer) => reviewer.country.trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b)),
     [reviewers]
@@ -80,9 +77,15 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
     [reviewers]
   );
 
-  const filteredReviewers = useMemo(() => {
-    const normalizedQuery = normalizeFilterValue(deferredQuery);
+  const recommendedReviewers = useMemo(
+    () =>
+      reviewers
+        .filter((reviewer) => reviewer.score > 0)
+        .slice(0, 4),
+    [reviewers]
+  );
 
+  const filteredReviewers = useMemo(() => {
     return reviewers.filter((reviewer) => {
       if (selectedInterest && !reviewer.interests.some((interest) => normalizeFilterValue(interest) === normalizeFilterValue(selectedInterest))) {
         return false;
@@ -92,28 +95,9 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
         return false;
       }
 
-      if (selectedAvailability && reviewer.availability !== selectedAvailability) {
-        return false;
-      }
-
-      if (!normalizedQuery) {
-        return true;
-      }
-
-      const haystack = [
-        reviewer.fullName,
-        reviewer.country,
-        reviewer.note,
-        reviewer.experienceLevel,
-        reviewer.availability,
-        ...reviewer.interests,
-        ...reviewer.directContactMethods.map((item) => item.value),
-      ]
-        .join(" ");
-
-      return normalizeFilterValue(haystack).includes(normalizedQuery);
+      return true;
     });
-  }, [deferredQuery, reviewers, selectedAvailability, selectedCountry, selectedInterest]);
+  }, [reviewers, selectedCountry, selectedInterest]);
 
   function submitRequest(reviewerId: string) {
     setError(null);
@@ -171,19 +155,7 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
         </div>
 
         <div className="mt-5 rounded-[1.6rem] border border-white/80 bg-white/80 p-4 backdrop-blur">
-          <div className="rounded-[1.2rem] border border-[#f0d9cc] bg-white px-4 py-3">
-            <label className="flex items-center gap-3">
-              <Search className="h-4 w-4 text-[#dc4f1f]" />
-              <input
-                className="w-full bg-transparent text-sm outline-none"
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="Buscar por nombre, categoria, pais o descripcion"
-              />
-            </label>
-          </div>
-
-          <div className="mt-4 grid gap-4">
+          <div className="grid gap-4">
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8f857b]">Tus categorias</p>
               <div className="mt-2 flex flex-wrap gap-2">
@@ -253,47 +225,58 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
               </div>
             </div>
 
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8f857b]">Disponibilidad</p>
-              <div className="mt-2 flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => setSelectedAvailability("")}
-                  className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-                    !selectedAvailability ? "bg-[#ff6b35] text-white" : "border border-[#eadfd6] bg-white text-[#62564a]"
-                  }`}
-                >
-                  Toda
-                </button>
-                {AVAILABILITY_OPTIONS.map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => setSelectedAvailability(option.value)}
-                    className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-                      selectedAvailability === option.value ? "bg-[#ff6b35] text-white" : "border border-[#eadfd6] bg-white text-[#62564a]"
-                    }`}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
-            </div>
           </div>
         </div>
       </section>
 
+      {recommendedReviewers.length ? (
+        <section className="rounded-[1.8rem] border border-[#eadfd6] bg-white p-5 shadow-[0_18px_36px_rgba(22,18,14,0.04)]">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-[#dc4f1f]">Recomendados para ti</p>
+              <h3 className="mt-1 text-xl font-bold">Reviewers con mejor encaje</h3>
+            </div>
+            <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-[#fff3ec] text-[#dc4f1f]">
+              <Star className="h-5 w-5" />
+            </span>
+          </div>
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            {recommendedReviewers.map((reviewer) => (
+              <button
+                key={`recommended-${reviewer.id}`}
+                type="button"
+                onClick={() => setExpandedId(reviewer.id)}
+                className="rounded-[1.4rem] border border-[#ece3d9] bg-[linear-gradient(180deg,#fff8f3_0%,#ffffff_100%)] p-4 text-left transition hover:border-[#ffcfbe]"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="font-bold">{reviewer.fullName}</p>
+                    <p className="mt-1 text-sm text-[#62626d]">{reviewer.country || "Sin pais"} · {EXPERIENCE_LABELS[reviewer.experienceLevel]}</p>
+                  </div>
+                  <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-[#dc4f1f]">Score {reviewer.score}</span>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {reviewer.interests.slice(0, 3).map((interest) => (
+                    <span key={`recommended-${reviewer.id}-${interest}`} className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-[#62564a]">
+                      {interest}
+                    </span>
+                  ))}
+                </div>
+              </button>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
       <div className="flex items-center justify-between gap-3 text-sm text-[#62626d]">
         <span>{filteredReviewers.length} reviewers encontrados</span>
-        {(query || selectedCountry || selectedInterest || selectedAvailability) ? (
+        {(selectedCountry || selectedInterest) ? (
           <button
             type="button"
             className="font-semibold text-[#dc4f1f]"
             onClick={() => {
-              setQuery("");
               setSelectedCountry("");
               setSelectedInterest("");
-              setSelectedAvailability("");
             }}
           >
             Limpiar filtros
