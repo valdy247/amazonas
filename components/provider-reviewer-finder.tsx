@@ -1,6 +1,7 @@
 "use client";
 
 import { useDeferredValue, useMemo, useState, useTransition } from "react";
+import { Search, Sparkles } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { COUNTRY_OPTIONS, EXPERIENCE_LABELS, INTEREST_OPTIONS } from "@/lib/onboarding";
 import { AVAILABILITY_OPTIONS, type ReviewerAvailability } from "@/lib/profile-data";
@@ -140,47 +141,130 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
 
   return (
     <div className="space-y-4">
-      <section className="rounded-[1.8rem] border border-[#ecd8cb] bg-[linear-gradient(180deg,#fff7f2_0%,#ffffff_100%)] p-5">
+      <section className="overflow-hidden rounded-[2rem] border border-[#ecd8cb] bg-[radial-gradient(circle_at_top_left,#fff9f5_0%,#fff2e7_42%,#fffdfb_100%)] p-5 shadow-[0_28px_70px_rgba(220,79,31,0.08)]">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-sm font-semibold text-[#dc4f1f]">Matching inteligente</p>
-            <h2 className="mt-2 text-2xl font-bold">Encuentra reviewers alineados contigo</h2>
-            <p className="mt-2 text-sm text-[#62626d]">
-              Usamos coincidencia de intereses, pais, nivel y disponibilidad para ordenar mejores perfiles primero.
+            <p className="text-sm font-semibold text-[#dc4f1f]">Discovery Studio</p>
+            <h2 className="mt-2 text-3xl font-bold">Encuentra reviewers alineados con tus productos</h2>
+            <p className="mt-2 max-w-2xl text-sm text-[#62626d]">
+              Tus mismas etiquetas se usan como categorias de producto. El sistema prioriza compatibilidad por categoria, pais y disponibilidad.
             </p>
           </div>
-          <div className="rounded-[1.2rem] bg-white px-4 py-3 text-right shadow-sm">
-            <p className="text-xs uppercase tracking-[0.18em] text-[#8f857b]">Tus intereses</p>
-            <p className="mt-2 text-sm font-semibold text-[#131316]">{providerInterests.length ? providerInterests.join(", ") : "Sin etiquetas"}</p>
+          <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-[#dc4f1f] shadow-sm">
+            <Sparkles className="h-5 w-5" />
           </div>
         </div>
 
-        <div className="mt-4 grid gap-3 md:grid-cols-4">
-          <input className="input" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar por nombre, interes o nota" />
-          <select className="input" value={selectedCountry} onChange={(event) => setSelectedCountry(event.target.value)}>
-            <option value="">Todos los paises</option>
-            {COUNTRY_OPTIONS.map((country) => (
-              <option key={country} value={country}>
-                {country}
-              </option>
-            ))}
-          </select>
-          <select className="input" value={selectedInterest} onChange={(event) => setSelectedInterest(event.target.value)}>
-            <option value="">Todos los intereses</option>
-            {INTEREST_OPTIONS.map((interest) => (
-              <option key={interest} value={interest}>
-                {interest}
-              </option>
-            ))}
-          </select>
-          <select className="input" value={selectedAvailability} onChange={(event) => setSelectedAvailability(event.target.value)}>
-            <option value="">Toda disponibilidad</option>
-            {AVAILABILITY_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+        <div className="mt-5 rounded-[1.6rem] border border-white/80 bg-white/80 p-4 backdrop-blur">
+          <div className="rounded-[1.2rem] border border-[#f0d9cc] bg-white px-4 py-3">
+            <label className="flex items-center gap-3">
+              <Search className="h-4 w-4 text-[#dc4f1f]" />
+              <input
+                className="w-full bg-transparent text-sm outline-none"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Buscar por nombre, categoria, pais o descripcion"
+              />
+            </label>
+          </div>
+
+          <div className="mt-4 grid gap-4">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8f857b]">Tus categorias</p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {providerInterests.length ? (
+                  providerInterests.map((interest) => (
+                    <span key={interest} className="rounded-full bg-[#fff2eb] px-3 py-2 text-xs font-semibold text-[#dc4f1f]">
+                      {interest}
+                    </span>
+                  ))
+                ) : (
+                  <span className="text-sm text-[#8f857b]">Todavia no has definido categorias de producto en tu perfil.</span>
+                )}
+              </div>
+            </div>
+
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8f857b]">Filtrar por pais</p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSelectedCountry("")}
+                  className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                    !selectedCountry ? "bg-[#ff6b35] text-white" : "border border-[#eadfd6] bg-white text-[#62564a]"
+                  }`}
+                >
+                  Todos
+                </button>
+                {COUNTRY_OPTIONS.map((country) => (
+                  <button
+                    key={country}
+                    type="button"
+                    onClick={() => setSelectedCountry(country)}
+                    className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                      selectedCountry === country ? "bg-[#ff6b35] text-white" : "border border-[#eadfd6] bg-white text-[#62564a]"
+                    }`}
+                  >
+                    {country}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8f857b]">Filtrar por categoria</p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSelectedInterest("")}
+                  className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                    !selectedInterest ? "bg-[#ff6b35] text-white" : "border border-[#eadfd6] bg-white text-[#62564a]"
+                  }`}
+                >
+                  Todas
+                </button>
+                {INTEREST_OPTIONS.map((interest) => (
+                  <button
+                    key={interest}
+                    type="button"
+                    onClick={() => setSelectedInterest(interest)}
+                    className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                      selectedInterest === interest ? "bg-[#ff6b35] text-white" : "border border-[#eadfd6] bg-white text-[#62564a]"
+                    }`}
+                  >
+                    {interest}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8f857b]">Disponibilidad</p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSelectedAvailability("")}
+                  className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                    !selectedAvailability ? "bg-[#ff6b35] text-white" : "border border-[#eadfd6] bg-white text-[#62564a]"
+                  }`}
+                >
+                  Toda
+                </button>
+                {AVAILABILITY_OPTIONS.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => setSelectedAvailability(option.value)}
+                    className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                      selectedAvailability === option.value ? "bg-[#ff6b35] text-white" : "border border-[#eadfd6] bg-white text-[#62564a]"
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -208,7 +292,7 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
           const isExpanded = expandedId === reviewer.id;
 
           return (
-            <article key={reviewer.id} className="overflow-hidden rounded-[1.5rem] border border-[#e6ddd1] bg-white">
+            <article key={reviewer.id} className="overflow-hidden rounded-[1.6rem] border border-[#e6ddd1] bg-[linear-gradient(180deg,#ffffff_0%,#fffdfa_100%)] shadow-[0_18px_36px_rgba(22,18,14,0.04)]">
               <button
                 type="button"
                 className="flex w-full items-start justify-between gap-4 px-4 py-4 text-left"
@@ -239,7 +323,7 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
                 </div>
 
                 <div className="text-right">
-                  <p className="text-xs uppercase tracking-[0.18em] text-[#8f857b]">Score</p>
+                  <p className="text-xs uppercase tracking-[0.18em] text-[#8f857b]">Afinidad</p>
                   <p className="mt-1 text-2xl font-bold text-[#131316]">{reviewer.score}</p>
                 </div>
               </button>
@@ -261,7 +345,7 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
                     </div>
                   ) : null}
 
-                  <div className="mt-4 rounded-[1.2rem] border border-[#eadfd6] bg-[#fcfaf7] p-4">
+                  <div className="mt-4 rounded-[1.35rem] border border-[#eadfd6] bg-[linear-gradient(180deg,#fcfaf7_0%,#fff5ef_100%)] p-4">
                     <p className="text-sm font-semibold text-[#131316]">Contactar a traves de la pagina</p>
                     <p className="mt-1 text-sm text-[#62626d]">
                       Envia una solicitud breve. El reviewer la vera en su panel y podra responder desde la plataforma.

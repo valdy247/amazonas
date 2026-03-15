@@ -184,6 +184,11 @@ export function ProfileEditor({ email, initialValues }: ProfileEditorProps) {
 
       <section className="card p-5">
         <h2 className="text-xl font-bold">Enfoque</h2>
+        <p className="mt-2 text-sm text-[#62626d]">
+          {values.role === "reviewer"
+            ? "Cuéntanos que te interesa reseñar y donde aportas más valor."
+            : "Define que tipo de productos ofreces. Usaremos estas mismas etiquetas como categorías de producto para encontrar reviewers afines."}
+        </p>
         <div className="mt-4 grid gap-3">
           <select className="input" value={values.country} onChange={(event) => updateValue("country", event.target.value)}>
             <option value="">Selecciona tu pais</option>
@@ -235,7 +240,7 @@ export function ProfileEditor({ email, initialValues }: ProfileEditorProps) {
             placeholder={
               values.role === "reviewer"
                 ? "Describe que tipo de productos te gusta probar y donde aportas mas valor."
-                : "Describe que tipo de reviewers buscas, categorias clave y enfoque de colaboracion."
+                : "Describe que tipo de productos ofreces, categorias principales y el tipo de reviewer que mejor encaja contigo."
             }
           />
         </div>

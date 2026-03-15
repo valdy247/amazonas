@@ -27,7 +27,7 @@ type ProfileWizardProps = {
 const baseSteps = [
   { id: "role", title: "Tu camino", description: "Define como vas a usar la plataforma." },
   { id: "profile", title: "Perfil base", description: "Datos minimos para arrancar desde mobile." },
-  { id: "focus", title: "Intereses", description: "Etiquetas para personalizar tu experiencia." },
+  { id: "focus", title: "Categorias", description: "Etiquetas para personalizar tu experiencia." },
   { id: "confirm", title: "Confirmar", description: "Revisa y activa tu perfil." },
 ] as const;
 
@@ -66,7 +66,7 @@ export function ProfileWizard({ initialValues, email }: ProfileWizardProps) {
   const roleCopy =
     values.role === "reviewer"
       ? "Te ayudaremos a construir un perfil claro para encontrar oportunidades alineadas."
-      : "Activaremos un perfil orientado a descubrir reviewers segun las categorias que te interesan.";
+      : "Activaremos un perfil orientado a descubrir reviewers segun los productos que ofreces.";
 
   function updateValue<K extends keyof WizardValues>(key: K, value: WizardValues[K]) {
     setValues((current) => ({ ...current, [key]: value }));
@@ -102,7 +102,9 @@ export function ProfileWizard({ initialValues, email }: ProfileWizardProps) {
       }
 
       if (values.interests.length < 3) {
-        return "Selecciona al menos 3 intereses para que el matching tenga contexto.";
+        return values.role === "reviewer"
+          ? "Selecciona al menos 3 intereses para que el matching tenga contexto."
+          : "Selecciona al menos 3 categorias de producto para encontrar reviewers afines.";
       }
     }
 
@@ -255,7 +257,7 @@ export function ProfileWizard({ initialValues, email }: ProfileWizardProps) {
                   {
                     role: "provider" as const,
                     title: "Soy proveedor",
-                    description: "Quiero entrar sin friccion y preparar mi perfil para buscar reviewers relevantes.",
+                    description: "Quiero preparar mi perfil segun los productos que ofrezco para encontrar reviewers relevantes.",
                   },
                 ].map((option) => (
                   <button
@@ -301,10 +303,12 @@ export function ProfileWizard({ initialValues, email }: ProfileWizardProps) {
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <p className="text-sm font-semibold text-[#dc4f1f]">
-                      {values.role === "reviewer" ? "Que te interesa probar" : "Que categorias quieres trabajar"}
+                      {values.role === "reviewer" ? "Que te interesa probar" : "Que tipo de productos ofreces"}
                     </p>
                     <p className="mt-1 text-sm text-[#62626d]">
-                      Estas etiquetas nos ayudan a personalizar el dashboard y futuros matches.
+                      {values.role === "reviewer"
+                        ? "Estas etiquetas nos ayudan a personalizar el dashboard y futuros matches."
+                        : "Usaremos estas mismas etiquetas como categorias de producto para encontrar reviewers compatibles."}
                     </p>
                   </div>
                   <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-[#ff6b35] shadow-sm">
@@ -362,8 +366,14 @@ export function ProfileWizard({ initialValues, email }: ProfileWizardProps) {
               <div className="rounded-[1.75rem] border border-[#eadfd6] bg-[#fcfaf7] p-4">
                 <div className="flex items-center justify-between gap-4">
                   <div>
-                    <p className="text-sm font-semibold text-[#131316]">Mapa de intereses</p>
-                    <p className="mt-1 text-sm text-[#62626d]">Selecciona al menos 3 para entrenar mejor tu perfil.</p>
+                    <p className="text-sm font-semibold text-[#131316]">
+                      {values.role === "reviewer" ? "Mapa de intereses" : "Mapa de productos"}
+                    </p>
+                    <p className="mt-1 text-sm text-[#62626d]">
+                      {values.role === "reviewer"
+                        ? "Selecciona al menos 3 para entrenar mejor tu perfil."
+                        : "Selecciona al menos 3 categorias de producto para encontrar reviewers afines."}
+                    </p>
                   </div>
                   <div className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-2 text-xs font-semibold text-[#dc4f1f] shadow-sm">
                     <Compass className="h-4 w-4" />
@@ -402,8 +412,8 @@ export function ProfileWizard({ initialValues, email }: ProfileWizardProps) {
                 onChange={(event) => updateValue("note", event.target.value)}
                 placeholder={
                   values.role === "reviewer"
-                    ? "Cuentanos que tipo de productos te gusta reseñar o en que eres fuerte."
-                    : "Describe que tipo de reviewers o categorias buscas primero."
+                    ? "Cuentanos que tipo de productos te gusta resenar o en que eres fuerte."
+                    : "Describe que tipo de productos ofreces, tu enfoque y el reviewer ideal para colaborar."
                 }
               />
             </>
@@ -426,7 +436,7 @@ export function ProfileWizard({ initialValues, email }: ProfileWizardProps) {
                   {values.firstName} {values.lastName}
                 </p>
                 <p className="text-sm text-[#62626d]">{values.country || "Pais pendiente"}</p>
-                <p className="mt-3 text-sm text-[#62626d]">Etiquetas</p>
+                <p className="mt-3 text-sm text-[#62626d]">{values.role === "reviewer" ? "Intereses" : "Categorias de producto"}</p>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {values.interests.map((interest) => (
                     <span key={interest} className="rounded-full bg-white px-3 py-1 text-sm font-semibold text-[#dc4f1f]">
