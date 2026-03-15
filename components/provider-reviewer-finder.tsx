@@ -76,6 +76,8 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
   const [selectedInterest, setSelectedInterest] = useState("");
   const [selectedCountry, setSelectedCountry] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(reviewers[0]?.id ?? null);
+  const [contactOptionsId, setContactOptionsId] = useState<string | null>(null);
+  const [platformFormId, setPlatformFormId] = useState<string | null>(null);
   const [draftRequests, setDraftRequests] = useState<Record<string, ContactRequestData>>(
     Object.fromEntries(
       reviewers.map((reviewer) => [
@@ -246,6 +248,11 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
         ...patch,
       },
     }));
+  }
+
+  function openContactOptions(reviewerId: string) {
+    setContactOptionsId((current) => (current === reviewerId ? null : reviewerId));
+    setPlatformFormId((current) => (current === reviewerId ? current : null));
   }
 
   return (
@@ -456,6 +463,8 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
           const currentRequest = latestRequestByReviewer[reviewer.id];
           const reviewerRequestCount = requestLog.filter((request) => request.reviewerId === reviewer.id).length;
           const isExpanded = expandedId === reviewer.id;
+          const showContactOptions = contactOptionsId === reviewer.id;
+          const showPlatformForm = platformFormId === reviewer.id;
           const whatsappMethod = reviewer.directContactMethods.find((method) => method.label === "WhatsApp");
           const otherDirectMethods = reviewer.directContactMethods.filter((method) => method.label !== "WhatsApp");
           const draftRequest = draftRequests[reviewer.id] || DEFAULT_CONTACT_REQUEST_DATA;
@@ -531,103 +540,148 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
                   <div className="mt-4 rounded-[1.35rem] border border-[#eadfd6] bg-[linear-gradient(180deg,#fcfaf7_0%,#fff5ef_100%)] p-4">
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <p className="text-sm font-semibold text-[#131316]">Contactar a traves de la pagina</p>
-                        <p className="mt-1 text-sm text-[#62626d]">Cada oferta se guarda por separado. Puedes enviar nuevas propuestas a este reviewer cuando tengas otra colaboracion.</p>
+                        <p className="text-sm font-semibold text-[#131316]">Contacto</p>
+                        <p className="mt-1 text-sm text-[#62626d]">
+                          Primero elige por donde quieres contactar a este reviewer segun lo que haya autorizado en su perfil.
+                        </p>
                       </div>
                       <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-white text-[#dc4f1f] shadow-sm">
                         <NotebookTabs className="h-5 w-5" />
                       </span>
                     </div>
-                    <div className="mt-4 grid gap-3">
-                      <input
-                        className="input"
-                        value={draftRequest.productName}
-                        onChange={(event) => updateDraftRequest(reviewer.id, { productName: event.target.value })}
-                        placeholder="Producto o servicio"
-                      />
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        <select
-                          className="input"
-                          value={draftRequest.category}
-                          onChange={(event) => updateDraftRequest(reviewer.id, { category: event.target.value })}
-                        >
-                          <option value="">Selecciona categoria</option>
-                          {providerInterests.map((interest) => (
-                            <option key={`${reviewer.id}-${interest}`} value={interest}>
-                              {interest}
-                            </option>
-                          ))}
-                        </select>
-                        <select
-                          className="input"
-                          value={draftRequest.intent}
-                          onChange={(event) => updateDraftRequest(reviewer.id, { intent: event.target.value as ContactRequestData["intent"] })}
-                        >
-                          {CONTACT_REQUEST_INTENT_OPTIONS.map((option) => (
-                            <option key={option.value} value={option.value}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        <select
-                          className="input"
-                          value={draftRequest.timeline}
-                          onChange={(event) => updateDraftRequest(reviewer.id, { timeline: event.target.value as ContactRequestData["timeline"] })}
-                        >
-                          {CONTACT_REQUEST_TIMELINE_OPTIONS.map((option) => (
-                            <option key={option.value} value={option.value}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </select>
-                        <select
-                          className="input"
-                          value={draftRequest.preferredChannel}
-                          onChange={(event) => updateDraftRequest(reviewer.id, { preferredChannel: event.target.value as ContactRequestData["preferredChannel"] })}
-                        >
-                          {CONTACT_REQUEST_CHANNEL_OPTIONS.map((option) => (
-                            <option key={option.value} value={option.value}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-                    <p className="mt-1 text-sm text-[#62626d]">
-                      El reviewer vera estos detalles en su panel y podra aceptar, pedir mas informacion o dejarlo para despues.
-                    </p>
-                    <textarea
-                      className="input mt-3 min-h-28 resize-none"
-                      value={draftRequest.note}
-                      onChange={(event) => updateDraftRequest(reviewer.id, { note: event.target.value })}
-                      placeholder="Describe que esperas del reviewer, por que encaja contigo y cualquier detalle importante."
-                    />
-                    {currentRequest?.responseMessage ? (
-                      <p className="mt-3 rounded-2xl border border-[#e6ddd1] bg-white px-3 py-3 text-sm text-[#62564a]">
-                        Ultima respuesta del reviewer: {currentRequest.responseMessage}
-                      </p>
-                    ) : null}
-                    {reviewerRequestCount ? (
-                      <p className="mt-3 text-sm text-[#8f857b]">
-                        {reviewerRequestCount} {reviewerRequestCount === 1 ? "oferta enviada a este reviewer" : "ofertas enviadas a este reviewer"}.
-                      </p>
-                    ) : null}
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        className="btn-primary"
-                        disabled={isPending && pendingAction === reviewer.id}
-                        onClick={() => submitRequest(reviewer.id)}
-                      >
-                        {isPending && pendingAction === reviewer.id
-                          ? "Enviando..."
-                          : reviewerRequestCount
-                            ? "Enviar nueva oferta"
-                            : "Enviar solicitud"}
+
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <button type="button" className="btn-primary" onClick={() => openContactOptions(reviewer.id)}>
+                        Contactar
                       </button>
                     </div>
+
+                    {showContactOptions ? (
+                      <div className="mt-4 space-y-3 rounded-[1.2rem] border border-[#e9ddd2] bg-white p-4">
+                        <p className="text-sm font-semibold text-[#131316]">Elige una via</p>
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            className={`btn-secondary ${showPlatformForm ? "border-[#ff6b35] text-[#dc4f1f]" : ""}`}
+                            onClick={() => setPlatformFormId((current) => (current === reviewer.id ? null : reviewer.id))}
+                          >
+                            A traves de la pagina
+                          </button>
+                          {whatsappMethod ? (
+                            <a
+                              href={toHref(whatsappMethod.value)}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center rounded-full bg-[#1f9d55] px-4 py-2 text-sm font-semibold text-white shadow-[0_14px_32px_rgba(31,157,85,0.22)] transition hover:brightness-105"
+                            >
+                              WhatsApp
+                            </a>
+                          ) : null}
+                          {otherDirectMethods.map((method) => (
+                            <a key={`${reviewer.id}-${method.label}`} href={toHref(method.value)} target="_blank" rel="noreferrer" className="btn-secondary">
+                              {method.label}
+                            </a>
+                          ))}
+                        </div>
+                        {reviewerRequestCount ? (
+                          <p className="text-sm text-[#8f857b]">
+                            {reviewerRequestCount} {reviewerRequestCount === 1 ? "oferta enviada a este reviewer" : "ofertas enviadas a este reviewer"}.
+                          </p>
+                        ) : null}
+                      </div>
+                    ) : null}
+
+                    {showPlatformForm ? (
+                      <div className="mt-4 rounded-[1.2rem] border border-[#e9ddd2] bg-white p-4">
+                        <p className="text-sm font-semibold text-[#131316]">Nueva oferta dentro de la plataforma</p>
+                        <p className="mt-1 text-sm text-[#62626d]">Cada oferta se guarda por separado para que puedas manejar varias colaboraciones con el mismo reviewer.</p>
+                        <div className="mt-4 grid gap-3">
+                          <input
+                            className="input"
+                            value={draftRequest.productName}
+                            onChange={(event) => updateDraftRequest(reviewer.id, { productName: event.target.value })}
+                            placeholder="Producto o servicio"
+                          />
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            <select
+                              className="input"
+                              value={draftRequest.category}
+                              onChange={(event) => updateDraftRequest(reviewer.id, { category: event.target.value })}
+                            >
+                              <option value="">Selecciona categoria</option>
+                              {providerInterests.map((interest) => (
+                                <option key={`${reviewer.id}-${interest}`} value={interest}>
+                                  {interest}
+                                </option>
+                              ))}
+                            </select>
+                            <select
+                              className="input"
+                              value={draftRequest.intent}
+                              onChange={(event) => updateDraftRequest(reviewer.id, { intent: event.target.value as ContactRequestData["intent"] })}
+                            >
+                              {CONTACT_REQUEST_INTENT_OPTIONS.map((option) => (
+                                <option key={option.value} value={option.value}>
+                                  {option.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            <select
+                              className="input"
+                              value={draftRequest.timeline}
+                              onChange={(event) => updateDraftRequest(reviewer.id, { timeline: event.target.value as ContactRequestData["timeline"] })}
+                            >
+                              {CONTACT_REQUEST_TIMELINE_OPTIONS.map((option) => (
+                                <option key={option.value} value={option.value}>
+                                  {option.label}
+                                </option>
+                              ))}
+                            </select>
+                            <select
+                              className="input"
+                              value={draftRequest.preferredChannel}
+                              onChange={(event) => updateDraftRequest(reviewer.id, { preferredChannel: event.target.value as ContactRequestData["preferredChannel"] })}
+                            >
+                              {CONTACT_REQUEST_CHANNEL_OPTIONS.map((option) => (
+                                <option key={option.value} value={option.value}>
+                                  {option.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                        <p className="mt-3 text-sm text-[#62626d]">
+                          El reviewer vera estos detalles en su panel y podra aceptar, pedir mas informacion o dejarlo para despues.
+                        </p>
+                        <textarea
+                          className="input mt-3 min-h-28 resize-none"
+                          value={draftRequest.note}
+                          onChange={(event) => updateDraftRequest(reviewer.id, { note: event.target.value })}
+                          placeholder="Describe que esperas del reviewer, por que encaja contigo y cualquier detalle importante."
+                        />
+                        {currentRequest?.responseMessage ? (
+                          <p className="mt-3 rounded-2xl border border-[#e6ddd1] bg-[#fffaf6] px-3 py-3 text-sm text-[#62564a]">
+                            Ultima respuesta del reviewer: {currentRequest.responseMessage}
+                          </p>
+                        ) : null}
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            className="btn-primary"
+                            disabled={isPending && pendingAction === reviewer.id}
+                            onClick={() => submitRequest(reviewer.id)}
+                          >
+                            {isPending && pendingAction === reviewer.id
+                              ? "Enviando..."
+                              : reviewerRequestCount
+                                ? "Enviar nueva oferta"
+                                : "Enviar solicitud"}
+                          </button>
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
                 </div>
               ) : null}
