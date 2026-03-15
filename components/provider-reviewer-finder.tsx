@@ -524,9 +524,6 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
                       </span>
                     ) : null}
                   </div>
-                  <p className="mt-1 text-sm text-[#62626d]">
-                    {reviewer.country || "Sin pais"} · {EXPERIENCE_LABELS[reviewer.experienceLevel]} · {AVAILABILITY_OPTIONS.find((item) => item.value === reviewer.availability)?.label}
-                  </p>
                   <div className="mt-3 flex flex-wrap gap-2">
                     {reviewer.interests.slice(0, 4).map((interest) => (
                       <span key={interest} className="rounded-full border border-[#ece3d9] bg-[#fcfaf7] px-3 py-1 text-xs font-semibold text-[#62564a]">
@@ -547,6 +544,11 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
 
               {isExpanded ? (
                 <div className="border-t border-[#eee3d8] px-4 py-4">
+                  <div className="mb-4 rounded-[1.2rem] border border-[#efe4d9] bg-[#fffaf6] px-4 py-3">
+                    <p className="text-sm text-[#62626d]">
+                      {reviewer.country || "Sin pais"} · {EXPERIENCE_LABELS[reviewer.experienceLevel]} · {AVAILABILITY_OPTIONS.find((item) => item.value === reviewer.availability)?.label}
+                    </p>
+                  </div>
                   <p className="text-sm text-[#62626d]">{reviewer.note || "Este reviewer aun no ha completado una bio detallada."}</p>
 
                   {reviewer.allowsDirectContact && reviewer.directContactMethods.length ? (
