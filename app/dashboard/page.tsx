@@ -179,6 +179,10 @@ export default async function DashboardPage({
   const canSeeContacts = !isProvider && membershipStatus === "active" && kycStatus === "approved";
   const squareStatus = typeof resolvedSearchParams.square === "string" ? resolvedSearchParams.square : null;
   const squareError = typeof resolvedSearchParams.square_error === "string" ? resolvedSearchParams.square_error : null;
+  const requestedThreadId =
+    typeof resolvedSearchParams.thread === "string" && Number.isFinite(Number(resolvedSearchParams.thread))
+      ? Number(resolvedSearchParams.thread)
+      : null;
   const requestedSection = typeof resolvedSearchParams.section === "string" ? resolvedSearchParams.section : "home";
   const currentSection = isProvider
     ? requestedSection === "messages"
@@ -807,6 +811,15 @@ export default async function DashboardPage({
                   : "Acepta una solicitud de colaboracion y se abrira aqui una ventana de mensajeria entre ustedes."
               }
               threads={collaborationThreads}
+              initialThreadId={requestedThreadId}
+              quickReplies={
+                isProvider
+                  ? []
+                  : [
+                      "Hola, soy resenadora y me gustaria colaborar con usted.",
+                      "Hola, que tipo de productos ofreces?",
+                    ]
+              }
             />
           </>
         ) : null}

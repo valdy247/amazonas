@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -28,6 +29,7 @@ type ReviewerOpportunitiesProps = {
 };
 
 export function ReviewerOpportunities({ opportunities }: ReviewerOpportunitiesProps) {
+  const router = useRouter();
   const supabase = createClient();
   const [items, setItems] = useState(opportunities.filter((item) => item.status !== "declined" && item.status !== "accepted"));
   const [replyDrafts, setReplyDrafts] = useState<Record<number, string>>(
@@ -79,6 +81,11 @@ export function ReviewerOpportunities({ opportunities }: ReviewerOpportunitiesPr
           : current.map((item) => (item.id === id ? { ...item, status, responseMessage } : item))
       );
       setPendingId(null);
+
+      if (status === "accepted") {
+        router.push(`/dashboard?section=messages&thread=${id}`);
+        router.refresh();
+      }
     });
   }
 

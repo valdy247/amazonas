@@ -30,6 +30,8 @@ type CollaborationInboxProps = {
   emptyTitle: string;
   emptyDescription: string;
   threads: ConversationThread[];
+  initialThreadId?: number | null;
+  quickReplies?: string[];
 };
 
 type DraftMedia = {
@@ -44,11 +46,13 @@ export function CollaborationInbox({
   emptyTitle,
   emptyDescription,
   threads,
+  initialThreadId = null,
+  quickReplies = [],
 }: CollaborationInboxProps) {
   const [supabase] = useState(() => createClient());
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [items, setItems] = useState(threads);
-  const [activeThreadId, setActiveThreadId] = useState<number | null>(null);
+  const [activeThreadId, setActiveThreadId] = useState<number | null>(initialThreadId);
   const [viewedThreadIds, setViewedThreadIds] = useState<number[]>([]);
   const [drafts, setDrafts] = useState<Record<number, string>>({});
   const [mediaDrafts, setMediaDrafts] = useState<Record<number, DraftMedia | undefined>>({});
@@ -71,6 +75,18 @@ export function CollaborationInbox({
   useEffect(() => {
     setItems(threads);
   }, [threads]);
+
+  useEffect(() => {
+    if (!initialThreadId) {
+      return;
+    }
+
+    const threadExists = threads.some((thread) => thread.requestId === initialThreadId);
+    if (threadExists) {
+      setActiveThreadId(initialThreadId);
+      setViewedThreadIds((current) => (current.includes(initialThreadId) ? current : [...current, initialThreadId]));
+    }
+  }, [initialThreadId, threads]);
 
   useEffect(() => {
     if (!activeThread) {
@@ -216,6 +232,11 @@ export function CollaborationInbox({
       URL.revokeObjectURL(previewUrl);
     }
     setMediaDrafts((current) => ({ ...current, [requestId]: undefined }));
+  }
+
+  function applyQuickReply(requestId: number, message: string) {
+    setDrafts((current) => ({ ...current, [requestId]: message }));
+    setError(null);
   }
 
   function sendMessage(requestId: number) {
@@ -411,6 +432,21 @@ export function CollaborationInbox({
             </div>
 
             <div className="border-t border-[#eadfd6] bg-white px-4 py-3">
+              {quickReplies.length ? (
+                <div className="mb-3 flex flex-wrap gap-2">
+                  {quickReplies.map((reply) => (
+                    <button
+                      key={`${activeThread.requestId}-${reply}`}
+                      type="button"
+                      className="rounded-full border border-[#efd8cb] bg-[#fff7f2] px-3 py-2 text-left text-xs font-semibold text-[#c4562a] transition hover:border-[#ffb596] hover:bg-[#fff0e8]"
+                      onClick={() => applyQuickReply(activeThread.requestId, reply)}
+                    >
+                      {reply}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+
               {mediaDrafts[activeThread.requestId] ? (
                 <div className="mb-3 flex items-center justify-between rounded-[1.2rem] border border-[#e8ddd2] bg-[#fffaf6] px-4 py-3">
                   <div className="flex items-center gap-3">
