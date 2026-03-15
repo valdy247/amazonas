@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { BadgeCheck, Compass, LockKeyhole, MessageCircleMore, Sparkles, WalletCards } from "lucide-react";
+import { BadgeCheck, Compass, LockKeyhole, Sparkles, WalletCards } from "lucide-react";
 import { SiteHeader } from "@/components/site-header";
 import { createClient } from "@/lib/supabase/server";
 import { hasAdminAccess } from "@/lib/admin";
@@ -489,10 +489,6 @@ export default async function DashboardPage({
     accepted: unreadConversationCount,
     conversations: collaborationThreads.length,
   };
-  const reviewerMessageStats = {
-    requests: unreadConversationCount,
-    conversations: collaborationThreads.length,
-  };
   const collaborationInboxKey = `${user.id}-${requestedThreadId || "none"}-${isProvider ? "provider" : "reviewer"}`;
 
   return (
@@ -723,41 +719,6 @@ export default async function DashboardPage({
 
         {currentSection === "messages" ? (
           <>
-            <section className="rounded-[1.8rem] border border-[#e6ddd1] bg-white p-5 shadow-[0_18px_36px_rgba(22,18,14,0.04)]">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#dc4f1f]">Mensajeria</p>
-                  <h2 className="mt-2 text-2xl font-bold text-[#131316]">{isProvider ? "Tus conversaciones" : "Tus conversaciones"}</h2>
-                  <p className="mt-2 text-sm text-[#62626d]">
-                    {isProvider
-                      ? "Cuando elijas contactar dentro de la pagina, el chat se abrira aqui y podras compartir producto, categoria, texto e imagenes."
-                      : "Aqui ves tus conversaciones activas con proveedores y puedes responder en tiempo real."}
-                  </p>
-                </div>
-                <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-[#fff3ec] text-[#dc4f1f]">
-                  <MessageCircleMore className="h-5 w-5" />
-                </span>
-              </div>
-              <div className={`mt-5 grid gap-3 ${isProvider ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
-                {(isProvider
-                  ? [
-                      { label: "Chats abiertos", value: providerRequestStats.active },
-                      { label: "Mensajes nuevos", value: providerRequestStats.accepted },
-                      { label: "Conversaciones", value: providerRequestStats.conversations },
-                    ]
-                  : [
-                      { label: "Mensajes nuevos", value: reviewerMessageStats.requests },
-                      { label: "Conversaciones", value: reviewerMessageStats.conversations },
-                    ]
-                ).map((item) => (
-                  <article key={item.label} className="rounded-[1.35rem] border border-[#efe4d9] bg-[#fffaf6] p-4">
-                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8f857b]">{item.label}</p>
-                    <p className="mt-2 text-3xl font-bold text-[#131316]">{item.value}</p>
-                  </article>
-                ))}
-              </div>
-            </section>
-
             <CollaborationInbox
               key={collaborationInboxKey}
               currentUserId={user.id}
