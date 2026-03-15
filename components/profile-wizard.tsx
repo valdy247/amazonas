@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Check, ChevronLeft, ChevronRight, Compass, MapPin, Sparkles, Stars } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { COUNTRY_OPTIONS, EXPERIENCE_LABELS, INTEREST_OPTIONS, type ExperienceLevel, type UserRole } from "@/lib/onboarding";
+import { buildProfileData } from "@/lib/profile-data";
 
 type WizardValues = {
   role: UserRole;
@@ -161,6 +162,12 @@ export function ProfileWizard({ initialValues, email }: ProfileWizardProps) {
         full_name: fullName,
         phone: values.phone.trim(),
         accepted_terms_at: acceptedTermsAt,
+        profile_data: buildProfileData({
+          country: values.country,
+          experienceLevel: values.experienceLevel,
+          interests: values.interests,
+          note: values.note.trim(),
+        }),
       })
       .eq("id", user.id);
 
@@ -177,6 +184,14 @@ export function ProfileWizard({ initialValues, email }: ProfileWizardProps) {
         experience_level: values.experienceLevel,
         interests: values.interests,
         profile_note: values.note.trim(),
+        availability: "open",
+        allows_direct_contact: false,
+        public_profile: true,
+        reviewer_contact: {
+          whatsapp: "",
+          instagram: "",
+          messenger: "",
+        },
         role: values.role,
       },
     });

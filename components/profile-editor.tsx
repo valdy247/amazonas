@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { COUNTRY_OPTIONS, EXPERIENCE_LABELS, INTEREST_OPTIONS, type ExperienceLevel, type UserRole } from "@/lib/onboarding";
+import { AVAILABILITY_OPTIONS, type ReviewerAvailability } from "@/lib/profile-data";
 
 type ProfileEditorProps = {
   email?: string | null;
@@ -17,6 +18,12 @@ type ProfileEditorProps = {
     experienceLevel: ExperienceLevel;
     interests: string[];
     note: string;
+    availability: ReviewerAvailability;
+    allowsDirectContact: boolean;
+    publicProfile: boolean;
+    contactWhatsapp: string;
+    contactInstagram: string;
+    contactMessenger: string;
   };
 };
 
@@ -67,6 +74,17 @@ export function ProfileEditor({ email, initialValues }: ProfileEditorProps) {
       return;
     }
 
+    if (values.role === "reviewer" && values.allowsDirectContact) {
+      const directContactCount = [values.contactWhatsapp, values.contactInstagram, values.contactMessenger]
+        .map((item) => item.trim())
+        .filter(Boolean).length;
+
+      if (!directContactCount) {
+        setError("Si activas contacto directo, agrega al menos una via de contacto.");
+        return;
+      }
+    }
+
     setLoading(true);
 
     const supabase = createClient();
@@ -88,6 +106,20 @@ export function ProfileEditor({ email, initialValues }: ProfileEditorProps) {
       .update({
         full_name: fullName,
         phone: values.phone.trim(),
+        profile_data: {
+          country: values.country,
+          experienceLevel: values.experienceLevel,
+          interests: values.interests,
+          note: values.note.trim(),
+          availability: values.availability,
+          allowsDirectContact: values.allowsDirectContact,
+          publicProfile: values.publicProfile,
+          contact: {
+            whatsapp: values.contactWhatsapp.trim(),
+            instagram: values.contactInstagram.trim(),
+            messenger: values.contactMessenger.trim(),
+          },
+        },
       })
       .eq("id", user.id);
 
@@ -103,6 +135,14 @@ export function ProfileEditor({ email, initialValues }: ProfileEditorProps) {
         experience_level: values.experienceLevel,
         interests: values.interests,
         profile_note: values.note.trim(),
+        availability: values.availability,
+        allows_direct_contact: values.allowsDirectContact,
+        public_profile: values.publicProfile,
+        reviewer_contact: {
+          whatsapp: values.contactWhatsapp.trim(),
+          instagram: values.contactInstagram.trim(),
+          messenger: values.contactMessenger.trim(),
+        },
       },
     });
 
@@ -200,6 +240,48 @@ export function ProfileEditor({ email, initialValues }: ProfileEditorProps) {
           />
         </div>
       </section>
+
+      {values.role === "reviewer" ? (
+        <section className="card p-5">
+          <h2 className="text-xl font-bold">Disponibilidad y contacto</h2>
+          <p className="mt-2 text-sm text-[#62626d]">
+            Define si los providers pueden encontrarte y si deseas recibir contacto directo fuera de la plataforma.
+          </p>
+
+          <div className="mt-4 grid gap-2">
+            {AVAILABILITY_OPTIONS.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => updateValue("availability", option.value)}
+                className={`rounded-2xl border px-4 py-3 text-left transition ${
+                  values.availability === option.value ? "border-[#ff6b35] bg-[#fff3ec]" : "border-[#e5e5df]"
+                }`}
+              >
+                <p className="font-semibold">{option.label}</p>
+                <p className="mt-1 text-sm text-[#62626d]">{option.description}</p>
+              </button>
+            ))}
+          </div>
+
+          <div className="mt-4 grid gap-3">
+            <label className="flex items-start gap-3 rounded-2xl border border-[#e5e5df] p-4 text-sm">
+              <input type="checkbox" checked={values.publicProfile} onChange={(event) => updateValue("publicProfile", event.target.checked)} className="mt-1" />
+              <span>Mostrar mi perfil en el buscador de providers.</span>
+            </label>
+            <label className="flex items-start gap-3 rounded-2xl border border-[#e5e5df] p-4 text-sm">
+              <input type="checkbox" checked={values.allowsDirectContact} onChange={(event) => updateValue("allowsDirectContact", event.target.checked)} className="mt-1" />
+              <span>Permitir contacto directo por WhatsApp, Instagram o Messenger.</span>
+            </label>
+          </div>
+
+          <div className="mt-4 grid gap-3">
+            <input className="input" value={values.contactWhatsapp} onChange={(event) => updateValue("contactWhatsapp", event.target.value)} placeholder="WhatsApp. Ej: +1786703994" />
+            <input className="input" value={values.contactInstagram} onChange={(event) => updateValue("contactInstagram", event.target.value)} placeholder="Instagram. Ej: instagram.com/usuario" />
+            <input className="input" value={values.contactMessenger} onChange={(event) => updateValue("contactMessenger", event.target.value)} placeholder="Messenger. Ej: m.me/usuario" />
+          </div>
+        </section>
+      ) : null}
 
       {error ? <p className="text-sm font-semibold text-red-600">{error}</p> : null}
       {saved ? <p className="text-sm font-semibold text-emerald-700">{saved}</p> : null}

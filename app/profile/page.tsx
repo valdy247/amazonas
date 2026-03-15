@@ -3,6 +3,7 @@ import { SiteHeader } from "@/components/site-header";
 import { ProfileEditor } from "@/components/profile-editor";
 import { createClient } from "@/lib/supabase/server";
 import { normalizeUserRole, type ExperienceLevel } from "@/lib/onboarding";
+import { mergeProfileData } from "@/lib/profile-data";
 
 function splitFullName(fullName?: string | null) {
   const normalized = String(fullName || "").trim();
@@ -35,7 +36,7 @@ export default async function ProfilePage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("full_name, phone, role")
+    .select("full_name, phone, role, profile_data")
     .eq("id", user.id)
     .single();
 
@@ -45,6 +46,18 @@ export default async function ProfilePage() {
 
   const metadata = (user.user_metadata || {}) as Record<string, unknown>;
   const fallbackName = splitFullName(profile?.full_name);
+  const profileData = mergeProfileData(profile?.profile_data, {
+    country: typeof metadata.country === "string" ? metadata.country : "",
+    experienceLevel: typeof metadata.experience_level === "string" ? metadata.experience_level : "new",
+    interests: Array.isArray(metadata.interests)
+      ? metadata.interests.filter((item): item is string => typeof item === "string")
+      : [],
+    note: typeof metadata.profile_note === "string" ? metadata.profile_note : "",
+    availability: typeof metadata.availability === "string" ? metadata.availability : "open",
+    allowsDirectContact: Boolean(metadata.allows_direct_contact),
+    publicProfile: metadata.public_profile === false ? false : true,
+    contact: metadata.reviewer_contact,
+  });
 
   return (
     <div className="min-h-screen">
@@ -63,15 +76,16 @@ export default async function ProfilePage() {
             phone:
               profile.phone ||
               (typeof metadata.phone === "string" ? metadata.phone : ""),
-            country: typeof metadata.country === "string" ? metadata.country : "",
-            experienceLevel:
-              metadata.experience_level === "growing" || metadata.experience_level === "advanced"
-                ? (metadata.experience_level as ExperienceLevel)
-                : "new",
-            interests: Array.isArray(metadata.interests)
-              ? metadata.interests.filter((item): item is string => typeof item === "string")
-              : [],
-            note: typeof metadata.profile_note === "string" ? metadata.profile_note : "",
+            country: profileData.country,
+            experienceLevel: profileData.experienceLevel as ExperienceLevel,
+            interests: profileData.interests,
+            note: profileData.note,
+            availability: profileData.availability,
+            allowsDirectContact: profileData.allowsDirectContact,
+            publicProfile: profileData.publicProfile,
+            contactWhatsapp: profileData.contact.whatsapp,
+            contactInstagram: profileData.contact.instagram,
+            contactMessenger: profileData.contact.messenger,
           }}
         />
       </main>
