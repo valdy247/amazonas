@@ -24,6 +24,7 @@ function toHref(raw: string) {
   const value = raw.trim();
 
   if (!value) return null;
+  if (value === "#") return null;
   if (/^https?:\/\//i.test(value)) return value;
 
   const normalizedPhone = value.replace(/[^\d+]/g, "");
@@ -57,11 +58,17 @@ export function parseContactMethods(contactMethods?: string | null, fallbackUrl?
     methods.push({ label, href });
   });
 
-  if (!methods.length && fallbackUrl) {
-    methods.push({
-      label: fallbackNetwork || labelFromUrl(fallbackUrl),
-      href: fallbackUrl,
-    });
+  if (!methods.length) {
+    const fallbackHref = toHref(String(fallbackUrl || ""));
+    const networkHref = toHref(String(fallbackNetwork || ""));
+    const href = fallbackHref || networkHref;
+
+    if (href) {
+      methods.push({
+        label: labelFromUrl(href) === "WhatsApp" ? "WhatsApp" : fallbackNetwork || labelFromUrl(href),
+        href,
+      });
+    }
   }
 
   return methods;
