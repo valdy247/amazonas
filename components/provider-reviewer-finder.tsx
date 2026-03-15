@@ -19,7 +19,7 @@ type ReviewerDirectoryItem = {
   directContactMethods: Array<{ label: string; value: string }>;
   isVerified: boolean;
   isActiveMember: boolean;
-  score: number;
+  matchPercent: number;
 };
 
 type SentRequest = {
@@ -80,7 +80,7 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
   const recommendedReviewers = useMemo(
     () =>
       reviewers
-        .filter((reviewer) => reviewer.score > 0)
+        .filter((reviewer) => reviewer.matchPercent > 0)
         .slice(0, 4),
     [reviewers]
   );
@@ -253,7 +253,7 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
                     <p className="font-bold">{reviewer.fullName}</p>
                     <p className="mt-1 text-sm text-[#62626d]">{reviewer.country || "Sin pais"} · {EXPERIENCE_LABELS[reviewer.experienceLevel]}</p>
                   </div>
-                  <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-[#dc4f1f]">Score {reviewer.score}</span>
+                  <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-[#dc4f1f]">{reviewer.matchPercent}% compatible</span>
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {reviewer.interests.slice(0, 3).map((interest) => (
@@ -288,6 +288,8 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
         {filteredReviewers.map((reviewer) => {
           const currentRequest = requestState[reviewer.id];
           const isExpanded = expandedId === reviewer.id;
+          const whatsappMethod = reviewer.directContactMethods.find((method) => method.label === "WhatsApp");
+          const otherDirectMethods = reviewer.directContactMethods.filter((method) => method.label !== "WhatsApp");
 
           return (
             <article key={reviewer.id} className="overflow-hidden rounded-[1.6rem] border border-[#e6ddd1] bg-[linear-gradient(180deg,#ffffff_0%,#fffdfa_100%)] shadow-[0_18px_36px_rgba(22,18,14,0.04)]">
@@ -321,8 +323,11 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
                 </div>
 
                 <div className="text-right">
-                  <p className="text-xs uppercase tracking-[0.18em] text-[#8f857b]">Afinidad</p>
-                  <p className="mt-1 text-2xl font-bold text-[#131316]">{reviewer.score}</p>
+                  <p className="text-xs uppercase tracking-[0.18em] text-[#8f857b]">Compatibilidad</p>
+                  <p className="mt-1 text-2xl font-bold text-[#131316]">{reviewer.matchPercent}%</p>
+                  <div className="mt-2 h-2.5 w-24 overflow-hidden rounded-full bg-[#f1e3d8]">
+                    <div className="h-full rounded-full bg-[linear-gradient(90deg,#ff8a5b_0%,#ff6b35_100%)]" style={{ width: `${reviewer.matchPercent}%` }} />
+                  </div>
                 </div>
               </button>
 
@@ -331,10 +336,21 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
                   <p className="text-sm text-[#62626d]">{reviewer.note || "Este reviewer aun no ha completado una bio detallada."}</p>
 
                   {reviewer.allowsDirectContact && reviewer.directContactMethods.length ? (
-                    <div className="mt-4">
-                      <p className="text-sm font-semibold text-[#131316]">Contacto directo</p>
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        {reviewer.directContactMethods.map((method) => (
+                    <div className="mt-4 rounded-[1.35rem] border border-[#d7eadf] bg-[linear-gradient(180deg,#f7fff8_0%,#ffffff_100%)] p-4">
+                      <p className="text-sm font-semibold text-[#131316]">Contacto directo habilitado</p>
+                      <p className="mt-1 text-sm text-[#62626d]">Este reviewer te permite escribirle fuera de la plataforma si prefieres ir directo.</p>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {whatsappMethod ? (
+                          <a
+                            href={toHref(whatsappMethod.value)}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center rounded-full bg-[#1f9d55] px-4 py-2 text-sm font-semibold text-white shadow-[0_14px_32px_rgba(31,157,85,0.22)] transition hover:brightness-105"
+                          >
+                            Escribir por WhatsApp
+                          </a>
+                        ) : null}
+                        {otherDirectMethods.map((method) => (
                           <a key={`${reviewer.id}-${method.label}`} href={toHref(method.value)} target="_blank" rel="noreferrer" className="btn-secondary">
                             {method.label}
                           </a>

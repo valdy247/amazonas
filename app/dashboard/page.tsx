@@ -42,6 +42,10 @@ type RequestRow = {
 
 const ACCESS_TEST_MODE = true;
 
+function normalizeComparable(value: string | null | undefined) {
+  return (value || "").trim().toLowerCase();
+}
+
 export default async function DashboardPage() {
   const supabase = await createClient();
   const {
@@ -134,7 +138,7 @@ export default async function DashboardPage() {
     directContactMethods: Array<{ label: string; value: string }>;
     isVerified: boolean;
     isActiveMember: boolean;
-    score: number;
+    matchPercent: number;
   }> = [];
   let sentReviewerRequests: Array<{ reviewer_id: string; status: string; message: string | null }> = [];
   let reviewerOpportunities: Array<{
@@ -228,7 +232,11 @@ export default async function DashboardPage() {
       .map((row) => {
         const reviewerData = mergeProfileData(row.profile_data);
         const overlap = reviewerData.interests.filter((interest) => userInterests.includes(interest)).length;
-        const score = overlap * 3 + (reviewerData.country && reviewerData.country === country ? 2 : 0) + (reviewerData.availability === "open" ? 1 : 0);
+        const categoryWeight = userInterests.length ? (overlap / userInterests.length) * 70 : 35;
+        const countryWeight =
+          normalizeComparable(reviewerData.country) && normalizeComparable(reviewerData.country) === normalizeComparable(country) ? 20 : 0;
+        const availabilityWeight = reviewerData.availability === "open" ? 10 : 6;
+        const matchPercent = Math.max(1, Math.min(100, Math.round(categoryWeight + countryWeight + availabilityWeight)));
 
         return {
           id: row.id,
@@ -243,7 +251,7 @@ export default async function DashboardPage() {
           directContactMethods: reviewerData.allowsDirectContact ? getReviewerContactMethods(reviewerData) : [],
           isVerified: kycMap.get(row.id) === "approved",
           isActiveMember: membershipMap.get(row.id) === "active" || Boolean(row.accepted_terms_at),
-          score,
+          matchPercent,
         };
       })
       .filter(
@@ -251,7 +259,7 @@ export default async function DashboardPage() {
           row.availability !== "busy" &&
           mergeProfileData((reviewerRows.find((item) => item.id === row.id) as ProfileRow | undefined)?.profile_data).publicProfile
       )
-      .sort((a, b) => b.score - a.score || Number(b.isVerified) - Number(a.isVerified) || a.fullName.localeCompare(b.fullName));
+      .sort((a, b) => b.matchPercent - a.matchPercent || Number(b.isVerified) - Number(a.isVerified) || a.fullName.localeCompare(b.fullName));
 
     const { data: requestRows } = await supabase
       .from("reviewer_contact_requests")
