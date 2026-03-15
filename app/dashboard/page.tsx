@@ -71,6 +71,7 @@ export default async function DashboardPage() {
   const canSeeContacts = !isProvider && membershipStatus === "active" && kycStatus === "approved";
 
   let contacts: ProviderContact[] = [];
+  let contactedIds: number[] = [];
 
   if (canSeeContacts) {
     const withMethods = await supabase
@@ -103,6 +104,20 @@ export default async function DashboardPage() {
       }
     } else {
       contacts = (withMethods.data || []) as ProviderContact[];
+    }
+
+    const contactIds = contacts.map((contact) => contact.id);
+
+    if (contactIds.length) {
+      const { data: contactHistory } = await supabase
+        .from("reviewer_contact_history")
+        .select("provider_contact_id")
+        .eq("reviewer_id", user.id)
+        .in("provider_contact_id", contactIds);
+
+      contactedIds = (contactHistory || [])
+        .map((row) => Number(row.provider_contact_id))
+        .filter((value) => Number.isFinite(value));
     }
   }
 
@@ -310,7 +325,7 @@ export default async function DashboardPage() {
                 Acceso abierto
               </span>
             </div>
-            <ProviderContactGrid contacts={contacts} />
+            <ProviderContactGrid contacts={contacts} initialContactedIds={contactedIds} />
           </section>
         ) : null}
 

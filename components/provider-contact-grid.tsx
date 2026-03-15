@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { ArrowUpRight, CircleX, MessageCircleMore } from "lucide-react";
 import { parseContactMethods } from "@/lib/provider-contact";
+import { createClient } from "@/lib/supabase/client";
 
 type ProviderContact = {
   id: number;
@@ -16,34 +17,15 @@ type ProviderContact = {
 
 type ProviderContactGridProps = {
   contacts: ProviderContact[];
+  initialContactedIds: number[];
 };
 
-const STORAGE_KEY = "amazonas-contacted-provider-ids";
-
-function readStoredContactedIds() {
-  if (typeof window === "undefined") {
-    return [] as number[];
-  }
-
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed.filter((item): item is number => typeof item === "number") : [];
-  } catch {
-    return [];
-  }
-}
-
-export function ProviderContactGrid({ contacts }: ProviderContactGridProps) {
+export function ProviderContactGrid({ contacts, initialContactedIds }: ProviderContactGridProps) {
   const [selectedContactId, setSelectedContactId] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<"pending" | "contacted">("pending");
-  const [contactedIds, setContactedIds] = useState<number[]>(readStoredContactedIds);
-
-  useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(contactedIds));
-  }, [contactedIds]);
+  const [contactedIds, setContactedIds] = useState<number[]>(initialContactedIds);
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
 
   const selectedContact = useMemo(
     () => contacts.find((contact) => contact.id === selectedContactId) || null,
@@ -69,6 +51,44 @@ export function ProviderContactGrid({ contacts }: ProviderContactGridProps) {
   function markAsContacted(contactId: number) {
     setContactedIds((current) => (current.includes(contactId) ? current : [...current, contactId]));
     setActiveTab("contacted");
+  }
+
+  function openMethod(contactId: number, href: string) {
+    setError(null);
+
+    startTransition(async () => {
+      const supabase = createClient();
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (userError || !user) {
+        setError("No se pudo validar tu sesion.");
+        return;
+      }
+
+      const { error: insertError } = await supabase.from("reviewer_contact_history").upsert({
+        reviewer_id: user.id,
+        provider_contact_id: contactId,
+        contacted_at: new Date().toISOString(),
+      });
+
+      if (insertError) {
+        setError(insertError.message);
+        return;
+      }
+
+      markAsContacted(contactId);
+      setSelectedContactId(null);
+
+      if (href.startsWith("tel:")) {
+        window.location.href = href;
+        return;
+      }
+
+      window.open(href, "_blank", "noopener,noreferrer");
+    });
   }
 
   return (
@@ -129,6 +149,8 @@ export function ProviderContactGrid({ contacts }: ProviderContactGridProps) {
         </div>
       ) : null}
 
+      {error ? <p className="mt-3 text-sm font-semibold text-red-600">{error}</p> : null}
+
       {selectedContact ? (
         <div className="fixed inset-0 z-30 bg-[#131316]/45 p-4 backdrop-blur-sm">
           <div className="mx-auto mt-16 w-full max-w-md rounded-[1.8rem] border border-[#e7ddd2] bg-white p-5 shadow-[0_26px_80px_rgba(17,17,17,0.18)]">
@@ -151,15 +173,11 @@ export function ProviderContactGrid({ contacts }: ProviderContactGridProps) {
 
             <div className="mt-5 grid gap-3">
               {methods.map((method) => (
-                <a
+                <button
                   key={`${selectedContact.id}-${method.label}-${method.href}`}
-                  href={method.href}
-                  target={method.href.startsWith("tel:") ? undefined : "_blank"}
-                  rel={method.href.startsWith("tel:") ? undefined : "noreferrer"}
-                  onClick={() => {
-                    markAsContacted(selectedContact.id);
-                    setSelectedContactId(null);
-                  }}
+                  type="button"
+                  onClick={() => openMethod(selectedContact.id, method.href)}
+                  disabled={isPending}
                   className="inline-flex items-center justify-between rounded-[1.4rem] border border-[#ebdfd2] bg-[#fcfaf7] px-4 py-4 text-left"
                 >
                   <span className="flex items-center gap-3">
@@ -172,7 +190,7 @@ export function ProviderContactGrid({ contacts }: ProviderContactGridProps) {
                     </span>
                   </span>
                   <ArrowUpRight className="h-4 w-4 text-[#dc4f1f]" />
-                </a>
+                </button>
               ))}
             </div>
 

@@ -62,6 +62,13 @@ create table if not exists public.admin_audit_logs (
   created_at timestamptz default now()
 );
 
+create table if not exists public.reviewer_contact_history (
+  reviewer_id uuid references public.profiles(id) on delete cascade,
+  provider_contact_id bigint references public.provider_contacts(id) on delete cascade,
+  contacted_at timestamptz default now(),
+  primary key (reviewer_id, provider_contact_id)
+);
+
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
@@ -99,6 +106,7 @@ alter table public.memberships enable row level security;
 alter table public.kyc_checks enable row level security;
 alter table public.provider_contacts enable row level security;
 alter table public.admin_audit_logs enable row level security;
+alter table public.reviewer_contact_history enable row level security;
 
 create or replace function public.is_admin(user_uuid uuid)
 returns boolean
@@ -163,4 +171,10 @@ on public.admin_audit_logs
 for all
 using (public.is_admin(auth.uid()))
 with check (public.is_admin(auth.uid()));
+
+create policy "reviewers manage own contact history"
+on public.reviewer_contact_history
+for all
+using (auth.uid() = reviewer_id or public.is_admin(auth.uid()))
+with check (auth.uid() = reviewer_id or public.is_admin(auth.uid()));
 
