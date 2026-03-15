@@ -47,29 +47,54 @@ export async function createProviderContact(formData: FormData) {
     throw new Error("Debes agregar al menos un metodo de contacto.");
   }
 
-  const insertWithMethods = await supabase.from("provider_contacts").insert({
-    title: safeTitle,
-    network: primaryNetwork,
-    url: safeUrl,
-    contact_methods: contactMethods || null,
-    notes,
-    is_verified: isVerified,
-    created_by: adminId,
-  });
-
-  if (insertWithMethods.error) {
-    await supabase.from("provider_contacts").insert({
+  const payloads = [
+    {
+      title: safeTitle,
+      network: primaryNetwork,
+      url: safeUrl,
+      contact_methods: contactMethods || null,
+      notes,
+      is_verified: isVerified,
+      created_by: adminId,
+    },
+    {
       title: safeTitle,
       network: primaryNetwork,
       url: safeUrl,
       notes,
       is_verified: isVerified,
       created_by: adminId,
-    });
+    },
+    {
+      title: safeTitle,
+      network: primaryNetwork,
+      url: safeUrl,
+      notes,
+      created_by: adminId,
+    },
+    {
+      title: safeTitle,
+      network: primaryNetwork,
+      url: safeUrl,
+      notes,
+    },
+  ];
+
+  let lastError: string | null = null;
+
+  for (const payload of payloads) {
+    const { error } = await supabase.from("provider_contacts").insert(payload);
+
+    if (!error) {
+      revalidatePath("/admin");
+      revalidatePath("/dashboard");
+      return;
+    }
+
+    lastError = error.message;
   }
 
-  revalidatePath("/admin");
-  revalidatePath("/dashboard");
+  throw new Error(lastError || "No se pudo crear el contacto del proveedor.");
 }
 
 export async function updateMemberStatus(formData: FormData) {
