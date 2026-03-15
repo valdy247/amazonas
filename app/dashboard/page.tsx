@@ -699,6 +699,12 @@ export default async function DashboardPage({
                 )}
               </section>
             ) : null}
+
+            <div className="flex justify-center pt-2">
+              <Link href="/dashboard?section=contacts" className="btn-primary">
+                Explorar proveedores
+              </Link>
+            </div>
           </>
         ) : null}
 
