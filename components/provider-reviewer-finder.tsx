@@ -3,7 +3,7 @@
 import { useDeferredValue, useMemo, useState, useTransition } from "react";
 import { Search, Sparkles } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { COUNTRY_OPTIONS, EXPERIENCE_LABELS, INTEREST_OPTIONS } from "@/lib/onboarding";
+import { EXPERIENCE_LABELS } from "@/lib/onboarding";
 import { AVAILABILITY_OPTIONS, type ReviewerAvailability } from "@/lib/profile-data";
 
 type ReviewerDirectoryItem = {
@@ -48,6 +48,14 @@ function toHref(value: string) {
   return `https://${trimmed}`;
 }
 
+function normalizeFilterValue(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
 export function ProviderReviewerFinder({ reviewers, sentRequests, providerInterests }: ProviderReviewerFinderProps) {
   const supabase = createClient();
   const [query, setQuery] = useState("");
@@ -63,16 +71,24 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
   );
   const [isPending, startTransition] = useTransition();
   const deferredQuery = useDeferredValue(query);
+  const availableCountries = useMemo(
+    () => Array.from(new Set(reviewers.map((reviewer) => reviewer.country.trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b)),
+    [reviewers]
+  );
+  const availableInterests = useMemo(
+    () => Array.from(new Set(reviewers.flatMap((reviewer) => reviewer.interests).filter(Boolean))).sort((a, b) => a.localeCompare(b)),
+    [reviewers]
+  );
 
   const filteredReviewers = useMemo(() => {
-    const normalizedQuery = deferredQuery.trim().toLowerCase();
+    const normalizedQuery = normalizeFilterValue(deferredQuery);
 
     return reviewers.filter((reviewer) => {
-      if (selectedInterest && !reviewer.interests.includes(selectedInterest)) {
+      if (selectedInterest && !reviewer.interests.some((interest) => normalizeFilterValue(interest) === normalizeFilterValue(selectedInterest))) {
         return false;
       }
 
-      if (selectedCountry && reviewer.country !== selectedCountry) {
+      if (selectedCountry && normalizeFilterValue(reviewer.country) !== normalizeFilterValue(selectedCountry)) {
         return false;
       }
 
@@ -93,10 +109,9 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
         ...reviewer.interests,
         ...reviewer.directContactMethods.map((item) => item.value),
       ]
-        .join(" ")
-        .toLowerCase();
+        .join(" ");
 
-      return haystack.includes(normalizedQuery);
+      return normalizeFilterValue(haystack).includes(normalizedQuery);
     });
   }, [deferredQuery, reviewers, selectedAvailability, selectedCountry, selectedInterest]);
 
@@ -196,7 +211,7 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
                 >
                   Todos
                 </button>
-                {COUNTRY_OPTIONS.map((country) => (
+                {availableCountries.map((country) => (
                   <button
                     key={country}
                     type="button"
@@ -223,7 +238,7 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
                 >
                   Todas
                 </button>
-                {INTEREST_OPTIONS.map((interest) => (
+                {availableInterests.map((interest) => (
                   <button
                     key={interest}
                     type="button"
