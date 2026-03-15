@@ -1,8 +1,18 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { AccountMenu } from "@/components/account-menu";
 
-export async function SiteHeader() {
+type SiteHeaderProps = {
+  menuItems?: Array<{
+    href: string;
+    label: string;
+    locked?: boolean;
+  }>;
+  messageHref?: string;
+  hasUnreadMessages?: boolean;
+};
+
+export async function SiteHeader({ menuItems, messageHref, hasUnreadMessages = false }: SiteHeaderProps = {}) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -14,10 +24,8 @@ export async function SiteHeader() {
         <Link href="/" className="text-base font-extrabold tracking-tight">
           Amazona Review
         </Link>
-        <AccountMenu user={user} />
+        <AccountMenu user={user} items={menuItems} messageHref={messageHref} hasUnreadMessages={hasUnreadMessages} />
       </div>
     </header>
   );
 }
-
-

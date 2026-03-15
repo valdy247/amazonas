@@ -94,8 +94,13 @@ create table if not exists public.request_messages (
   request_id bigint references public.reviewer_contact_requests(id) on delete cascade,
   sender_id uuid references public.profiles(id) on delete cascade,
   body text not null,
+  image_url text,
+  image_path text,
   created_at timestamptz default now()
 );
+
+alter table public.request_messages add column if not exists image_url text;
+alter table public.request_messages add column if not exists image_path text;
 
 create or replace function public.handle_new_user()
 returns trigger

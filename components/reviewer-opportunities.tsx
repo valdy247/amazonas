@@ -29,7 +29,7 @@ type ReviewerOpportunitiesProps = {
 
 export function ReviewerOpportunities({ opportunities }: ReviewerOpportunitiesProps) {
   const supabase = createClient();
-  const [items, setItems] = useState(opportunities);
+  const [items, setItems] = useState(opportunities.filter((item) => item.status !== "declined" && item.status !== "accepted"));
   const [replyDrafts, setReplyDrafts] = useState<Record<number, string>>(
     Object.fromEntries(opportunities.map((item) => [item.id, item.responseMessage || ""]))
   );
@@ -73,7 +73,11 @@ export function ReviewerOpportunities({ opportunities }: ReviewerOpportunitiesPr
         }
       }
 
-      setItems((current) => current.map((item) => (item.id === id ? { ...item, status, responseMessage } : item)));
+      setItems((current) =>
+        status === "accepted" || status === "declined"
+          ? current.filter((item) => item.id !== id)
+          : current.map((item) => (item.id === id ? { ...item, status, responseMessage } : item))
+      );
       setPendingId(null);
     });
   }
@@ -81,8 +85,8 @@ export function ReviewerOpportunities({ opportunities }: ReviewerOpportunitiesPr
   if (!items.length) {
     return (
       <section className="card p-5">
-        <h2 className="text-xl font-bold">Oportunidades recibidas</h2>
-        <p className="mt-2 text-sm text-[#62626d]">Cuando un provider te contacte desde la pagina, la solicitud aparecera aqui.</p>
+        <h2 className="text-xl font-bold">Solicitudes nuevas</h2>
+        <p className="mt-2 text-sm text-[#62626d]">Cuando un provider te escriba dentro de la plataforma, la solicitud aparecera aqui.</p>
       </section>
     );
   }
@@ -91,8 +95,8 @@ export function ReviewerOpportunities({ opportunities }: ReviewerOpportunitiesPr
     <section className="card p-5">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold">Oportunidades recibidas</h2>
-          <p className="mt-1 text-sm text-[#62626d]">Gestiona solicitudes internas, responde rapido y deja claro si te interesa colaborar.</p>
+          <h2 className="text-xl font-bold">Solicitudes nuevas</h2>
+          <p className="mt-1 text-sm text-[#62626d]">Acepta para abrir una conversacion privada o rechaza sin notificar al provider.</p>
         </div>
         <span className="rounded-full bg-[#fff3ec] px-3 py-2 text-xs font-bold uppercase tracking-[0.18em] text-[#dc4f1f]">
           {items.length} solicitudes
@@ -154,10 +158,10 @@ export function ReviewerOpportunities({ opportunities }: ReviewerOpportunitiesPr
 
               <div className="mt-4 flex flex-wrap gap-2">
                 <button className="btn-secondary" type="button" onClick={() => updateStatus(item.id, "read")} disabled={isPending && pendingId === item.id}>
-                  {isPending && pendingId === item.id && item.status !== "accepted" && item.status !== "declined" ? "Guardando..." : "Necesito mas detalles"}
+                  {isPending && pendingId === item.id && item.status !== "accepted" && item.status !== "declined" ? "Guardando..." : "Responder luego"}
                 </button>
                 <button className="btn-primary" type="button" onClick={() => updateStatus(item.id, "accepted")} disabled={isPending && pendingId === item.id}>
-                  Me interesa
+                  Aceptar y responder
                 </button>
                 <button
                   className="rounded-full border border-[#f0c8bb] px-4 py-2 text-sm font-semibold text-[#d14f28]"
@@ -165,7 +169,7 @@ export function ReviewerOpportunities({ opportunities }: ReviewerOpportunitiesPr
                   onClick={() => updateStatus(item.id, "declined")}
                   disabled={isPending && pendingId === item.id}
                 >
-                  No por ahora
+                  Rechazar
                 </button>
               </div>
 

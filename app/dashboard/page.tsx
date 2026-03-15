@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { BadgeCheck, Compass, LockKeyhole, MapPin, Sparkles, WalletCards } from "lucide-react";
+import { BadgeCheck, Compass, LockKeyhole, MapPin, MessageCircleMore, Sparkles, WalletCards } from "lucide-react";
 import { SiteHeader } from "@/components/site-header";
 import { createClient } from "@/lib/supabase/server";
 import { hasAdminAccess } from "@/lib/admin";
@@ -42,6 +42,7 @@ type RequestRow = {
   updated_at?: string;
   request_data?: unknown;
   response_message?: string | null;
+  last_activity_at?: string;
 };
 
 type MessageRow = {
@@ -50,6 +51,25 @@ type MessageRow = {
   sender_id: string;
   body: string;
   created_at: string;
+  image_url?: string | null;
+  image_path?: string | null;
+};
+
+type ConversationThread = {
+  requestId: number;
+  counterpartId: string;
+  counterpartName: string;
+  counterpartCountry: string;
+  counterpartInterests: string[];
+  messages: Array<{
+    id: number;
+    senderId: string;
+    body: string;
+    createdAt: string;
+    imageUrl?: string | null;
+    imagePath?: string | null;
+  }>;
+  lastActivityAt: string;
 };
 
 const PAYMENT_TEST_MODE = false;
@@ -97,12 +117,13 @@ export default async function DashboardPage({
   const role = normalizeUserRole(profile.role);
   const firstName = String(profile.full_name || "miembro").trim().split(/\s+/)[0] || "miembro";
   const metadata = (user.user_metadata || {}) as Record<string, unknown>;
+  const userMetadataInterests = Array.isArray(metadata.interests)
+    ? metadata.interests.filter((item): item is string => typeof item === "string")
+    : [];
   const profileData = mergeProfileData((profile as ProfileRow | null)?.profile_data, {
     country: typeof metadata.country === "string" ? metadata.country : "",
     experienceLevel: typeof metadata.experience_level === "string" ? metadata.experience_level : "new",
-    interests: Array.isArray(metadata.interests)
-      ? metadata.interests.filter((item): item is string => typeof item === "string")
-      : [],
+    interests: userMetadataInterests,
     note: typeof metadata.profile_note === "string" ? metadata.profile_note : "",
     availability: typeof metadata.availability === "string" ? metadata.availability : "open",
     allowsDirectContact: Boolean(metadata.allows_direct_contact),
@@ -125,23 +146,22 @@ export default async function DashboardPage({
   const isAdmin = hasAdminAccess(profile?.role, profile?.email || user.email);
   const isProvider = role === "provider";
 
-  const { data: membership } = await supabase
-    .from("memberships")
-    .select("status")
-    .eq("user_id", user.id)
-    .single();
-
-  const { data: kyc } = await supabase
-    .from("kyc_checks")
-    .select("status")
-    .eq("user_id", user.id)
-    .single();
+  const { data: membership } = await supabase.from("memberships").select("status").eq("user_id", user.id).single();
+  const { data: kyc } = await supabase.from("kyc_checks").select("status").eq("user_id", user.id).single();
 
   const membershipStatus = PAYMENT_TEST_MODE && testingMembershipStatus ? testingMembershipStatus : membership?.status || "pending_payment";
   const kycStatus = KYC_TEST_MODE && testingKycStatus ? testingKycStatus : kyc?.status || "pending";
   const canSeeContacts = !isProvider && membershipStatus === "active" && kycStatus === "approved";
   const squareStatus = typeof resolvedSearchParams.square === "string" ? resolvedSearchParams.square : null;
   const squareError = typeof resolvedSearchParams.square_error === "string" ? resolvedSearchParams.square_error : null;
+  const requestedSection = typeof resolvedSearchParams.section === "string" ? resolvedSearchParams.section : "home";
+  const currentSection = isProvider
+    ? requestedSection === "messages"
+      ? "messages"
+      : "home"
+    : requestedSection === "messages" || requestedSection === "contacts"
+      ? requestedSection
+      : "home";
   const showWelcomeActivation = !isProvider && canSeeContacts;
 
   let contacts: ProviderContact[] = [];
@@ -183,15 +203,7 @@ export default async function DashboardPage({
     responseMessage?: string | null;
     requestData?: unknown;
   }> = [];
-  let collaborationThreads: Array<{
-    requestId: number;
-    counterpartId: string;
-    counterpartName: string;
-    counterpartCountry: string;
-    counterpartInterests: string[];
-    messages: Array<{ id: number; senderId: string; body: string; createdAt: string }>;
-    lastActivityAt: string;
-  }> = [];
+  let collaborationThreads: ConversationThread[] = [];
 
   if (canSeeContacts) {
     const withMethods = await supabase
@@ -206,11 +218,7 @@ export default async function DashboardPage({
         .eq("is_active", true);
 
       if (withVerification.error) {
-        const fallback = await supabase
-          .from("provider_contacts")
-          .select("id, title, network, url, notes")
-          .eq("is_active", true);
-
+        const fallback = await supabase.from("provider_contacts").select("id, title, network, url, notes").eq("is_active", true);
         contacts = (fallback.data || []).map((contact) => ({
           ...contact,
           is_verified: false,
@@ -227,7 +235,6 @@ export default async function DashboardPage({
     }
 
     const contactIds = contacts.map((contact) => contact.id);
-
     if (contactIds.length) {
       const { data: contactHistory } = await supabase
         .from("reviewer_contact_history")
@@ -235,9 +242,7 @@ export default async function DashboardPage({
         .eq("reviewer_id", user.id)
         .in("provider_contact_id", contactIds);
 
-      contactedIds = (contactHistory || [])
-        .map((row) => Number(row.provider_contact_id))
-        .filter((value) => Number.isFinite(value));
+      contactedIds = (contactHistory || []).map((row) => Number(row.provider_contact_id)).filter((value) => Number.isFinite(value));
     }
   }
 
@@ -307,16 +312,7 @@ export default async function DashboardPage({
       .select("id, reviewer_id, status, message, request_data, response_message, created_at, updated_at")
       .eq("provider_id", user.id);
 
-    sentReviewerRequests = (requestRows || []) as Array<{
-      id: number;
-      reviewer_id: string;
-      status: string;
-      message: string | null;
-      request_data?: unknown;
-      response_message?: string | null;
-      created_at?: string;
-      updated_at?: string;
-    }>;
+    sentReviewerRequests = ((requestRows || []) as typeof sentReviewerRequests).filter((request) => request.status !== "declined");
 
     const acceptedRequestsResult = await supabase
       .from("reviewer_contact_requests")
@@ -335,7 +331,7 @@ export default async function DashboardPage({
     if (acceptedRequestIds.length) {
       const { data: messageRows } = await supabase
         .from("request_messages")
-        .select("id, request_id, sender_id, body, created_at")
+        .select("id, request_id, sender_id, body, created_at, image_url, image_path")
         .in("request_id", acceptedRequestIds)
         .order("created_at", { ascending: true });
 
@@ -346,7 +342,6 @@ export default async function DashboardPage({
 
       collaborationThreads = acceptedRequests.map((request) => {
         const reviewer = reviewerDirectory.find((item) => item.id === request.reviewer_id);
-
         return {
           requestId: request.id,
           counterpartId: request.reviewer_id,
@@ -358,6 +353,8 @@ export default async function DashboardPage({
             senderId: message.sender_id,
             body: message.body,
             createdAt: message.created_at,
+            imageUrl: message.image_url || null,
+            imagePath: message.image_path || null,
           })),
           lastActivityAt: request.last_activity_at || request.updated_at || new Date(0).toISOString(),
         };
@@ -368,49 +365,31 @@ export default async function DashboardPage({
   if (!isProvider) {
     const { data: requestRows } = await supabase
       .from("reviewer_contact_requests")
-      .select("id, provider_id, reviewer_id, message, status, created_at, request_data, response_message, updated_at")
+      .select("id, provider_id, reviewer_id, message, status, created_at, request_data, response_message, updated_at, last_activity_at")
       .eq("reviewer_id", user.id)
       .order("created_at", { ascending: false });
 
     const requests = (requestRows || []) as RequestRow[];
     const providerIds = requests.map((item) => item.provider_id);
-    const providerMap = new Map<
-      string,
-      {
-        fullName: string;
-        profileData: ReturnType<typeof mergeProfileData>;
-      }
-    >();
+    const providerMap = new Map<string, { fullName: string; profileData: ReturnType<typeof mergeProfileData> }>();
 
     if (providerIds.length) {
-      const providerProfilesResult = await supabase
-        .from("profiles")
-        .select("id, full_name, profile_data")
-        .in("id", providerIds);
-
+      const providerProfilesResult = await supabase.from("profiles").select("id, full_name, profile_data").in("id", providerIds);
       const providerProfiles = (providerProfilesResult.data || []) as ProfileRow[];
+
       providerProfiles.forEach((item) => {
         providerMap.set(item.id, {
           fullName: item.full_name || "Provider",
           profileData: mergeProfileData(item.profile_data),
         });
       });
-      const providerPairs = new Map(
-        providerProfiles.map((item) => [
-          item.id,
-          {
-            fullName: item.full_name || "Provider",
-            profileData: mergeProfileData(item.profile_data),
-          },
-        ])
-      );
 
       reviewerOpportunities = requests.map((item) => ({
         id: item.id,
         providerId: item.provider_id,
-        providerName: providerPairs.get(item.provider_id)?.fullName || "Provider",
-        providerCountry: providerPairs.get(item.provider_id)?.profileData.country || "",
-        providerInterests: providerPairs.get(item.provider_id)?.profileData.interests || [],
+        providerName: providerMap.get(item.provider_id)?.fullName || "Provider",
+        providerCountry: providerMap.get(item.provider_id)?.profileData.country || "",
+        providerInterests: providerMap.get(item.provider_id)?.profileData.interests || [],
         message: item.message || "",
         status: item.status,
         createdAt: item.created_at,
@@ -425,7 +404,7 @@ export default async function DashboardPage({
     if (acceptedRequestIds.length) {
       const { data: messageRows } = await supabase
         .from("request_messages")
-        .select("id, request_id, sender_id, body, created_at")
+        .select("id, request_id, sender_id, body, created_at, image_url, image_path")
         .in("request_id", acceptedRequestIds)
         .order("created_at", { ascending: true });
 
@@ -445,8 +424,10 @@ export default async function DashboardPage({
           senderId: message.sender_id,
           body: message.body,
           createdAt: message.created_at,
+          imageUrl: message.image_url || null,
+          imagePath: message.image_path || null,
         })),
-        lastActivityAt: request.updated_at || request.created_at,
+        lastActivityAt: request.last_activity_at || request.updated_at || request.created_at,
       }));
     }
   }
@@ -472,9 +453,33 @@ export default async function DashboardPage({
     },
   ];
 
+  const latestConversationHasReply = collaborationThreads.some((thread) => {
+    const lastMessage = thread.messages[thread.messages.length - 1];
+    return lastMessage && lastMessage.senderId !== user.id;
+  });
+  const pendingMessageRequests = isProvider
+    ? sentReviewerRequests.some((request) => request.status === "accepted" || request.status === "read")
+    : reviewerOpportunities.some((request) => request.status === "sent" || request.status === "read");
+  const hasUnreadMessages = pendingMessageRequests || latestConversationHasReply;
+  const menuItems = [
+    { href: "/dashboard", label: "Inicio" },
+    !isProvider ? { href: "/dashboard?section=contacts", label: "Contactos de proveedores", locked: !canSeeContacts } : null,
+    { href: "/profile", label: "Editar perfil" },
+    isAdmin ? { href: "/admin", label: "Panel admin" } : null,
+  ].filter(Boolean) as Array<{ href: string; label: string; locked?: boolean }>;
+  const providerRequestStats = {
+    active: sentReviewerRequests.filter((request) => request.status === "sent" || request.status === "read").length,
+    accepted: sentReviewerRequests.filter((request) => request.status === "accepted").length,
+    conversations: collaborationThreads.length,
+  };
+  const reviewerMessageStats = {
+    requests: reviewerOpportunities.filter((request) => request.status === "sent" || request.status === "read").length,
+    conversations: collaborationThreads.length,
+  };
+
   return (
     <div className="min-h-screen">
-      <SiteHeader />
+      <SiteHeader menuItems={menuItems} messageHref="/dashboard?section=messages" hasUnreadMessages={hasUnreadMessages} />
       <main className="container-x space-y-4 py-6">
         <section className="overflow-hidden rounded-[1.8rem] border border-[#1f1b17] bg-[linear-gradient(135deg,#201915_0%,#2c221a_55%,#3f2a1d_100%)] p-5 text-white shadow-[0_26px_80px_rgba(35,22,13,0.22)]">
           <div className="flex items-start justify-between gap-4">
@@ -506,7 +511,13 @@ export default async function DashboardPage({
                   Verificacion de ID: {kycStatus}
                 </p>
               </div>
-            ) : null}
+            ) : (
+              <div className="rounded-[1.4rem] border border-white/10 bg-white/6 p-4">
+                <p className="text-xs uppercase tracking-[0.18em] text-white/50">Mensajes</p>
+                <p className="mt-2 text-sm font-semibold text-white/85">{providerRequestStats.active} solicitudes activas</p>
+                <p className="mt-2 text-sm font-semibold text-white/72">{providerRequestStats.conversations} conversaciones abiertas</p>
+              </div>
+            )}
             {isAdmin ? (
               <div className="rounded-[1.4rem] border border-white/10 bg-white/6 p-4">
                 <p className="text-xs uppercase tracking-[0.18em] text-white/50">Permisos</p>
@@ -527,194 +538,254 @@ export default async function DashboardPage({
 
           {profileNote ? <p className="mt-4 max-w-2xl text-sm text-white/68">{profileNote}</p> : null}
         </section>
-
-        {isProvider ? <ProviderReviewerFinder reviewers={reviewerDirectory} sentRequests={sentReviewerRequests} providerInterests={userInterests} /> : null}
-
-        {isProvider ? (
-          <CollaborationInbox
-            currentUserId={user.id}
-            title="Mensajeria activa"
-            description="Cuando un reviewer acepte tu solicitud, la conversacion aparece aqui para seguir dentro de la plataforma."
-            emptyTitle="Todavia no tienes conversaciones activas"
-            emptyDescription="Cuando un reviewer acepte una solicitud, se abrira aqui una ventana de mensajeria para ambos."
-            threads={collaborationThreads}
-          />
-        ) : null}
-
-        {!isProvider ? (
-          <section className="grid gap-3 sm:grid-cols-3">
-            {reviewerSteps.map((step) => {
-              const Icon = step.icon;
-
-              return (
-                <article
-                  key={step.title}
-                  className={`rounded-[1.6rem] border p-4 ${
-                    step.done ? "border-[#ffd7c8] bg-[linear-gradient(180deg,#fff6f1_0%,#fffdf9_100%)]" : "border-[#e8e1d8] bg-white"
-                  }`}
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <span
-                      className={`inline-flex h-11 w-11 items-center justify-center rounded-2xl ${
-                        step.done ? "bg-[#ff6b35] text-white" : "bg-[#f6f1ea] text-[#131316]"
-                      }`}
-                    >
-                      <Icon className="h-5 w-5" />
-                    </span>
-                    <span className={`text-xs font-bold uppercase tracking-[0.18em] ${step.done ? "text-[#dc4f1f]" : "text-[#8f857b]"}`}>
-                      {step.done ? "Listo" : "Pendiente"}
-                    </span>
-                  </div>
-                  <h2 className="mt-4 text-lg font-bold">{step.title}</h2>
-                  <p className="mt-2 text-sm text-[#62626d]">{step.description}</p>
+        {currentSection === "home" && isProvider ? (
+          <>
+            <section className="grid gap-3 sm:grid-cols-3">
+              {[
+                { label: "Solicitudes activas", value: providerRequestStats.active },
+                { label: "Aceptadas", value: providerRequestStats.accepted },
+                { label: "Conversaciones", value: providerRequestStats.conversations },
+              ].map((item) => (
+                <article key={item.label} className="rounded-[1.6rem] border border-[#eadfd6] bg-white p-4 shadow-[0_18px_36px_rgba(22,18,14,0.04)]">
+                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8f857b]">{item.label}</p>
+                  <p className="mt-2 text-3xl font-bold text-[#131316]">{item.value}</p>
                 </article>
-              );
-            })}
-          </section>
+              ))}
+            </section>
+            <ProviderReviewerFinder reviewers={reviewerDirectory} sentRequests={sentReviewerRequests} providerInterests={userInterests} />
+          </>
         ) : null}
 
-        {showWelcomeActivation ? (
-          <section className="overflow-hidden rounded-[1.9rem] border border-[#f2d2c0] bg-[linear-gradient(135deg,#fff3eb_0%,#fffaf6_48%,#ffffff_100%)] p-5 shadow-[0_24px_60px_rgba(220,79,31,0.08)]">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#dc4f1f]">Bienvenido</p>
-                <h2 className="mt-2 text-2xl font-bold text-[#131316]">Ya eres parte de la familia Amazona Review</h2>
-                <p className="mt-3 text-sm text-[#62626d]">
-                  Felicidades por activar tu acceso. Desde ahora compartiremos contigo proveedores confiables y tu perfil quedara visible para que proveedores compatibles puedan encontrarte y contactarte.
-                </p>
-              </div>
-              <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-[#ff6b35] text-white shadow-[0_18px_36px_rgba(255,107,53,0.22)]">
-                <Sparkles className="h-5 w-5" />
-              </span>
-            </div>
+        {currentSection === "home" && !isProvider ? (
+          <>
+            <section className="grid gap-3 sm:grid-cols-3">
+              {reviewerSteps.map((step) => {
+                const Icon = step.icon;
 
-            <div className="mt-5 grid gap-3">
-              <article className="rounded-[1.4rem] border border-white/70 bg-white/88 p-4">
-                <p className="text-sm font-semibold text-[#131316]">Proveedores confiables</p>
-                <p className="mt-1 text-sm text-[#62626d]">Te mostraremos oportunidades y contactos seleccionados para que avances con mas confianza.</p>
-              </article>
-              <article className="rounded-[1.4rem] border border-white/70 bg-white/88 p-4">
-                <p className="text-sm font-semibold text-[#131316]">Tu perfil ya esta visible</p>
-                <p className="mt-1 text-sm text-[#62626d]">Los proveedores podran encontrarte segun tus categorias, pais y disponibilidad para colaborar.</p>
-              </article>
-              <article className="rounded-[1.4rem] border border-white/70 bg-white/88 p-4">
-                <p className="text-sm font-semibold text-[#131316]">Sigue afinando tu perfil</p>
-                <p className="mt-1 text-sm text-[#62626d]">Mientras mas claro este tu perfil, mejores coincidencias y contactos recibirás desde la plataforma.</p>
-              </article>
-            </div>
-          </section>
-        ) : null}
+                return (
+                  <article
+                    key={step.title}
+                    className={`rounded-[1.6rem] border p-4 ${
+                      step.done ? "border-[#ffd7c8] bg-[linear-gradient(180deg,#fff6f1_0%,#fffdf9_100%)]" : "border-[#e8e1d8] bg-white"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <span
+                        className={`inline-flex h-11 w-11 items-center justify-center rounded-2xl ${
+                          step.done ? "bg-[#ff6b35] text-white" : "bg-[#f6f1ea] text-[#131316]"
+                        }`}
+                      >
+                        <Icon className="h-5 w-5" />
+                      </span>
+                      <span className={`text-xs font-bold uppercase tracking-[0.18em] ${step.done ? "text-[#dc4f1f]" : "text-[#8f857b]"}`}>
+                        {step.done ? "Listo" : "Pendiente"}
+                      </span>
+                    </div>
+                    <h2 className="mt-4 text-lg font-bold">{step.title}</h2>
+                    <p className="mt-2 text-sm text-[#62626d]">{step.description}</p>
+                  </article>
+                );
+              })}
+            </section>
 
-        {!isProvider && membershipStatus !== "active" ? (
-          <section className="rounded-[1.8rem] border border-[#f0d7ca] bg-[linear-gradient(180deg,#fff7f3_0%,#ffffff_100%)] p-5">
-            <div className="flex items-center gap-3">
-              <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-[#ff6b35] text-white">
-                <WalletCards className="h-5 w-5" />
-              </span>
-              <div>
-                <h2 className="font-bold">Activar membresia</h2>
-                <p className="text-sm text-[#62626d]">Paso 1 del recorrido</p>
-              </div>
-            </div>
-            {PAYMENT_TEST_MODE ? (
-              <>
-                <p className="mt-4 text-sm text-[#62626d]">
-                  Square esta deshabilitado durante pruebas. Puedes marcar manualmente tu acceso para seguir validando el flujo.
-                </p>
-                <TestingAccessControls stage="payment" />
-              </>
-            ) : (
-              <>
-                <p className="mt-1 text-sm text-[#62626d]">Usa Square para pagar tu acceso. Cuando Square confirme el pago, tu membresia se activara automaticamente.</p>
-                {squareStatus === "processing" ? (
-                  <p className="mt-3 rounded-2xl border border-[#f6d1c0] bg-[#fff4ed] px-4 py-3 text-sm font-semibold text-[#c64b1e]">
-                    Regresaste desde Square. Estamos validando tu pago y activaremos tu membresia en cuanto llegue el webhook.
+            {showWelcomeActivation ? (
+              <section className="overflow-hidden rounded-[1.9rem] border border-[#f2d2c0] bg-[linear-gradient(135deg,#fff3eb_0%,#fffaf6_48%,#ffffff_100%)] p-5 shadow-[0_24px_60px_rgba(220,79,31,0.08)]">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#dc4f1f]">Bienvenido</p>
+                    <h2 className="mt-2 text-2xl font-bold text-[#131316]">Ya eres parte de la familia Amazona Review</h2>
+                    <p className="mt-3 text-sm text-[#62626d]">
+                      Felicidades por activar tu acceso. Desde ahora compartiremos contigo proveedores confiables y tu perfil quedara visible para que proveedores compatibles puedan encontrarte y contactarte.
+                    </p>
+                  </div>
+                  <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-[#ff6b35] text-white shadow-[0_18px_36px_rgba(255,107,53,0.22)]">
+                    <Sparkles className="h-5 w-5" />
+                  </span>
+                </div>
+
+                <div className="mt-5 grid gap-3">
+                  <article className="rounded-[1.4rem] border border-white/70 bg-white/88 p-4">
+                    <p className="text-sm font-semibold text-[#131316]">Proveedores confiables</p>
+                    <p className="mt-1 text-sm text-[#62626d]">Te mostraremos oportunidades y contactos seleccionados para que avances con mas confianza.</p>
+                  </article>
+                  <article className="rounded-[1.4rem] border border-white/70 bg-white/88 p-4">
+                    <p className="text-sm font-semibold text-[#131316]">Tu perfil ya esta visible</p>
+                    <p className="mt-1 text-sm text-[#62626d]">Los proveedores podran encontrarte segun tus categorias, pais y disponibilidad para colaborar.</p>
+                  </article>
+                  <article className="rounded-[1.4rem] border border-white/70 bg-white/88 p-4">
+                    <p className="text-sm font-semibold text-[#131316]">Mensajeria centralizada</p>
+                    <p className="mt-1 text-sm text-[#62626d]">Tus solicitudes y conversaciones viven en el icono de mensajes para que el inicio se mantenga limpio.</p>
+                  </article>
+                </div>
+              </section>
+            ) : null}
+
+            {membershipStatus !== "active" ? (
+              <section className="rounded-[1.8rem] border border-[#f0d7ca] bg-[linear-gradient(180deg,#fff7f3_0%,#ffffff_100%)] p-5">
+                <div className="flex items-center gap-3">
+                  <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-[#ff6b35] text-white">
+                    <WalletCards className="h-5 w-5" />
+                  </span>
+                  <div>
+                    <h2 className="font-bold">Activar membresia</h2>
+                    <p className="text-sm text-[#62626d]">Paso 1 del recorrido</p>
+                  </div>
+                </div>
+                {PAYMENT_TEST_MODE ? (
+                  <>
+                    <p className="mt-4 text-sm text-[#62626d]">
+                      Square esta deshabilitado durante pruebas. Puedes marcar manualmente tu acceso para seguir validando el flujo.
+                    </p>
+                    <TestingAccessControls stage="payment" />
+                  </>
+                ) : (
+                  <>
+                    <p className="mt-1 text-sm text-[#62626d]">Usa Square para pagar tu acceso. Cuando Square confirme el pago, tu membresia se activara automaticamente.</p>
+                    {squareStatus === "processing" ? (
+                      <p className="mt-3 rounded-2xl border border-[#f6d1c0] bg-[#fff4ed] px-4 py-3 text-sm font-semibold text-[#c64b1e]">
+                        Regresaste desde Square. Estamos validando tu pago y activaremos tu membresia en cuanto llegue el webhook.
+                      </p>
+                    ) : null}
+                    {squareError ? (
+                      <p className="mt-3 rounded-2xl border border-[#f2d7d7] bg-[#fff7f7] px-4 py-3 text-sm font-semibold text-red-600">{squareError}</p>
+                    ) : null}
+                    <a href="/api/square/checkout" className="btn-primary mt-3">
+                      Pagar con Square
+                    </a>
+                  </>
+                )}
+              </section>
+            ) : null}
+
+            {membershipStatus === "active" && kycStatus !== "approved" ? (
+              <section className="rounded-[1.8rem] border border-[#dfe9df] bg-[linear-gradient(180deg,#f8fff8_0%,#ffffff_100%)] p-5">
+                <div className="flex items-center gap-3">
+                  <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-[#1f7a4d] text-white">
+                    <LockKeyhole className="h-5 w-5" />
+                  </span>
+                  <div>
+                    <h2 className="font-bold">Verificacion de ID</h2>
+                    <p className="text-sm text-[#62626d]">Paso 2 del recorrido</p>
+                  </div>
+                </div>
+                {KYC_TEST_MODE ? (
+                  <>
+                    <p className="mt-4 text-sm text-[#62626d]">
+                      La verificacion de ID real tambien esta pausada en pruebas. Puedes aprobarla o reiniciarla manualmente para validar el recorrido.
+                    </p>
+                    <TestingAccessControls stage="kyc" />
+                  </>
+                ) : (
+                  <p className="mt-1 text-sm text-[#62626d]">
+                    Tu membresia esta activa. Ahora toca tu verificacion de identidad. El admin te contactara para completar el proceso.
                   </p>
-                ) : null}
-                {squareError ? (
-                  <p className="mt-3 rounded-2xl border border-[#f2d7d7] bg-[#fff7f7] px-4 py-3 text-sm font-semibold text-red-600">{squareError}</p>
-                ) : null}
-                <a
-                  href="/api/square/checkout"
-                  className="btn-primary mt-3"
-                >
-                  Pagar con Square
-                </a>
-              </>
-            )}
-          </section>
+                )}
+              </section>
+            ) : null}
+          </>
         ) : null}
 
-        {!isProvider && membershipStatus === "active" && kycStatus !== "approved" ? (
-          <section className="rounded-[1.8rem] border border-[#dfe9df] bg-[linear-gradient(180deg,#f8fff8_0%,#ffffff_100%)] p-5">
-            <div className="flex items-center gap-3">
-              <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-[#1f7a4d] text-white">
-                <LockKeyhole className="h-5 w-5" />
-              </span>
-              <div>
-                <h2 className="font-bold">Verificacion de ID</h2>
-                <p className="text-sm text-[#62626d]">Paso 2 del recorrido de prueba</p>
+        {currentSection === "contacts" && !isProvider ? (
+          canSeeContacts ? (
+            <section className="rounded-[1.8rem] border border-[#e6ddd1] bg-white p-5 shadow-[0_18px_36px_rgba(22,18,14,0.04)]">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-xl font-bold">Contactos de proveedores</h2>
+                  <p className="mt-1 text-sm text-[#62626d]">Toca un proveedor para elegir la via de contacto disponible.</p>
+                </div>
+                <span className="inline-flex rounded-full bg-[#fff3ec] px-3 py-2 text-xs font-bold uppercase tracking-[0.18em] text-[#dc4f1f]">
+                  Acceso abierto
+                </span>
               </div>
-            </div>
-            {KYC_TEST_MODE ? (
-              <>
-                <p className="mt-4 text-sm text-[#62626d]">
-                  La verificacion de ID real tambien esta pausada en pruebas. Puedes aprobarla o reiniciarla manualmente para validar el recorrido.
-                </p>
-                <TestingAccessControls stage="kyc" />
-              </>
-            ) : (
-              <p className="mt-1 text-sm text-[#62626d]">
-                Tu membresia esta activa. Ahora toca tu verificacion de identidad. El admin te contactara para completar el proceso.
-              </p>
-            )}
-          </section>
-        ) : null}
-
-        {!isProvider && canSeeContacts ? (
-          <section className="rounded-[1.8rem] border border-[#e6ddd1] bg-white p-5">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <h2 className="text-xl font-bold">Contactos de proveedores</h2>
-                <p className="mt-1 text-sm text-[#62626d]">Toca un proveedor para elegir la via de contacto disponible.</p>
+              <ProviderContactGrid contacts={contacts} initialContactedIds={contactedIds} />
+            </section>
+          ) : (
+            <section className="overflow-hidden rounded-[1.9rem] border border-[#f1d6c8] bg-[linear-gradient(135deg,#fff6f0_0%,#fffdf9_100%)] p-5 shadow-[0_18px_36px_rgba(22,18,14,0.04)]">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#dc4f1f]">Acceso bloqueado</p>
+                  <h2 className="mt-2 text-2xl font-bold text-[#131316]">Debes activar tu acceso antes de ver contactos</h2>
+                  <p className="mt-3 text-sm text-[#62626d]">
+                    Completa el pago con Square y tu verificacion de ID para desbloquear los contactos de proveedores confiables.
+                  </p>
+                </div>
+                <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-[#ff6b35] text-white">
+                  <LockKeyhole className="h-5 w-5" />
+                </span>
               </div>
-              <span className="inline-flex rounded-full bg-[#fff3ec] px-3 py-2 text-xs font-bold uppercase tracking-[0.18em] text-[#dc4f1f]">
-                Acceso abierto
-              </span>
-            </div>
-            <ProviderContactGrid contacts={contacts} initialContactedIds={contactedIds} />
-          </section>
+              <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                <article className="rounded-[1.4rem] border border-white/70 bg-white/90 p-4">
+                  <p className="text-sm font-semibold text-[#131316]">1. Pago activo</p>
+                  <p className="mt-1 text-sm text-[#62626d]">Estado actual: {membershipStatus}</p>
+                </article>
+                <article className="rounded-[1.4rem] border border-white/70 bg-white/90 p-4">
+                  <p className="text-sm font-semibold text-[#131316]">2. Verificacion de ID</p>
+                  <p className="mt-1 text-sm text-[#62626d]">Estado actual: {kycStatus}</p>
+                </article>
+              </div>
+              <Link href="/dashboard" className="btn-primary mt-5 inline-flex">
+                Volver al inicio
+              </Link>
+            </section>
+          )
         ) : null}
 
-        {!isProvider && !canSeeContacts ? (
-          <section className="rounded-[1.8rem] border border-dashed border-[#dfd4c8] bg-[#fffdf9] p-5">
-            <h2 className="font-bold">Acceso a contactos</h2>
-            <p className="mt-2 text-sm text-[#62626d]">
-              Se habilita automaticamente cuando membresia y verificacion de ID esten en estado aprobado.
-            </p>
-            {KYC_TEST_MODE ? <TestingAccessControls stage="kyc" /> : null}
-          </section>
-        ) : null}
+        {currentSection === "messages" ? (
+          <>
+            <section className="rounded-[1.8rem] border border-[#e6ddd1] bg-white p-5 shadow-[0_18px_36px_rgba(22,18,14,0.04)]">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#dc4f1f]">Mensajeria</p>
+                  <h2 className="mt-2 text-2xl font-bold text-[#131316]">{isProvider ? "Tus conversaciones y ofertas" : "Tus solicitudes y conversaciones"}</h2>
+                  <p className="mt-2 text-sm text-[#62626d]">
+                    {isProvider
+                      ? "Cuando un reviewer acepte una oferta, la conversacion seguira aqui. Si la rechaza, no le mostraremos ese rechazo al provider."
+                      : "Aqui ves solicitudes nuevas y tus conversaciones activas. Si rechazas una solicitud, el provider no recibira una notificacion de rechazo."}
+                  </p>
+                </div>
+                <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-[#fff3ec] text-[#dc4f1f]">
+                  <MessageCircleMore className="h-5 w-5" />
+                </span>
+              </div>
+              <div className={`mt-5 grid gap-3 ${isProvider ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
+                {(isProvider
+                  ? [
+                      { label: "Ofertas activas", value: providerRequestStats.active },
+                      { label: "Aceptadas", value: providerRequestStats.accepted },
+                      { label: "Conversaciones", value: providerRequestStats.conversations },
+                    ]
+                  : [
+                      { label: "Solicitudes nuevas", value: reviewerMessageStats.requests },
+                      { label: "Conversaciones", value: reviewerMessageStats.conversations },
+                    ]
+                ).map((item) => (
+                  <article key={item.label} className="rounded-[1.35rem] border border-[#efe4d9] bg-[#fffaf6] p-4">
+                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8f857b]">{item.label}</p>
+                    <p className="mt-2 text-3xl font-bold text-[#131316]">{item.value}</p>
+                  </article>
+                ))}
+              </div>
+            </section>
 
-        {!isProvider ? <ReviewerOpportunities opportunities={reviewerOpportunities} /> : null}
+            {!isProvider ? <ReviewerOpportunities opportunities={reviewerOpportunities} /> : null}
 
-        {!isProvider ? (
-          <CollaborationInbox
-            currentUserId={user.id}
-            title="Mensajes de colaboracion"
-            description="Cuando aceptes una solicitud, la conversacion con ese provider seguira aqui."
-            emptyTitle="Todavia no tienes conversaciones activas"
-            emptyDescription="Acepta una solicitud de colaboracion y se abrira aqui una ventana de mensajeria entre ustedes."
-            threads={collaborationThreads}
-          />
-        ) : null}
-
-        {isAdmin ? (
-          <div className="flex flex-wrap gap-3">
-            <Link href="/admin" className="btn-secondary">
-              Ir al panel admin
-            </Link>
-          </div>
+            <CollaborationInbox
+              currentUserId={user.id}
+              title="Conversaciones activas"
+              description={
+                isProvider
+                  ? "Responde desde aqui y comparte imagenes cuando una colaboracion ya fue aceptada."
+                  : "Cuando aceptes una solicitud, la conversacion privada aparecera aqui para seguir hablando y compartir imagenes."
+              }
+              emptyTitle="Todavia no tienes conversaciones activas"
+              emptyDescription={
+                isProvider
+                  ? "Cuando un reviewer acepte una de tus ofertas, la conversacion aparecera aqui."
+                  : "Acepta una solicitud de colaboracion y se abrira aqui una ventana de mensajeria entre ustedes."
+              }
+              threads={collaborationThreads}
+            />
+          </>
         ) : null}
       </main>
     </div>
