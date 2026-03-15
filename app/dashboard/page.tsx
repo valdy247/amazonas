@@ -386,21 +386,7 @@ export default async function DashboardPage() {
           {profileNote ? <p className="mt-4 max-w-2xl text-sm text-white/68">{profileNote}</p> : null}
         </section>
 
-        {isProvider ? (
-          <>
-            <section className="card p-4">
-              <h2 className="font-bold">Perfil provider activo</h2>
-              <p className="mt-1 text-sm text-[#62626d]">
-                Tu acceso no requiere pago. Desde aqui ya puedes descubrir reviewers, filtrar por afinidad y enviar solicitudes.
-              </p>
-              <Link href="/profile" className="btn-secondary mt-3">
-                Editar perfil
-              </Link>
-            </section>
-
-            <ProviderReviewerFinder reviewers={reviewerDirectory} sentRequests={sentReviewerRequests} providerInterests={userInterests} />
-          </>
-        ) : null}
+        {isProvider ? <ProviderReviewerFinder reviewers={reviewerDirectory} sentRequests={sentReviewerRequests} providerInterests={userInterests} /> : null}
 
         {!isProvider ? (
           <section className="grid gap-3 sm:grid-cols-3">
@@ -523,16 +509,13 @@ export default async function DashboardPage() {
 
         {!isProvider ? <ReviewerOpportunities opportunities={reviewerOpportunities} /> : null}
 
-        <div className="flex flex-wrap gap-3">
-          <Link href="/profile" className="btn-secondary">
-            Editar perfil
-          </Link>
-          {isAdmin ? (
+        {isAdmin ? (
+          <div className="flex flex-wrap gap-3">
             <Link href="/admin" className="btn-secondary">
               Ir al panel admin
             </Link>
-          ) : null}
-        </div>
+          </div>
+        ) : null}
       </main>
     </div>
   );
