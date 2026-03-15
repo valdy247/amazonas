@@ -51,6 +51,35 @@ export function getSquareWebhookSignatureKey() {
   return signatureKey;
 }
 
+async function getSquareLocationId() {
+  const configuredLocationId = process.env.SQUARE_LOCATION_ID;
+  if (configuredLocationId) {
+    return configuredLocationId;
+  }
+
+  const accessToken = getSquareAccessToken();
+  const response = await fetch(`${getSquareApiBaseUrl()}/v2/locations`, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+      "Square-Version": "2025-10-16",
+    },
+    cache: "no-store",
+  });
+  const payload = (await response.json()) as { locations?: Array<{ id?: string; status?: string }> };
+
+  if (!response.ok) {
+    throw new Error(`Square locations lookup failed: ${JSON.stringify(payload)}`);
+  }
+
+  const activeLocation = payload.locations?.find((location) => location.status === "ACTIVE" && typeof location.id === "string");
+  if (!activeLocation?.id) {
+    throw new Error("Square did not return an active location. Set SQUARE_LOCATION_ID manually.");
+  }
+
+  return activeLocation.id;
+}
+
 function toBase64(buffer: ArrayBuffer) {
   return Buffer.from(buffer).toString("base64");
 }
@@ -88,6 +117,7 @@ export async function createSquarePaymentLink(input: {
   const accessToken = getSquareAccessToken();
   const amount = getSquareMembershipAmount();
   const currency = getSquareCurrency();
+  const locationId = await getSquareLocationId();
   const response = await fetch(`${getSquareApiBaseUrl()}/v2/online-checkout/payment-links`, {
     method: "POST",
     headers: {
@@ -104,7 +134,7 @@ export async function createSquarePaymentLink(input: {
           amount,
           currency,
         },
-        location_id: process.env.SQUARE_LOCATION_ID || undefined,
+        location_id: locationId,
       },
       checkout_options: {
         redirect_url: input.redirectUrl,
