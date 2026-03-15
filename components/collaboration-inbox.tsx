@@ -92,6 +92,9 @@ export function CollaborationInbox({
   );
 
   const activeThread = sortedThreads.find((thread) => thread.requestId === activeThreadId) || null;
+  const providerHasSentMessage = Boolean(
+    activeThread && activeThread.messages.some((message) => message.senderId === currentUserId)
+  );
 
   useEffect(() => {
     if (!activeThread) {
@@ -431,7 +434,8 @@ export function CollaborationInbox({
 
       {activeThread ? (
         <div className="fixed inset-0 z-40 overflow-hidden bg-[#17120d]/35 backdrop-blur-sm [overscroll-behavior:none]">
-          <div className="mx-auto flex h-screen min-h-screen w-full max-w-[430px] flex-col overflow-hidden bg-[#f8f3ed] supports-[height:100dvh]:h-[100dvh] supports-[height:100dvh]:min-h-[100dvh]">
+          <div className="flex h-screen min-h-screen w-screen flex-col bg-[#f8f3ed] supports-[height:100dvh]:h-[100dvh] supports-[height:100dvh]:min-h-[100dvh]">
+            <div className="mx-auto flex h-full w-full max-w-[430px] flex-col overflow-hidden bg-[#f8f3ed]">
             <div className="flex items-center justify-between border-b border-[#eadfd6] bg-white px-4 py-3">
               <div className="flex items-center gap-3">
                 <button type="button" onClick={closeChat} className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#f7f1ea] text-[#131316]">
@@ -483,7 +487,7 @@ export function CollaborationInbox({
             </div>
 
             <div className="border-t border-[#eadfd6] bg-white px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
-              {currentUserRole === "provider" ? (
+              {currentUserRole === "provider" && !providerHasSentMessage ? (
                 <div className="mb-3 rounded-[1.3rem] border border-[#efe4d9] bg-[#fff8f3] p-3">
                   <p className="text-sm font-semibold text-[#131316]">Prepara tu mensaje</p>
                   <p className="mt-1 text-sm text-[#7b6e63]">Selecciona la categoria y anade el producto. Si quieres, luego adjunta una foto y escribe tu mensaje.</p>
@@ -566,6 +570,7 @@ export function CollaborationInbox({
                   <SendHorizontal className="h-4 w-4" />
                 </button>
               </div>
+            </div>
             </div>
           </div>
         </div>

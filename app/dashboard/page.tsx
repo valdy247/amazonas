@@ -493,9 +493,7 @@ export default async function DashboardPage({
     requests: unreadConversationCount,
     conversations: collaborationThreads.length,
   };
-  const collaborationInboxKey = `${user.id}-${requestedThreadId || "none"}-${collaborationThreads
-    .map((thread) => `${thread.requestId}:${thread.lastActivityAt}`)
-    .join("|")}`;
+  const collaborationInboxKey = `${user.id}-${requestedThreadId || "none"}-${isProvider ? "provider" : "reviewer"}`;
 
   return (
     <div className="min-h-screen">
