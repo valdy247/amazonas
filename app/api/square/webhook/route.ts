@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getSquareWebhookNotificationUrl, verifySquareWebhookSignature } from "@/lib/square";
+import { getSquarePaymentStatusFromOrder, getSquareWebhookNotificationUrl, verifySquareWebhookSignature } from "@/lib/square";
 
 type SquarePaymentObject = {
   id?: string;
@@ -13,6 +13,8 @@ type SquarePaymentObject = {
 type SquareOrderObject = {
   id?: string;
   state?: string;
+  order_id?: string;
+  location_id?: string;
 };
 
 function extractUserIdFromNote(note?: string) {
@@ -58,10 +60,16 @@ export async function POST(request: NextRequest) {
 
     const event = JSON.parse(body) as {
       type?: string;
-      data?: { object?: { payment?: SquarePaymentObject; order?: SquareOrderObject } };
+      data?: {
+        object?: {
+          payment?: SquarePaymentObject;
+          order?: SquareOrderObject;
+          order_updated?: SquareOrderObject;
+        };
+      };
     };
     const payment = event.data?.object?.payment;
-    const order = event.data?.object?.order;
+    const order = event.data?.object?.order || event.data?.object?.order_updated;
     const admin = createAdminClient();
 
     if (payment?.status === "COMPLETED") {
@@ -99,11 +107,26 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
-    if (event.type === "order.updated" && order?.id && order.state === "COMPLETED") {
+    if (event.type === "order.updated") {
+      const orderId = order?.id || order?.order_id || null;
+
+      if (!orderId) {
+        return NextResponse.json({ ok: true, ignored: true, source: "order.updated-without-id" });
+      }
+
+      const payment = await getSquarePaymentStatusFromOrder({
+        orderId,
+        locationId: order?.location_id || null,
+      });
+
+      if (!payment || payment.status !== "COMPLETED") {
+        return NextResponse.json({ ok: true, ignored: true, source: "order.updated-payment-not-completed" });
+      }
+
       const { data: membershipRow } = await admin
         .from("memberships")
         .select("user_id")
-        .eq("square_subscription_id", order.id)
+        .eq("square_subscription_id", orderId)
         .maybeSingle();
 
       if (!membershipRow?.user_id) {
@@ -113,8 +136,8 @@ export async function POST(request: NextRequest) {
       const membershipError = await activateMembership({
         admin,
         userId: membershipRow.user_id,
-        orderId: order.id,
-        paymentReference: order.id,
+        orderId,
+        paymentReference: payment.paymentId,
       });
 
       if (membershipError) {

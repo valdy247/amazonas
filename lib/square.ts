@@ -162,6 +162,63 @@ export async function createSquarePaymentLink(input: {
   return { orderId, url };
 }
 
+export async function getSquarePaymentStatusFromOrder(input: {
+  orderId: string;
+  locationId?: string | null;
+}) {
+  const accessToken = getSquareAccessToken();
+  const locationId = input.locationId || (await getSquareLocationId());
+  const orderResponse = await fetch(`${getSquareApiBaseUrl()}/v2/orders/${input.orderId}?location_id=${encodeURIComponent(locationId)}`, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+      "Square-Version": "2025-10-16",
+    },
+    cache: "no-store",
+  });
+  const orderPayload = (await orderResponse.json()) as {
+    order?: {
+      tenders?: Array<{
+        id?: string;
+        payment_id?: string;
+      }>;
+    };
+  };
+
+  if (!orderResponse.ok) {
+    throw new Error(`Square order lookup failed: ${JSON.stringify(orderPayload)}`);
+  }
+
+  const paymentId = orderPayload.order?.tenders?.find((tender) => typeof tender.payment_id === "string")?.payment_id;
+  if (!paymentId) {
+    return null;
+  }
+
+  const paymentResponse = await fetch(`${getSquareApiBaseUrl()}/v2/payments/${paymentId}`, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+      "Square-Version": "2025-10-16",
+    },
+    cache: "no-store",
+  });
+  const paymentPayload = (await paymentResponse.json()) as {
+    payment?: {
+      id?: string;
+      status?: string;
+    };
+  };
+
+  if (!paymentResponse.ok) {
+    throw new Error(`Square payment lookup failed: ${JSON.stringify(paymentPayload)}`);
+  }
+
+  return {
+    paymentId: paymentPayload.payment?.id || paymentId,
+    status: paymentPayload.payment?.status || null,
+  };
+}
+
 export function getSquareWebhookNotificationUrl(headers: Headers) {
   const forwardedProto = headers.get("x-forwarded-proto") || "https";
   const forwardedHost = headers.get("x-forwarded-host") || headers.get("host");
