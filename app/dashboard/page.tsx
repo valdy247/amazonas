@@ -87,6 +87,13 @@ export default async function DashboardPage() {
     publicProfile: metadata.public_profile === false ? false : true,
     contact: metadata.reviewer_contact,
   });
+  const storedProfileData = JSON.stringify(((profile as ProfileRow | null)?.profile_data || null));
+  const normalizedProfileData = JSON.stringify(profileData);
+
+  if (storedProfileData !== normalizedProfileData) {
+    await supabase.from("profiles").update({ profile_data: profileData }).eq("id", user.id);
+  }
+
   const userInterests = profileData.interests;
   const experienceLevel = profileData.experienceLevel;
   const profileNote = profileData.note;

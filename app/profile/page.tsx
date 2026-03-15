@@ -59,6 +59,10 @@ export default async function ProfilePage() {
     contact: metadata.reviewer_contact,
   });
 
+  if (JSON.stringify(profile?.profile_data || null) !== JSON.stringify(profileData)) {
+    await supabase.from("profiles").update({ profile_data: profileData }).eq("id", user.id);
+  }
+
   return (
     <div className="min-h-screen">
       <SiteHeader />
