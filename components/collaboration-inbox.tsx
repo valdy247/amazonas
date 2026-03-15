@@ -95,12 +95,18 @@ export function CollaborationInbox({
 
     const previousOverflow = document.body.style.overflow;
     const previousOverscroll = document.body.style.overscrollBehavior;
+    const previousHtmlOverflow = document.documentElement.style.overflow;
+    const previousHtmlOverscroll = document.documentElement.style.overscrollBehavior;
     document.body.style.overflow = "hidden";
     document.body.style.overscrollBehavior = "none";
+    document.documentElement.style.overflow = "hidden";
+    document.documentElement.style.overscrollBehavior = "none";
 
     return () => {
       document.body.style.overflow = previousOverflow;
       document.body.style.overscrollBehavior = previousOverscroll;
+      document.documentElement.style.overflow = previousHtmlOverflow;
+      document.documentElement.style.overscrollBehavior = previousHtmlOverscroll;
     };
   }, [activeThread]);
 
@@ -380,7 +386,7 @@ export function CollaborationInbox({
 
       {activeThread ? (
         <div className="fixed inset-0 z-40 overflow-hidden bg-[#17120d]/35 backdrop-blur-sm [overscroll-behavior:none]">
-          <div className="mx-auto flex h-[100dvh] w-full max-w-[430px] flex-col overflow-hidden bg-[#f8f3ed]">
+          <div className="mx-auto flex h-screen min-h-screen w-full max-w-[430px] flex-col overflow-hidden bg-[#f8f3ed] supports-[height:100dvh]:h-[100dvh] supports-[height:100dvh]:min-h-[100dvh]">
             <div className="flex items-center justify-between border-b border-[#eadfd6] bg-white px-4 py-3">
               <div className="flex items-center gap-3">
                 <button type="button" onClick={closeChat} className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#f7f1ea] text-[#131316]">
@@ -431,7 +437,7 @@ export function CollaborationInbox({
               </div>
             </div>
 
-            <div className="border-t border-[#eadfd6] bg-white px-4 py-3">
+            <div className="border-t border-[#eadfd6] bg-white px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
               {quickReplies.length ? (
                 <div className="mb-3 flex flex-wrap gap-2">
                   {quickReplies.map((reply) => (
