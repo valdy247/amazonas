@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { User } from "@supabase/supabase-js";
 import { LockKeyhole, Menu, MessageCircleMore, X } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 
 type AccountMenuItem = {
   href: string;
@@ -20,8 +21,10 @@ type AccountMenuProps = {
 };
 
 export function AccountMenu({ user, items, messageHref, hasUnreadMessages = false, unreadThreads = [] }: AccountMenuProps) {
+  const [supabase] = useState(() => createClient());
   const [isOpen, setIsOpen] = useState(false);
   const [storedSeenMap, setStoredSeenMap] = useState<Record<number, number>>({});
+  const [liveIncomingMap, setLiveIncomingMap] = useState<Record<number, number>>({});
   const containerRef = useRef<HTMLDivElement | null>(null);
   const resolvedItems =
     items ||
@@ -39,8 +42,11 @@ export function AccountMenu({ user, items, messageHref, hasUnreadMessages = fals
       return hasUnreadMessages;
     }
 
-    return unreadThreads.some((thread) => storedSeenMap[thread.threadId] !== thread.lastIncomingMessageId);
-  }, [hasUnreadMessages, storedSeenMap, unreadThreads, user]);
+    return unreadThreads.some((thread) => {
+      const latestIncomingId = Math.max(thread.lastIncomingMessageId, liveIncomingMap[thread.threadId] || 0);
+      return storedSeenMap[thread.threadId] !== latestIncomingId;
+    });
+  }, [hasUnreadMessages, liveIncomingMap, storedSeenMap, unreadThreads, user]);
 
   useEffect(() => {
     function handlePointerDown(event: MouseEvent) {
@@ -103,6 +109,41 @@ export function AccountMenu({ user, items, messageHref, hasUnreadMessages = fals
       window.removeEventListener("chat-seen-updated", readSeenState as EventListener);
     };
   }, [user]);
+
+  useEffect(() => {
+    if (!user || !unreadThreads.length) {
+      return;
+    }
+
+    const threadIds = unreadThreads.map((thread) => thread.threadId);
+    const channel = supabase
+      .channel(`header-unread-${user.id}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "request_messages" },
+        (payload) => {
+          const message = payload.new as {
+            id: number;
+            request_id: number;
+            sender_id: string;
+          };
+
+          if (String(message.sender_id) === user.id || !threadIds.includes(Number(message.request_id))) {
+            return;
+          }
+
+          setLiveIncomingMap((current) => ({
+            ...current,
+            [Number(message.request_id)]: Number(message.id),
+          }));
+        }
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [supabase, unreadThreads, user]);
 
   return (
     <div ref={containerRef} className="relative flex items-center gap-2">

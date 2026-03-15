@@ -478,19 +478,6 @@ export default async function DashboardPage({
     return lastMessage && lastMessage.senderId !== user.id;
   }).length;
   const hasUnreadMessages = unreadConversationCount > 0;
-  const unreadThreads = collaborationThreads
-    .map((thread) => {
-      const lastIncomingMessage = [...thread.messages].reverse().find((message) => message.senderId !== user.id);
-      if (!lastIncomingMessage) {
-        return null;
-      }
-
-      return {
-        threadId: thread.requestId,
-        lastIncomingMessageId: lastIncomingMessage.id,
-      };
-    })
-    .filter((thread): thread is { threadId: number; lastIncomingMessageId: number } => Boolean(thread));
   const menuItems = [
     { href: "/dashboard", label: "Inicio" },
     !isProvider ? { href: "/dashboard?section=contacts", label: "Contactos de proveedores", locked: !canSeeContacts } : null,
@@ -506,7 +493,15 @@ export default async function DashboardPage({
 
   return (
     <div className="min-h-screen">
-      <SiteHeader menuItems={menuItems} messageHref="/dashboard?section=messages" hasUnreadMessages={hasUnreadMessages} unreadThreads={unreadThreads} />
+      <SiteHeader
+        menuItems={menuItems}
+        messageHref="/dashboard?section=messages"
+        hasUnreadMessages={hasUnreadMessages}
+        unreadThreads={collaborationThreads.map((thread) => ({
+          threadId: thread.requestId,
+          lastIncomingMessageId: [...thread.messages].reverse().find((message) => message.senderId !== user.id)?.id || 0,
+        }))}
+      />
       <main className="container-x space-y-4 py-6">
         {currentSection === "home" ? (
           <section className="overflow-hidden rounded-[1.8rem] border border-[#1f1b17] bg-[linear-gradient(135deg,#201915_0%,#2c221a_55%,#3f2a1d_100%)] p-5 text-white shadow-[0_26px_80px_rgba(35,22,13,0.22)]">
