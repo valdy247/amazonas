@@ -237,12 +237,14 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
   }
 
   function openReviewerContact(reviewerId: string) {
+    setSelectedCountry("");
+    setSelectedInterest("");
     setExpandedId(reviewerId);
     setContactOptionsId(reviewerId);
 
-    window.requestAnimationFrame(() => {
+    window.setTimeout(() => {
       reviewerRefs.current[reviewerId]?.scrollIntoView({ behavior: "smooth", block: "start" });
-    });
+    }, 120);
   }
 
   return (
