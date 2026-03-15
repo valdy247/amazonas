@@ -493,39 +493,23 @@ export default async function DashboardPage({
               </span>
             </div>
 
-            <div className={`mt-5 grid gap-3 ${isProvider ? "sm:grid-cols-2" : "sm:grid-cols-2 lg:grid-cols-3"}`}>
-              <div className="rounded-[1.4rem] border border-white/10 bg-white/6 p-4">
-                <p className="text-xs uppercase tracking-[0.18em] text-white/50">Pais y nivel</p>
-                <div className="mt-2 flex items-center gap-2 text-sm text-white/85">
-                  <MapPin className="h-4 w-4" />
-                  <span>{country || "Sin pais"}</span>
-                </div>
-                <p className="mt-2 text-sm text-white/72">{experienceLevel || "Nivel pendiente"}</p>
-              </div>
-              {!isProvider ? (
+            {isProvider ? (
+              <div className="mt-5 grid gap-3 sm:grid-cols-2">
                 <div className="rounded-[1.4rem] border border-white/10 bg-white/6 p-4">
-                  <p className="text-xs uppercase tracking-[0.18em] text-white/50">Estado</p>
-                  <p className={`mt-2 text-sm font-semibold ${membershipStatus === "active" ? "text-emerald-300" : "text-amber-300"}`}>
-                    Membresia: {membershipStatus}
-                  </p>
-                  <p className={`mt-2 text-sm font-semibold ${kycStatus === "approved" ? "text-emerald-300" : "text-amber-300"}`}>
-                    Verificacion de ID: {kycStatus}
-                  </p>
+                  <p className="text-xs uppercase tracking-[0.18em] text-white/50">Pais y nivel</p>
+                  <div className="mt-2 flex items-center gap-2 text-sm text-white/85">
+                    <MapPin className="h-4 w-4" />
+                    <span>{country || "Sin pais"}</span>
+                  </div>
+                  <p className="mt-2 text-sm text-white/72">{experienceLevel || "Nivel pendiente"}</p>
                 </div>
-              ) : (
                 <div className="rounded-[1.4rem] border border-white/10 bg-white/6 p-4">
                   <p className="text-xs uppercase tracking-[0.18em] text-white/50">Mensajes</p>
                   <p className="mt-2 text-sm font-semibold text-white/85">{providerRequestStats.active} solicitudes activas</p>
                   <p className="mt-2 text-sm font-semibold text-white/72">{providerRequestStats.conversations} conversaciones abiertas</p>
                 </div>
-              )}
-              {isAdmin ? (
-                <div className="rounded-[1.4rem] border border-white/10 bg-white/6 p-4">
-                  <p className="text-xs uppercase tracking-[0.18em] text-white/50">Permisos</p>
-                  <p className="mt-2 text-sm font-semibold text-white/85">Admin habilitado</p>
-                </div>
-              ) : null}
-            </div>
+              </div>
+            ) : null}
 
             {userInterests.length ? (
               <div className="mt-5 flex flex-wrap gap-2">
