@@ -172,6 +172,14 @@ using (
   and coalesce((profile_data ->> 'publicProfile')::boolean, true) = true
 );
 
+create policy "reviewers read public provider profiles"
+on public.profiles
+for select
+using (
+  role = 'provider'
+  and accepted_terms_at is not null
+);
+
 create policy "users update own profile"
 on public.profiles
 for update

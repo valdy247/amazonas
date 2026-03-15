@@ -72,11 +72,36 @@ type ConversationThread = {
   lastActivityAt: string;
 };
 
+type ProviderSnapshot = {
+  fullName?: string;
+  country?: string;
+  interests?: string[];
+};
+
 const PAYMENT_TEST_MODE = false;
 const KYC_TEST_MODE = true;
 
 function normalizeComparable(value: string | null | undefined) {
   return (value || "").trim().toLowerCase();
+}
+
+function getProviderSnapshot(value: unknown): ProviderSnapshot | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const snapshot = (value as { providerSnapshot?: unknown }).providerSnapshot;
+  if (!snapshot || typeof snapshot !== "object") {
+    return null;
+  }
+
+  return {
+    fullName: typeof (snapshot as { fullName?: unknown }).fullName === "string" ? (snapshot as { fullName: string }).fullName : undefined,
+    country: typeof (snapshot as { country?: unknown }).country === "string" ? (snapshot as { country: string }).country : undefined,
+    interests: Array.isArray((snapshot as { interests?: unknown }).interests)
+      ? ((snapshot as { interests: unknown[] }).interests).filter((item): item is string => typeof item === "string")
+      : undefined,
+  };
 }
 
 export default async function DashboardPage({
@@ -384,18 +409,21 @@ export default async function DashboardPage({
         });
       });
 
-      reviewerOpportunities = requests.map((item) => ({
+      reviewerOpportunities = requests.map((item) => {
+        const snapshot = getProviderSnapshot(item.request_data);
+        return {
         id: item.id,
         providerId: item.provider_id,
-        providerName: providerMap.get(item.provider_id)?.fullName || "Provider",
-        providerCountry: providerMap.get(item.provider_id)?.profileData.country || "",
-        providerInterests: providerMap.get(item.provider_id)?.profileData.interests || [],
+        providerName: providerMap.get(item.provider_id)?.fullName || snapshot?.fullName || "Provider",
+        providerCountry: providerMap.get(item.provider_id)?.profileData.country || snapshot?.country || "",
+        providerInterests: providerMap.get(item.provider_id)?.profileData.interests || snapshot?.interests || [],
         message: item.message || "",
         status: item.status,
         createdAt: item.created_at,
         responseMessage: item.response_message || null,
         requestData: item.request_data,
-      }));
+        };
+      });
     }
 
     const acceptedRequests = requests.filter((item) => item.status === "accepted");
@@ -413,22 +441,25 @@ export default async function DashboardPage({
         messagesByRequest.set(message.request_id, [...(messagesByRequest.get(message.request_id) || []), message]);
       });
 
-      collaborationThreads = acceptedRequests.map((request) => ({
-        requestId: request.id,
-        counterpartId: request.provider_id,
-        counterpartName: providerMap.get(request.provider_id)?.fullName || "Provider",
-        counterpartCountry: providerMap.get(request.provider_id)?.profileData.country || "",
-        counterpartInterests: providerMap.get(request.provider_id)?.profileData.interests || [],
-        messages: (messagesByRequest.get(request.id) || []).map((message) => ({
-          id: message.id,
-          senderId: message.sender_id,
-          body: message.body,
-          createdAt: message.created_at,
-          imageUrl: message.image_url || null,
-          imagePath: message.image_path || null,
-        })),
-        lastActivityAt: request.last_activity_at || request.updated_at || request.created_at,
-      }));
+      collaborationThreads = acceptedRequests.map((request) => {
+        const snapshot = getProviderSnapshot(request.request_data);
+        return {
+          requestId: request.id,
+          counterpartId: request.provider_id,
+          counterpartName: providerMap.get(request.provider_id)?.fullName || snapshot?.fullName || "Provider",
+          counterpartCountry: providerMap.get(request.provider_id)?.profileData.country || snapshot?.country || "",
+          counterpartInterests: providerMap.get(request.provider_id)?.profileData.interests || snapshot?.interests || [],
+          messages: (messagesByRequest.get(request.id) || []).map((message) => ({
+            id: message.id,
+            senderId: message.sender_id,
+            body: message.body,
+            createdAt: message.created_at,
+            imageUrl: message.image_url || null,
+            imagePath: message.image_path || null,
+          })),
+          lastActivityAt: request.last_activity_at || request.updated_at || request.created_at,
+        };
+      });
     }
   }
 

@@ -71,6 +71,18 @@ function normalizeFilterValue(value: string) {
     .replace(/[\u0300-\u036f]/g, "");
 }
 
+function mergeProfileSnapshotCountry(profileData: unknown, metadata: Record<string, unknown> | undefined) {
+  if (profileData && typeof profileData === "object" && typeof (profileData as { country?: unknown }).country === "string") {
+    return ((profileData as { country?: string }).country || "").trim();
+  }
+
+  if (metadata && typeof metadata.country === "string") {
+    return metadata.country.trim();
+  }
+
+  return "";
+}
+
 export function ProviderReviewerFinder({ reviewers, sentRequests, providerInterests }: ProviderReviewerFinderProps) {
   const supabase = createClient();
   const [selectedInterest, setSelectedInterest] = useState("");
@@ -201,6 +213,27 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
         return;
       }
 
+      const { data: providerProfile } = await supabase
+        .from("profiles")
+        .select("full_name, profile_data")
+        .eq("id", userResult.user.id)
+        .single();
+
+      const providerSnapshot = {
+        fullName:
+          typeof providerProfile?.full_name === "string" && providerProfile.full_name.trim()
+            ? providerProfile.full_name
+            : typeof userResult.user.user_metadata?.full_name === "string"
+              ? userResult.user.user_metadata.full_name
+              : "Provider",
+        country: mergeProfileSnapshotCountry(providerProfile?.profile_data, userResult.user.user_metadata),
+        interests: Array.isArray(providerProfile?.profile_data && (providerProfile.profile_data as { interests?: unknown }).interests)
+          ? ((providerProfile?.profile_data as { interests?: unknown }).interests as unknown[]).filter(
+              (item): item is string => typeof item === "string"
+            )
+          : providerInterests,
+      };
+
       const timestamp = new Date().toISOString();
       const { data: createdRequest, error: requestError } = await supabase
         .from("reviewer_contact_requests")
@@ -208,7 +241,10 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
           provider_id: userResult.user.id,
           reviewer_id: reviewerId,
           message,
-          request_data: requestData,
+          request_data: {
+            ...requestData,
+            providerSnapshot,
+          },
           status: "sent",
           updated_at: timestamp,
           last_activity_at: timestamp,
