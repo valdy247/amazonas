@@ -82,6 +82,13 @@ export function ProfileWizard({ initialValues, email }: ProfileWizardProps) {
     }));
   }
 
+  function toggleAllInterests() {
+    setValues((current) => ({
+      ...current,
+      interests: current.interests.length === INTEREST_OPTIONS.length ? [] : [...INTEREST_OPTIONS],
+    }));
+  }
+
   function validateCurrentStep() {
     if (!currentStep) {
       return "No se pudo cargar este paso.";
@@ -428,6 +435,24 @@ export function ProfileWizard({ initialValues, email }: ProfileWizardProps) {
                 </div>
 
                 <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  <button
+                    type="button"
+                    onClick={toggleAllInterests}
+                    className={`col-span-full rounded-[1.25rem] border px-4 py-3 text-left text-sm font-semibold transition ${
+                      values.interests.length === INTEREST_OPTIONS.length
+                        ? "border-[#ff6b35] bg-[linear-gradient(135deg,#ff6b35_0%,#ff8b5e_100%)] text-white shadow-[0_14px_26px_rgba(255,107,53,0.22)]"
+                        : "border-[#f3d0c1] bg-[#fff5ef] text-[#dc4f1f]"
+                    }`}
+                  >
+                    <span className="flex items-center justify-between gap-2">
+                      <span>
+                        {values.interests.length === INTEREST_OPTIONS.length
+                          ? "Quitar seleccion completa"
+                          : "Seleccionar todos"}
+                      </span>
+                      {values.interests.length === INTEREST_OPTIONS.length ? <Check className="h-4 w-4" /> : null}
+                    </span>
+                  </button>
                   {INTEREST_OPTIONS.map((option) => {
                     const active = values.interests.includes(option);
 
