@@ -50,6 +50,8 @@ const ADMIN_SECTIONS = [
   { id: "options", label: "Opciones" },
 ] as const;
 
+const ADMIN_EXTRA_SECTIONS = [{ id: "metrics", label: "Metricas" }] as const;
+
 type AdminPageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };
@@ -75,7 +77,8 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   const requestedSection = Array.isArray(resolvedSearchParams.section)
     ? resolvedSearchParams.section[0]
     : resolvedSearchParams.section;
-  const activeSection: string = ADMIN_SECTIONS.some((section) => section.id === requestedSection) ? String(requestedSection) : "providers";
+  const availableSections = [...ADMIN_SECTIONS, ...ADMIN_EXTRA_SECTIONS];
+  const activeSection: string = availableSections.some((section) => section.id === requestedSection) ? String(requestedSection) : "providers";
 
   const { data: members } = await supabase
     .from("profiles")
@@ -141,7 +144,13 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
 
   return (
     <div className="min-h-screen">
-      <SiteHeader />
+      <SiteHeader
+        menuItems={[
+          { href: "/dashboard", label: "Inicio" },
+          { href: "/admin?section=metrics", label: "Metricas" },
+          { href: "/profile", label: "Editar perfil" },
+        ]}
+      />
       <main className="container-x space-y-7 pt-8 pb-6">
         <section className="pt-3">
           <AdminSectionNav sections={ADMIN_SECTIONS} activeSection={activeSection} />
@@ -155,24 +164,6 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
               <p className="mt-2 max-w-2xl text-sm text-white/70">
                 La lista de proveedores ahora vive en su propia seccion para que no quede escondida debajo del resto del panel.
               </p>
-            </div>
-          </div>
-
-          <div className="mt-8 grid gap-3 sm:grid-cols-3">
-            <div className="rounded-[1.4rem] border border-white/10 bg-white/6 p-4">
-              <p className="text-xs uppercase tracking-[0.18em] text-white/50">Proveedores</p>
-              <p className="mt-2 text-2xl font-bold">{contacts.length}</p>
-              <p className="mt-1 text-sm text-white/68">Contactos cargados en el sistema.</p>
-            </div>
-            <div className="rounded-[1.4rem] border border-white/10 bg-white/6 p-4">
-              <p className="text-xs uppercase tracking-[0.18em] text-white/50">Usuarios</p>
-              <p className="mt-2 text-2xl font-bold">{members?.length || 0}</p>
-              <p className="mt-1 text-sm text-white/68">Ultimos perfiles visibles para gestion.</p>
-            </div>
-            <div className="rounded-[1.4rem] border border-white/10 bg-white/6 p-4">
-              <p className="text-xs uppercase tracking-[0.18em] text-white/50">Vista actual</p>
-              <p className="mt-2 text-2xl font-bold">{ADMIN_SECTIONS.find((section) => section.id === activeSection)?.label}</p>
-              <p className="mt-1 text-sm text-white/68">Usa el menu para cambiar de modulo.</p>
             </div>
           </div>
         </section>
@@ -282,6 +273,40 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                 <input className="input" name="email" placeholder="correo@dominio.com" />
                 <button className="btn-primary" type="submit">Asignar admin</button>
               </form>
+            </div>
+          ) : null}
+
+          {activeSection === "metrics" ? (
+            <div className="card p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <h2 className="font-bold">Metricas</h2>
+                  <p className="mt-1 text-sm text-[#62626d]">Resumen rapido del estado actual del panel admin.</p>
+                </div>
+                <span className="rounded-full bg-[#fff2eb] px-3 py-2 text-xs font-bold uppercase tracking-[0.18em] text-[#dc4f1f]">
+                  Vista interna
+                </span>
+              </div>
+
+              <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                <div className="rounded-[1.4rem] border border-[#eadfd6] bg-[#fffaf7] p-4">
+                  <p className="text-xs uppercase tracking-[0.18em] text-[#8f857b]">Proveedores</p>
+                  <p className="mt-2 text-3xl font-bold text-[#131316]">{contacts.length}</p>
+                  <p className="mt-1 text-sm text-[#62626d]">Contactos cargados en el sistema.</p>
+                </div>
+                <div className="rounded-[1.4rem] border border-[#eadfd6] bg-[#fffaf7] p-4">
+                  <p className="text-xs uppercase tracking-[0.18em] text-[#8f857b]">Usuarios</p>
+                  <p className="mt-2 text-3xl font-bold text-[#131316]">{members?.length || 0}</p>
+                  <p className="mt-1 text-sm text-[#62626d]">Ultimos perfiles visibles para gestion.</p>
+                </div>
+                <div className="rounded-[1.4rem] border border-[#eadfd6] bg-[#fffaf7] p-4">
+                  <p className="text-xs uppercase tracking-[0.18em] text-[#8f857b]">Vista actual</p>
+                  <p className="mt-2 text-3xl font-bold text-[#131316]">
+                    {availableSections.find((section) => section.id === activeSection)?.label}
+                  </p>
+                  <p className="mt-1 text-sm text-[#62626d]">Puedes volver a proveedores, usuarios u opciones desde arriba.</p>
+                </div>
+              </div>
             </div>
           ) : null}
         </section>
