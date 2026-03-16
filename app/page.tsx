@@ -9,6 +9,31 @@ import { landingCopy } from "@/lib/i18n";
 export default function Home() {
   const language = "en";
   const copy = landingCopy[language];
+  const neonLetters = "VERIFYZON".split("");
+  const starPositions = [
+    "left-[8%] top-[14%]",
+    "left-[18%] top-[28%]",
+    "left-[28%] top-[10%]",
+    "left-[39%] top-[24%]",
+    "left-[53%] top-[11%]",
+    "left-[67%] top-[21%]",
+    "left-[81%] top-[13%]",
+    "left-[90%] top-[30%]",
+    "left-[13%] top-[56%]",
+    "left-[25%] top-[47%]",
+    "left-[37%] top-[61%]",
+    "left-[49%] top-[44%]",
+    "left-[61%] top-[57%]",
+    "left-[75%] top-[49%]",
+    "left-[87%] top-[63%]",
+    "left-[8%] top-[81%]",
+    "left-[22%] top-[74%]",
+    "left-[34%] top-[87%]",
+    "left-[47%] top-[76%]",
+    "left-[58%] top-[89%]",
+    "left-[70%] top-[78%]",
+    "left-[84%] top-[86%]",
+  ];
 
   return (
     <div className="min-h-screen">
@@ -18,19 +43,43 @@ export default function Home() {
       </Suspense>
 
       <main className="container-x py-6 sm:py-10">
-        <section className="overflow-hidden rounded-[2.3rem] border border-[#eadfd6] bg-[radial-gradient(circle_at_top_left,#fff7f1_0%,#fffdfb_45%,#ffffff_100%)] px-5 py-8 shadow-[0_26px_70px_rgba(24,20,16,0.06)] sm:px-8 sm:py-10">
-          <div className="mx-auto max-w-4xl text-center">
-            <span className="inline-flex items-center gap-2 rounded-full bg-[#fff1e8] px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-[#dc4f1f]">
+        <section className="verifyzon-hero relative overflow-hidden rounded-[2.4rem] border border-[#2f2d46] px-5 py-8 shadow-[0_30px_90px_rgba(3,6,18,0.45)] sm:px-8 sm:py-10">
+          <div className="pointer-events-none absolute inset-0">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,#1b2552_0%,rgba(17,19,34,0.96)_34%,#090a13_100%)]" />
+            <div className="absolute left-1/2 top-10 h-52 w-52 -translate-x-1/2 rounded-full bg-[#34d7ff]/16 blur-3xl" />
+            <div className="absolute left-[18%] top-[18%] h-44 w-44 rounded-full bg-[#9d6dff]/12 blur-3xl" />
+            <div className="absolute right-[12%] top-[28%] h-44 w-44 rounded-full bg-[#ff7a45]/10 blur-3xl" />
+            {starPositions.map((position, index) => (
+              <span
+                key={position}
+                className={`verifyzon-star absolute ${position}`}
+                style={{ animationDelay: `${index * 0.28}s` }}
+              />
+            ))}
+          </div>
+
+          <div className="relative mx-auto max-w-4xl text-center">
+            <span className="inline-flex items-center gap-2 rounded-full border border-[#3b4368] bg-white/6 px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-[#a6d7ff] backdrop-blur">
               <Sparkles className="h-3.5 w-3.5" />
               {copy.verifiedCommunity}
             </span>
-            <p className="mt-5 text-sm font-semibold uppercase tracking-[0.24em] text-[#9b6a52]">
+            <p className="mt-5 text-sm font-semibold uppercase tracking-[0.24em] text-[#9fc9ff]">
               Verified reviewer network for safer brand collaborations
             </p>
-            <h1 className="mt-5 text-4xl font-extrabold leading-tight text-[#131316] sm:text-6xl">
-              {copy.headline}
+
+            <h1 className="mt-6 flex flex-wrap items-center justify-center gap-x-1 text-[2.3rem] font-extrabold leading-none sm:text-[4.6rem]">
+              {neonLetters.map((letter, index) => (
+                <span
+                  key={`${letter}-${index}`}
+                  className="verifyzon-neon-letter"
+                  style={{ animationDelay: `${index * 0.16}s` }}
+                >
+                  {letter}
+                </span>
+              ))}
             </h1>
-            <p className="mx-auto mt-5 max-w-2xl text-sm leading-7 text-[#62564a] sm:text-base">
+
+            <p className="mx-auto mt-6 max-w-2xl text-sm leading-7 text-[#d7d9e7] sm:text-base">
               {copy.body}
             </p>
 
@@ -44,20 +93,20 @@ export default function Home() {
             </div>
 
             <div className="mt-8 grid gap-3 text-left sm:grid-cols-3">
-              <article className="rounded-[1.5rem] border border-[#eee4db] bg-white/90 p-4">
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8f857b]">KYC</p>
-                <p className="mt-2 text-sm font-semibold text-[#131316]">Verified identity</p>
-                <p className="mt-1 text-sm text-[#6a6158]">Profiles are designed to feel safer before any collaboration starts.</p>
+              <article className="rounded-[1.5rem] border border-[#2f3554] bg-white/6 p-4 backdrop-blur">
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8aaeff]">KYC</p>
+                <p className="mt-2 text-sm font-semibold text-white">Verified identity</p>
+                <p className="mt-1 text-sm text-[#c7cada]">Profiles are designed to feel safer before any collaboration starts.</p>
               </article>
-              <article className="rounded-[1.5rem] border border-[#eee4db] bg-white/90 p-4">
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8f857b]">Messaging</p>
-                <p className="mt-2 text-sm font-semibold text-[#131316]">Cross-language communication</p>
-                <p className="mt-1 text-sm text-[#6a6158]">Providers and reviewers can talk naturally even when they use different languages.</p>
+              <article className="rounded-[1.5rem] border border-[#2f3554] bg-white/6 p-4 backdrop-blur">
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8aaeff]">Messaging</p>
+                <p className="mt-2 text-sm font-semibold text-white">Cross-language communication</p>
+                <p className="mt-1 text-sm text-[#c7cada]">Providers and reviewers can talk naturally even when they use different languages.</p>
               </article>
-              <article className="rounded-[1.5rem] border border-[#eee4db] bg-white/90 p-4">
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8f857b]">Trust</p>
-                <p className="mt-2 text-sm font-semibold text-[#131316]">Clear collaboration rules</p>
-                <p className="mt-1 text-sm text-[#6a6158]">The platform is structured around transparency, identity checks, and cleaner contact flows.</p>
+              <article className="rounded-[1.5rem] border border-[#2f3554] bg-white/6 p-4 backdrop-blur">
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8aaeff]">Trust</p>
+                <p className="mt-2 text-sm font-semibold text-white">Clear collaboration rules</p>
+                <p className="mt-1 text-sm text-[#c7cada]">The platform is structured around transparency, identity checks, and cleaner contact flows.</p>
               </article>
             </div>
           </div>

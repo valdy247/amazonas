@@ -105,6 +105,69 @@ textarea.input {
   font: inherit;
 }
 
+.verifyzon-hero {
+  background:
+    radial-gradient(circle at top, rgba(60, 218, 255, 0.12), transparent 28%),
+    linear-gradient(180deg, #0b0d18 0%, #0a0b13 100%);
+}
+
+.verifyzon-star {
+  width: 0.22rem;
+  height: 0.22rem;
+  border-radius: 999px;
+  background: #dff6ff;
+  box-shadow: 0 0 8px rgba(104, 224, 255, 0.95), 0 0 18px rgba(104, 224, 255, 0.55);
+  opacity: 0.28;
+  animation: verifyzon-twinkle 3.8s ease-in-out infinite;
+}
+
+.verifyzon-neon-letter {
+  color: rgba(186, 241, 255, 0.28);
+  text-shadow: none;
+  animation: verifyzon-neon-rise 1.4s ease-out forwards;
+}
+
+@keyframes verifyzon-neon-rise {
+  0% {
+    color: rgba(186, 241, 255, 0.16);
+    text-shadow: none;
+    transform: translateY(10px) scale(0.98);
+    opacity: 0.2;
+  }
+
+  55% {
+    color: #d5fbff;
+    text-shadow:
+      0 0 10px rgba(52, 215, 255, 0.95),
+      0 0 24px rgba(52, 215, 255, 0.68),
+      0 0 48px rgba(125, 91, 255, 0.3);
+    opacity: 1;
+  }
+
+  100% {
+    color: #f4fdff;
+    text-shadow:
+      0 0 8px rgba(52, 215, 255, 0.9),
+      0 0 18px rgba(52, 215, 255, 0.62),
+      0 0 36px rgba(125, 91, 255, 0.24);
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes verifyzon-twinkle {
+  0%,
+  100% {
+    opacity: 0.22;
+    transform: scale(0.85);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.4);
+  }
+}
+
 @media (min-width: 768px) {
   body {
     padding: 1.25rem 0;
