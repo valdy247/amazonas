@@ -142,13 +142,13 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   return (
     <div className="min-h-screen">
       <SiteHeader />
-      <main className="container-x space-y-6 pt-10 pb-6">
-        <section className="relative overflow-visible rounded-[1.8rem] border border-[#1f1b17] bg-[linear-gradient(135deg,#201915_0%,#2c221a_55%,#3f2a1d_100%)] px-5 pb-5 pt-14 text-white shadow-[0_26px_80px_rgba(35,22,13,0.22)]">
-          <div className="absolute inset-x-4 -top-10 z-10 sm:inset-x-5 sm:-top-9">
-            <AdminSectionNav sections={ADMIN_SECTIONS} activeSection={activeSection} />
-          </div>
+      <main className="container-x space-y-5 pt-7 pb-6">
+        <section className="pt-2">
+          <AdminSectionNav sections={ADMIN_SECTIONS} activeSection={activeSection} />
+        </section>
 
-          <div className="flex items-start justify-between gap-4 pt-12">
+        <section className="rounded-[1.8rem] border border-[#1f1b17] bg-[linear-gradient(135deg,#201915_0%,#2c221a_55%,#3f2a1d_100%)] px-5 pb-5 pt-9 text-white shadow-[0_26px_80px_rgba(35,22,13,0.22)]">
+          <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-xs uppercase tracking-[0.24em] text-white/55">Control Center</p>
               <h1 className="mt-2 text-3xl font-bold">Panel admin</h1>
