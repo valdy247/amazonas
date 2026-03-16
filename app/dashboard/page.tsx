@@ -33,6 +33,7 @@ type ProfileRow = {
   email?: string | null;
   phone?: string | null;
   accepted_terms_at?: string | null;
+  created_at?: string | null;
   profile_data?: unknown;
 };
 
@@ -126,6 +127,46 @@ function getLastSeenMessageIdForRole(requestData: Record<string, unknown> | null
 function getLastIncomingMessageId(messages: ConversationThread["messages"], currentUserId: string) {
   const incomingMessage = [...messages].reverse().find((message) => message.senderId !== currentUserId);
   return incomingMessage?.id || 0;
+}
+
+function formatProviderAlias(aliasNumber: number) {
+  return `Proveedor ${aliasNumber}`;
+}
+
+function buildProviderAliasMaps(input: {
+  manualContacts: Array<{ history_id?: number | null }>;
+  registeredProviders: ProfileRow[];
+}) {
+  const manualAliasMap = new Map<number, string>();
+  const registeredAliasMap = new Map<string, string>();
+
+  const manualIds = Array.from(
+    new Set(
+      input.manualContacts
+        .map((contact) => contact.history_id)
+        .filter((value): value is number => typeof value === "number" && Number.isFinite(value))
+    )
+  ).sort((left, right) => left - right);
+
+  manualIds.forEach((manualId, index) => {
+    manualAliasMap.set(manualId, formatProviderAlias(101 + index));
+  });
+
+  const orderedRegisteredProviders = [...input.registeredProviders].sort((left, right) => {
+    const leftTime = left.created_at ? new Date(left.created_at).getTime() : 0;
+    const rightTime = right.created_at ? new Date(right.created_at).getTime() : 0;
+
+    return leftTime - rightTime || left.id.localeCompare(right.id);
+  });
+
+  orderedRegisteredProviders.forEach((provider, index) => {
+    registeredAliasMap.set(provider.id, formatProviderAlias(101 + manualIds.length + index));
+  });
+
+  return {
+    manualAliasMap,
+    registeredAliasMap,
+  };
 }
 
 export default async function DashboardPage({
@@ -250,6 +291,19 @@ export default async function DashboardPage({
     updated_at?: string;
   }> = [];
   let collaborationThreads: ConversationThread[] = [];
+  let allRegisteredProviderProfiles: ProfileRow[] = [];
+  let providerAliasByManualId = new Map<number, string>();
+  let providerAliasByRegisteredId = new Map<string, string>();
+
+  if (!isProvider) {
+    const registeredProvidersResult = await supabase
+      .from("profiles")
+      .select("id, full_name, accepted_terms_at, profile_data, phone, created_at")
+      .eq("role", "provider")
+      .not("accepted_terms_at", "is", null);
+
+    allRegisteredProviderProfiles = (registeredProvidersResult.data || []) as ProfileRow[];
+  }
 
   if (canSeeContacts) {
     const withMethods = await supabase
@@ -308,13 +362,7 @@ export default async function DashboardPage({
         .map((value) => `admin:${value}`);
     }
 
-    const registeredProvidersResult = await supabase
-      .from("profiles")
-      .select("id, full_name, accepted_terms_at, profile_data, phone")
-      .eq("role", "provider")
-      .not("accepted_terms_at", "is", null);
-
-    const registeredProviders = ((registeredProvidersResult.data || []) as ProfileRow[])
+    const registeredProviders = allRegisteredProviderProfiles
       .map((provider) => {
         const providerProfileData = mergeProfileData(provider.profile_data);
         const contactMethods = buildContactMethodsFromFields({
@@ -331,7 +379,7 @@ export default async function DashboardPage({
 
         return {
           id: `registered:${provider.id}`,
-          title: provider.full_name || "Proveedor registrado",
+          title: providerAliasByRegisteredId.get(provider.id) || "Proveedor",
           network: providerProfileData.country || "Registrado en Amazona",
           url: primaryMethod?.value || primaryFallback,
           notes: providerProfileData.note || null,
@@ -354,6 +402,34 @@ export default async function DashboardPage({
       }
 
       return left.title.localeCompare(right.title);
+    });
+  }
+
+  if (!isProvider) {
+    const aliasMaps = buildProviderAliasMaps({
+      manualContacts: contacts,
+      registeredProviders: allRegisteredProviderProfiles,
+    });
+    providerAliasByManualId = aliasMaps.manualAliasMap;
+    providerAliasByRegisteredId = aliasMaps.registeredAliasMap;
+
+    contacts = contacts.map((contact) => {
+      if (contact.source === "registered") {
+        const registeredId = contact.id.replace("registered:", "");
+        return {
+          ...contact,
+          title: providerAliasByRegisteredId.get(registeredId) || contact.title,
+        };
+      }
+
+      if (contact.history_id) {
+        return {
+          ...contact,
+          title: providerAliasByManualId.get(contact.history_id) || contact.title,
+        };
+      }
+
+      return contact;
     });
   }
 
@@ -490,12 +566,11 @@ export default async function DashboardPage({
     const providerMap = new Map<string, { fullName: string; profileData: ReturnType<typeof mergeProfileData> }>();
 
     if (providerIds.length) {
-      const providerProfilesResult = await supabase.from("profiles").select("id, full_name, profile_data").in("id", providerIds);
-      const providerProfiles = (providerProfilesResult.data || []) as ProfileRow[];
+      const providerProfiles = allRegisteredProviderProfiles.filter((item) => providerIds.includes(item.id));
 
       providerProfiles.forEach((item) => {
         providerMap.set(item.id, {
-          fullName: item.full_name || "Provider",
+          fullName: providerAliasByRegisteredId.get(item.id) || "Proveedor",
           profileData: mergeProfileData(item.profile_data),
         });
       });
@@ -522,7 +597,7 @@ export default async function DashboardPage({
         return {
           requestId: request.id,
           counterpartId: request.provider_id,
-          counterpartName: providerMap.get(request.provider_id)?.fullName || snapshot?.fullName || "Provider",
+          counterpartName: providerMap.get(request.provider_id)?.fullName || snapshot?.fullName || "Proveedor",
           counterpartCountry: providerMap.get(request.provider_id)?.profileData.country || snapshot?.country || "",
           counterpartInterests: providerMap.get(request.provider_id)?.profileData.interests || snapshot?.interests || [],
           requestData: request.request_data && typeof request.request_data === "object" ? (request.request_data as Record<string, unknown>) : null,
