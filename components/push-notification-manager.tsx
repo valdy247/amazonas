@@ -37,6 +37,7 @@ export function PushNotificationManager({ userId, language }: PushNotificationMa
     setSupported(isSupported);
     if (!isSupported) {
       setUnsupported(true);
+      setIsVisible(true);
       return;
     }
 

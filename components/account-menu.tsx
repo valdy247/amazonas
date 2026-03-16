@@ -36,7 +36,14 @@ export function AccountMenu({ user, items, messageHref, hasUnreadMessages = fals
     [unreadThreads]
   );
   const seenMap = useMemo<Record<number, number>>(() => ({ ...baseSeenMap, ...seenOverrides }), [baseSeenMap, seenOverrides]);
-  const threadIds = useMemo(() => unreadThreads.map((thread) => thread.threadId), [unreadThreads]);
+  const latestIncomingMap = useMemo<Record<number, number>>(
+    () =>
+      unreadThreads.reduce<Record<number, number>>((accumulator, thread) => {
+        accumulator[thread.threadId] = Math.max(thread.lastIncomingMessageId || 0, liveIncomingMap[thread.threadId] || 0);
+        return accumulator;
+      }, { ...liveIncomingMap }),
+    [liveIncomingMap, unreadThreads]
+  );
   const currentLanguage = normalizeLanguage(language);
   const nav = navigationCopy[currentLanguage];
   const resolvedItems =
@@ -55,19 +62,22 @@ export function AccountMenu({ user, items, messageHref, hasUnreadMessages = fals
       return hasUnreadMessages;
     }
 
-    const eligibleThreads = unreadThreads.filter((thread) => thread.lastIncomingMessageId > 0 || (liveIncomingMap[thread.threadId] || 0) > 0);
-    if (!eligibleThreads.length) {
+    const eligibleThreadIds = Object.keys(latestIncomingMap)
+      .map((threadId) => Number(threadId))
+      .filter((threadId) => Number.isFinite(threadId) && (latestIncomingMap[threadId] || 0) > 0);
+
+    if (!eligibleThreadIds.length) {
       return false;
     }
 
-    return eligibleThreads.some((thread) => {
-      const latestIncomingId = Math.max(thread.lastIncomingMessageId, liveIncomingMap[thread.threadId] || 0);
+    return eligibleThreadIds.some((threadId) => {
+      const latestIncomingId = latestIncomingMap[threadId] || 0;
       if (!latestIncomingId) {
         return false;
       }
-      return (seenMap[thread.threadId] || 0) < latestIncomingId;
+      return (seenMap[threadId] || 0) < latestIncomingId;
     });
-  }, [hasUnreadMessages, liveIncomingMap, seenMap, unreadThreads, user]);
+  }, [hasUnreadMessages, latestIncomingMap, seenMap, user]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -200,7 +210,7 @@ export function AccountMenu({ user, items, messageHref, hasUnreadMessages = fals
   }, [playIncomingMessageSound]);
 
   useEffect(() => {
-    if (!userId || !threadIds.length) {
+    if (!userId) {
       return;
     }
 
@@ -216,7 +226,7 @@ export function AccountMenu({ user, items, messageHref, hasUnreadMessages = fals
             sender_id: string;
           };
 
-          if (String(message.sender_id) === userId || !threadIds.includes(Number(message.request_id))) {
+          if (String(message.sender_id) === userId) {
             return;
           }
 
@@ -254,7 +264,7 @@ export function AccountMenu({ user, items, messageHref, hasUnreadMessages = fals
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [messageHref, nav.newMessageBody, nav.newMessageTitle, playIncomingMessageSound, supabase, threadIds, userId]);
+  }, [messageHref, nav.newMessageBody, nav.newMessageTitle, playIncomingMessageSound, supabase, userId]);
 
   return (
     <div ref={containerRef} className="relative flex items-center gap-2">
