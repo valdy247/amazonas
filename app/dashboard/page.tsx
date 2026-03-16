@@ -580,16 +580,6 @@ export default async function DashboardPage({
               </span>
             </div>
 
-            {userInterests.length ? (
-              <div className="mt-5 flex flex-wrap gap-2">
-                {userInterests.map((interest) => (
-                  <span key={interest} className="rounded-full border border-white/26 bg-white/18 px-3 py-1 text-xs font-semibold text-white shadow-[0_8px_22px_rgba(146,64,24,0.16)]">
-                    {interest}
-                  </span>
-                ))}
-              </div>
-            ) : null}
-
             {profileNote ? <p className="mt-4 max-w-2xl text-sm text-white/82">{profileNote}</p> : null}
           </section>
         ) : null}
