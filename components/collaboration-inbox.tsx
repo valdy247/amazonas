@@ -784,11 +784,6 @@ export function CollaborationInbox({
                               {copy.sending}
                             </div>
                           ) : null}
-                          {renderedMessage.translatedBody && !isMine ? (
-                            <div className={`mb-2 rounded-full px-2 py-1 text-[10px] font-semibold ${isMine ? "bg-white/15 text-white/80" : "bg-[#fff3ec] text-[#c4562a]"}`}>
-                              {message.sourceLanguage === "en" ? copy.translatedFromEnglish : copy.translatedFromSpanish}
-                            </div>
-                          ) : null}
                           {renderedMessage.displayBody ? <p className="whitespace-pre-wrap text-sm">{renderedMessage.displayBody}</p> : null}
                           {renderedMessage.showOriginalToggle ? (
                             <div className="mt-3 flex flex-wrap gap-2">
@@ -801,18 +796,21 @@ export function CollaborationInbox({
                               >
                                 {showOriginalByMessageId[message.id] ? copy.hideOriginal : copy.viewOriginal}
                               </button>
-                              <button
-                                type="button"
-                                className={`inline-flex items-center gap-1 text-[11px] font-semibold ${isMine ? "text-white/80" : "text-[#c4562a]"}`}
-                                onClick={async () => {
-                                  await navigator.clipboard.writeText(message.body);
-                                  setCopiedMessageId(message.id);
-                                  window.setTimeout(() => setCopiedMessageId((current) => (current === message.id ? null : current)), 1800);
-                                }}
-                              >
-                                <Copy className="h-3 w-3" />
-                                {copiedMessageId === message.id ? copy.copied : copy.copyOriginal}
-                              </button>
+                              {showOriginalByMessageId[message.id] ? (
+                                <button
+                                  type="button"
+                                  aria-label={copiedMessageId === message.id ? copy.copied : copy.copyOriginal}
+                                  title={copiedMessageId === message.id ? copy.copied : copy.copyOriginal}
+                                  className={`inline-flex h-6 w-6 items-center justify-center rounded-full transition ${isMine ? "bg-white/12 text-white/80 hover:bg-white/18" : "bg-[#fff3ec] text-[#c4562a] hover:bg-[#ffe6d8]"}`}
+                                  onClick={async () => {
+                                    await navigator.clipboard.writeText(message.body);
+                                    setCopiedMessageId(message.id);
+                                    window.setTimeout(() => setCopiedMessageId((current) => (current === message.id ? null : current)), 1800);
+                                  }}
+                                >
+                                  <Copy className="h-3.5 w-3.5" />
+                                </button>
+                              ) : null}
                             </div>
                           ) : null}
                           <p className={`mt-2 text-[11px] ${isMine ? "text-white/70" : "text-[#8f857b]"}`}>
