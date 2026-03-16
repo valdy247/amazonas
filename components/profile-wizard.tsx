@@ -360,23 +360,23 @@ export function ProfileWizard({ initialValues, email, language }: ProfileWizardP
                   </div>
                   <p className="mt-3 text-lg font-bold">{selectedCountryLabel}</p>
                   <p className="mt-1 text-sm text-white/65">{copy.mainRegionBody}</p>
-                  <div className="mt-4 grid grid-cols-2 gap-2">
-                    {COUNTRY_OPTIONS.map((country) => {
-                      const active = values.country === country;
-
-                      return (
-                        <button
-                          key={country}
-                          type="button"
-                          onClick={() => updateValue("country", country)}
-                          className={`rounded-2xl border px-3 py-3 text-left text-sm font-semibold transition ${
-                            active ? "border-[#ff8a5b] bg-[#ff8a5b] text-white" : "border-white/12 bg-white/6 text-white/82"
-                          }`}
-                        >
-                          {country}
-                        </button>
-                      );
-                    })}
+                  <div className="mt-4">
+                    <div className="rounded-[1.2rem] border border-white/12 bg-white/8 px-3">
+                      <select
+                        className="h-12 w-full bg-transparent text-sm font-semibold text-white outline-none"
+                        value={values.country}
+                        onChange={(event) => updateValue("country", event.target.value)}
+                      >
+                        <option value="" className="text-[#131316]">
+                          {copy.noCountrySelected}
+                        </option>
+                        {COUNTRY_OPTIONS.map((country) => (
+                          <option key={country} value={country} className="text-[#131316]">
+                            {country}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
                 </div>
               </div>
