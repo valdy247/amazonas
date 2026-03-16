@@ -6,6 +6,7 @@ import { Check, ChevronLeft, ChevronRight, Compass, MapPin, Sparkles, Stars } fr
 import { createClient } from "@/lib/supabase/client";
 import { COUNTRY_OPTIONS, EXPERIENCE_LABELS, INTEREST_OPTIONS, type ExperienceLevel, type UserRole } from "@/lib/onboarding";
 import { buildProfileData } from "@/lib/profile-data";
+import { normalizeLanguage, onboardingCopy, type AppLanguage } from "@/lib/i18n";
 
 type WizardValues = {
   role: UserRole;
@@ -22,14 +23,8 @@ type WizardValues = {
 type ProfileWizardProps = {
   initialValues: Partial<WizardValues>;
   email?: string | null;
+  language: AppLanguage;
 };
-
-const baseSteps = [
-  { id: "role", title: "Tu camino", description: "Define como vas a usar la plataforma." },
-  { id: "profile", title: "Perfil base", description: "Datos minimos para arrancar desde mobile." },
-  { id: "focus", title: "Categorias", description: "Etiquetas para personalizar tu experiencia." },
-  { id: "confirm", title: "Confirmar", description: "Revisa y activa tu perfil." },
-] as const;
 
 const phoneRegex = /^\+?[0-9()\-\s]{8,20}$/;
 
@@ -38,8 +33,9 @@ function normalizeInterests(value: unknown) {
   return value.filter((item): item is string => typeof item === "string");
 }
 
-export function ProfileWizard({ initialValues, email }: ProfileWizardProps) {
+export function ProfileWizard({ initialValues, email, language }: ProfileWizardProps) {
   const router = useRouter();
+  const copy = onboardingCopy[normalizeLanguage(language)];
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [values, setValues] = useState<WizardValues>({
@@ -54,20 +50,27 @@ export function ProfileWizard({ initialValues, email }: ProfileWizardProps) {
     acceptTerms: Boolean(initialValues.acceptTerms),
   });
   const hasEssentialProfile = Boolean(values.firstName.trim() && values.lastName.trim() && phoneRegex.test(values.phone.trim()));
-  const steps = useMemo(
-    () => baseSteps.filter((step) => (step.id === "profile" ? !hasEssentialProfile : true)),
-    [hasEssentialProfile]
+  const baseSteps = useMemo(
+    () =>
+      [
+        { id: "role", title: copy.steps.role.title, description: copy.steps.role.description },
+        { id: "profile", title: copy.steps.profile.title, description: copy.steps.profile.description },
+        { id: "focus", title: copy.steps.focus.title, description: copy.steps.focus.description },
+        { id: "confirm", title: copy.steps.confirm.title, description: copy.steps.confirm.description },
+      ] as const,
+    [copy]
   );
+  const steps = useMemo(() => baseSteps.filter((step) => (step.id === "profile" ? !hasEssentialProfile : true)), [baseSteps, hasEssentialProfile]);
   const [step, setStep] = useState(0);
 
   const currentStep = steps[step];
   const isLastStep = step === steps.length - 1;
   const progressPercent = Math.round(((step + 1) / steps.length) * 100);
-  const selectedCountryLabel = values.country || "Sin pais seleccionado";
+  const selectedCountryLabel = values.country || copy.noCountrySelected;
   const roleCopy =
     values.role === "reviewer"
-      ? "Te ayudaremos a construir un perfil claro para encontrar oportunidades alineadas."
-      : "Activaremos un perfil orientado a descubrir reseñadores segun los productos que ofreces.";
+      ? copy.reviewerRoleCopy
+      : copy.providerRoleCopy;
 
   function updateValue<K extends keyof WizardValues>(key: K, value: WizardValues[K]) {
     setValues((current) => ({ ...current, [key]: value }));

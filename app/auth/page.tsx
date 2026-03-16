@@ -1,9 +1,17 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { AuthForm } from "@/components/auth-form";
 import { createClient } from "@/lib/supabase/server";
+import { authPageCopy, normalizeLanguage } from "@/lib/i18n";
 
-export default async function AuthPage() {
+export default async function AuthPage({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const resolvedSearchParams = searchParams ? await searchParams : {};
+  const language = normalizeLanguage(typeof resolvedSearchParams.lang === "string" ? resolvedSearchParams.lang : undefined);
+  const copy = authPageCopy[language];
   const supabase = await createClient();
   const {
     data: { user },
@@ -18,14 +26,14 @@ export default async function AuthPage() {
       <div className="mx-auto w-full max-w-md">
         <div className="mb-3 flex items-center justify-between gap-2">
           <Link href="/" className="btn-secondary">
-            Volver al inicio
+            {copy.backHome}
           </Link>
           <div className="flex gap-2 text-sm">
-            <Link href="/auth?mode=signin" className="rounded-full border border-[#e5e5df] px-3 py-2">
-              Iniciar sesion
+            <Link href={`/auth?mode=signin&lang=${language}`} className="rounded-full border border-[#e5e5df] px-3 py-2">
+              {copy.signIn}
             </Link>
-            <Link href="/auth?mode=signup" className="rounded-full border border-[#e5e5df] px-3 py-2">
-              Crear cuenta
+            <Link href={`/auth?mode=signup&lang=${language}`} className="rounded-full border border-[#e5e5df] px-3 py-2">
+              {copy.createAccount}
             </Link>
           </div>
         </div>

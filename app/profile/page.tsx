@@ -4,6 +4,7 @@ import { ProfileEditor } from "@/components/profile-editor";
 import { createClient } from "@/lib/supabase/server";
 import { normalizeUserRole, type ExperienceLevel } from "@/lib/onboarding";
 import { mergeProfileData } from "@/lib/profile-data";
+import { normalizeLanguage } from "@/lib/i18n";
 
 function splitFullName(fullName?: string | null) {
   const normalized = String(fullName || "").trim();
@@ -62,10 +63,11 @@ export default async function ProfilePage() {
   if (JSON.stringify(profile?.profile_data || null) !== JSON.stringify(profileData)) {
     await supabase.from("profiles").update({ profile_data: profileData }).eq("id", user.id);
   }
+  const language = normalizeLanguage(profile?.preferred_language || metadata.preferred_language);
 
   return (
     <div className="min-h-screen">
-      <SiteHeader />
+      <SiteHeader language={language} />
       <main className="container-x py-4 sm:py-6">
         <ProfileEditor
           email={user.email}

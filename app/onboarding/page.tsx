@@ -3,6 +3,7 @@ import { SiteHeader } from "@/components/site-header";
 import { ProfileWizard } from "@/components/profile-wizard";
 import { normalizeUserRole } from "@/lib/onboarding";
 import { createClient } from "@/lib/supabase/server";
+import { normalizeLanguage } from "@/lib/i18n";
 
 function splitFullName(fullName?: string | null) {
   const normalized = String(fullName || "").trim();
@@ -35,7 +36,7 @@ export default async function OnboardingPage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("full_name, phone, role, accepted_terms_at")
+    .select("full_name, phone, role, accepted_terms_at, preferred_language")
     .eq("id", user.id)
     .single();
 
@@ -46,11 +47,14 @@ export default async function OnboardingPage() {
   const metadata = (user.user_metadata || {}) as Record<string, unknown>;
   const fallbackName = splitFullName(profile?.full_name);
 
+  const language = normalizeLanguage(profile?.preferred_language || metadata.preferred_language);
+
   return (
     <div className="min-h-screen">
-      <SiteHeader />
+      <SiteHeader language={language} />
       <main className="container-x py-4 sm:py-6">
         <ProfileWizard
+          language={language}
           email={user.email}
           initialValues={{
             role: normalizeUserRole(profile?.role),
