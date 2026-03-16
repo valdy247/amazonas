@@ -143,8 +143,12 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     <div className="min-h-screen">
       <SiteHeader />
       <main className="container-x space-y-6 py-6">
-        <section className="overflow-hidden rounded-[1.8rem] border border-[#1f1b17] bg-[linear-gradient(135deg,#201915_0%,#2c221a_55%,#3f2a1d_100%)] p-5 text-white shadow-[0_26px_80px_rgba(35,22,13,0.22)]">
-          <div className="flex items-start justify-between gap-4">
+        <section className="relative overflow-visible rounded-[1.8rem] border border-[#1f1b17] bg-[linear-gradient(135deg,#201915_0%,#2c221a_55%,#3f2a1d_100%)] px-5 pb-5 pt-8 text-white shadow-[0_26px_80px_rgba(35,22,13,0.22)]">
+          <div className="absolute inset-x-5 -top-6 z-10">
+            <AdminSectionNav sections={ADMIN_SECTIONS} activeSection={activeSection} />
+          </div>
+
+          <div className="flex items-start justify-between gap-4 pt-8">
             <div>
               <p className="text-xs uppercase tracking-[0.24em] text-white/55">Control Center</p>
               <h1 className="mt-2 text-3xl font-bold">Panel admin</h1>
@@ -152,7 +156,6 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                 La lista de proveedores ahora vive en su propia seccion para que no quede escondida debajo del resto del panel.
               </p>
             </div>
-            <AdminSectionNav sections={ADMIN_SECTIONS} activeSection={activeSection} />
           </div>
 
           <div className="mt-5 grid gap-3 sm:grid-cols-3">
