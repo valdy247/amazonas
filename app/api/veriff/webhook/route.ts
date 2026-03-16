@@ -23,6 +23,28 @@ function normalizeName(value: string | null | undefined) {
     .trim();
 }
 
+function tokenReasonablyMatches(left: string, right: string) {
+  if (!left || !right) {
+    return false;
+  }
+
+  if (left === right) {
+    return true;
+  }
+
+  const minLength = Math.min(left.length, right.length);
+
+  if (minLength >= 4 && (left.startsWith(right) || right.startsWith(left))) {
+    return true;
+  }
+
+  if (minLength >= 5 && (left.includes(right) || right.includes(left))) {
+    return true;
+  }
+
+  return false;
+}
+
 function getVerifiedFullName(payload: ReturnType<typeof parseVeriffDecisionPayload>) {
   const person = payload.verification?.person;
   const fullName = person?.fullName?.trim();
@@ -46,6 +68,10 @@ function namesReasonablyMatch(input: { profileName: string | null | undefined; v
     return true;
   }
 
+  if (profileName.includes(verifiedName) || verifiedName.includes(profileName)) {
+    return true;
+  }
+
   const profileTokens = Array.from(new Set(profileName.split(" ").filter(Boolean)));
   const verifiedTokens = Array.from(new Set(verifiedName.split(" ").filter(Boolean)));
 
@@ -53,9 +79,22 @@ function namesReasonablyMatch(input: { profileName: string | null | undefined; v
     return true;
   }
 
-  const sharedTokens = profileTokens.filter((token) => verifiedTokens.includes(token));
-  const overlapOnProfile = sharedTokens.length / profileTokens.length;
-  const overlapOnVerified = sharedTokens.length / verifiedTokens.length;
+  const matchedProfileTokens = profileTokens.filter((profileToken) =>
+    verifiedTokens.some((verifiedToken) => tokenReasonablyMatches(profileToken, verifiedToken))
+  );
+  const matchedVerifiedTokens = verifiedTokens.filter((verifiedToken) =>
+    profileTokens.some((profileToken) => tokenReasonablyMatches(profileToken, verifiedToken))
+  );
+  const overlapOnProfile = matchedProfileTokens.length / profileTokens.length;
+  const overlapOnVerified = matchedVerifiedTokens.length / verifiedTokens.length;
+
+  if (overlapOnProfile >= 1 && overlapOnVerified >= 0.5) {
+    return true;
+  }
+
+  if (overlapOnProfile >= 0.5 && overlapOnVerified >= 1) {
+    return true;
+  }
 
   return overlapOnProfile >= 0.6 && overlapOnVerified >= 0.6;
 }
