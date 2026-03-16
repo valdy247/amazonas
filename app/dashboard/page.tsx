@@ -5,6 +5,7 @@ import { SiteHeader } from "@/components/site-header";
 import { createClient } from "@/lib/supabase/server";
 import { hasAdminAccess } from "@/lib/admin";
 import { ProviderReviewerFinder } from "@/components/provider-reviewer-finder";
+import { ProviderCampaignStudio } from "@/components/provider-campaign-studio";
 import { CollaborationInbox } from "@/components/collaboration-inbox";
 import { TestingAccessControls } from "@/components/testing-access-controls";
 import { ProviderContactGrid } from "@/components/provider-contact-grid";
@@ -265,7 +266,7 @@ export default async function DashboardPage({
       : null;
   const requestedSection = typeof resolvedSearchParams.section === "string" ? resolvedSearchParams.section : "home";
   const currentSection = isProvider
-    ? requestedSection === "messages"
+    ? requestedSection === "messages" || requestedSection === "reviewers"
       ? requestedSection
       : "home"
     : requestedSection === "messages" || requestedSection === "contacts"
@@ -281,6 +282,7 @@ export default async function DashboardPage({
     firstName: string;
     country: string;
     experienceLevel: "new" | "growing" | "advanced";
+    interestKeys: string[];
     interests: string[];
     note: string;
     availability: ReviewerAvailability;
@@ -488,6 +490,7 @@ export default async function DashboardPage({
           firstName: String(row.full_name || "reviewer").trim().split(/\s+/)[0] || "reviewer",
           country: reviewerData.country,
           experienceLevel: reviewerData.experienceLevel,
+          interestKeys: reviewerInterests,
           interests: reviewerInterests.map((interest) => getInterestLabel(interest, currentUserLanguage)),
           note: reviewerData.note,
           availability: reviewerData.availability,
@@ -641,6 +644,7 @@ export default async function DashboardPage({
   const hasUnreadMessages = unreadConversationCount > 0;
   const menuItems = [
     { href: "/dashboard", label: copy.home },
+    isProvider ? { href: "/dashboard?section=reviewers", label: currentUserLanguage === "en" ? "Find reviewers" : "Buscar resenadores" } : null,
     !isProvider ? { href: "/dashboard?section=contacts", label: copy.providerContacts, locked: !canSeeContacts } : null,
     { href: "/profile", label: currentUserLanguage === "en" ? "Edit profile" : "Editar perfil" },
     isAdmin ? { href: "/admin", label: currentUserLanguage === "en" ? "Admin panel" : "Panel admin" } : null,
@@ -682,9 +686,15 @@ export default async function DashboardPage({
         ) : null}
         {currentSection === "home" && isProvider ? (
           <>
-            <ProviderReviewerFinder
-              reviewers={reviewerDirectory}
-              sentRequests={sentReviewerRequests}
+            <ProviderCampaignStudio
+              reviewers={reviewerDirectory.map((reviewer) => ({
+                id: reviewer.id,
+                fullName: reviewer.fullName,
+                firstName: reviewer.firstName,
+                interestKeys: reviewer.interestKeys,
+                matchPercent: reviewer.matchPercent,
+                isVerified: reviewer.isVerified,
+              }))}
               providerInterests={userInterests}
               language={currentUserLanguage}
             />
@@ -701,6 +711,15 @@ export default async function DashboardPage({
               ))}
             </section>
           </>
+        ) : null}
+
+        {currentSection === "reviewers" && isProvider ? (
+          <ProviderReviewerFinder
+            reviewers={reviewerDirectory}
+            sentRequests={sentReviewerRequests}
+            providerInterests={userInterests}
+            language={currentUserLanguage}
+          />
         ) : null}
 
         {currentSection === "home" && !isProvider ? (

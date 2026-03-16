@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { NotebookTabs, Sparkles, Star, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { EXPERIENCE_LABELS, getInterestLabel, getInterestOptions, normalizeInterestKey } from "@/lib/onboarding";
+import { EXPERIENCE_LABELS, getInterestOptions, normalizeInterestKey } from "@/lib/onboarding";
 import { AVAILABILITY_OPTIONS, type ReviewerAvailability } from "@/lib/profile-data";
 import { getRequestStatusLabel } from "@/lib/contact-requests";
 import { normalizeLanguage, providerFinderCopy, type AppLanguage } from "@/lib/i18n";
@@ -15,6 +15,7 @@ type ReviewerDirectoryItem = {
   firstName: string;
   country: string;
   experienceLevel: "new" | "growing" | "advanced";
+  interestKeys: string[];
   interests: string[];
   note: string;
   availability: ReviewerAvailability;
@@ -113,7 +114,7 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
     [reviewers]
   );
   const availableInterests = useMemo(
-    () => Array.from(new Set(reviewers.flatMap((reviewer) => reviewer.interests).filter(Boolean))).sort((a, b) => a.localeCompare(b)),
+    () => Array.from(new Set(reviewers.flatMap((reviewer) => reviewer.interestKeys).filter(Boolean))).sort((a, b) => a.localeCompare(b)),
     [reviewers]
   );
 
@@ -144,7 +145,7 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
   const filteredReviewers = useMemo(
     () =>
       reviewers.filter((reviewer) => {
-        if (selectedInterest && !reviewer.interests.some((interest) => normalizeInterestKey(interest) === normalizeInterestKey(selectedInterest))) {
+        if (selectedInterest && !reviewer.interestKeys.some((interest) => normalizeInterestKey(interest) === normalizeInterestKey(selectedInterest))) {
           return false;
         }
 
@@ -373,7 +374,7 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
                 <div className="mt-3 flex flex-wrap gap-2">
                   {reviewer.interests.slice(0, 3).map((interest) => (
                     <span key={`recommended-${reviewer.id}-${interest}`} className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-[#62564a]">
-                      {getInterestLabel(interest, language)}
+                      {interest}
                     </span>
                   ))}
                 </div>
@@ -435,7 +436,7 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
                   <div className="mt-3 flex flex-wrap gap-2">
                     {reviewer.interests.slice(0, 4).map((interest) => (
                       <span key={interest} className="rounded-full border border-[#ece3d9] bg-[#fcfaf7] px-3 py-1 text-xs font-semibold text-[#62564a]">
-                        {getInterestLabel(interest, language)}
+                        {interest}
                       </span>
                     ))}
                   </div>
