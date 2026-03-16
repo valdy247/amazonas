@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Suspense } from "react";
-import { ArrowRight, ShieldCheck, Sparkles, Users } from "lucide-react";
+import { ArrowRight, ShieldCheck, Users } from "lucide-react";
 import { LandingFooter } from "@/components/landing-footer";
 import { ProviderInviteModal } from "@/components/provider-invite-modal";
 import { SiteHeader } from "@/components/site-header";
@@ -59,15 +59,11 @@ export default function Home() {
           </div>
 
           <div className="relative mx-auto max-w-4xl text-center">
-            <span className="inline-flex items-center gap-2 rounded-full border border-[#3b4368] bg-white/6 px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-[#a6d7ff] backdrop-blur">
-              <Sparkles className="h-3.5 w-3.5" />
-              {copy.verifiedCommunity}
-            </span>
             <p className="mt-5 text-sm font-semibold uppercase tracking-[0.24em] text-[#9fc9ff]">
               Verified reviewer network for safer brand collaborations
             </p>
 
-            <h1 className="mt-6 flex flex-wrap items-center justify-center gap-x-1 text-[2.3rem] font-extrabold leading-none sm:text-[4.6rem]">
+            <h1 className="mt-6 flex items-center justify-center gap-x-1 whitespace-nowrap text-[1.88rem] font-extrabold leading-none sm:text-[3.45rem]">
               {neonLetters.map((letter, index) => (
                 <span
                   key={`${letter}-${index}`}
@@ -90,24 +86,6 @@ export default function Home() {
               <Link href={`/auth?mode=signin&lang=${language}`} className="btn-secondary w-full sm:w-auto">
                 {copy.alreadyHaveAccount}
               </Link>
-            </div>
-
-            <div className="mt-8 grid gap-3 text-left sm:grid-cols-3">
-              <article className="rounded-[1.5rem] border border-[#2f3554] bg-white/6 p-4 backdrop-blur">
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8aaeff]">KYC</p>
-                <p className="mt-2 text-sm font-semibold text-white">Verified identity</p>
-                <p className="mt-1 text-sm text-[#c7cada]">Profiles are designed to feel safer before any collaboration starts.</p>
-              </article>
-              <article className="rounded-[1.5rem] border border-[#2f3554] bg-white/6 p-4 backdrop-blur">
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8aaeff]">Messaging</p>
-                <p className="mt-2 text-sm font-semibold text-white">Cross-language communication</p>
-                <p className="mt-1 text-sm text-[#c7cada]">Providers and reviewers can talk naturally even when they use different languages.</p>
-              </article>
-              <article className="rounded-[1.5rem] border border-[#2f3554] bg-white/6 p-4 backdrop-blur">
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8aaeff]">Trust</p>
-                <p className="mt-2 text-sm font-semibold text-white">Clear collaboration rules</p>
-                <p className="mt-1 text-sm text-[#c7cada]">The platform is structured around transparency, identity checks, and cleaner contact flows.</p>
-              </article>
             </div>
           </div>
         </section>
