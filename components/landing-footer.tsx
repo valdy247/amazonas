@@ -41,7 +41,7 @@ export function LandingFooter({ language }: LandingFooterProps) {
         <div className="rounded-[2rem] border border-white/10 bg-white/5 p-5 shadow-[0_20px_60px_rgba(0,0,0,0.24)] backdrop-blur">
           <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr_0.85fr_1fr]">
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#ff9c72]">Amazona Review</p>
+              <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#ff9c72]">Verifyzon</p>
               <h2 className="mt-3 text-2xl font-bold text-white">Built on trust</h2>
               <p className="mt-3 text-sm text-white/70">{copy.footerTagline}</p>
             </div>
@@ -108,7 +108,7 @@ export function LandingFooter({ language }: LandingFooterProps) {
           </div>
 
           <div className="mt-6 flex flex-col gap-2 border-t border-white/10 pt-4 text-xs text-white/55 sm:flex-row sm:items-center sm:justify-between">
-            <p>© 2026 Amazona Review. {copy.footerReserved}</p>
+            <p>© 2026 Verifyzon. {copy.footerReserved}</p>
             <p>{copy.footerTrustPayments} · {copy.footerTrustVerification}</p>
           </div>
         </div>

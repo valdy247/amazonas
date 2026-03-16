@@ -13,13 +13,13 @@ const spaceGrotesk = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: "Amazona Review",
-  description: "Comunidad verificada para reseñadores y proveedores",
+  title: "Verifyzon",
+  description: "Verified collaboration platform for reviewers and providers",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Amazona Review",
+    title: "Verifyzon",
   },
   formatDetection: {
     telephone: false,

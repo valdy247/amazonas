@@ -457,7 +457,7 @@ export async function sendPasswordRecoveryForUser(formData: FormData) {
   }
 
   const admin = createAdminClient();
-  const redirectTo = `${process.env.NEXT_PUBLIC_SITE_URL || "https://amazonas-steel.vercel.app"}/auth`;
+  const redirectTo = `${process.env.NEXT_PUBLIC_SITE_URL || "https://verifyzon.com"}/auth`;
   const { error } = await admin.auth.resetPasswordForEmail(email, { redirectTo });
 
   if (error) {

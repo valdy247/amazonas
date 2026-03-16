@@ -19,7 +19,7 @@ type PushPayload = {
 
 const WEB_PUSH_PUBLIC_KEY = process.env.WEB_PUSH_PUBLIC_KEY;
 const WEB_PUSH_PRIVATE_KEY = process.env.WEB_PUSH_PRIVATE_KEY;
-const WEB_PUSH_SUBJECT = process.env.WEB_PUSH_SUBJECT || "mailto:support@amazonareview.com";
+const WEB_PUSH_SUBJECT = process.env.WEB_PUSH_SUBJECT || "mailto:support@verifyzon.com";
 
 let pushConfigured = false;
 
@@ -37,7 +37,7 @@ export function getWebPushPublicKey() {
 }
 
 export function getLocalizedPushTitle(language: AppLanguage) {
-  return language === "en" ? "New message on Amazona Review" : "Nuevo mensaje en Amazona Review";
+  return language === "en" ? "New message on Verifyzon" : "Nuevo mensaje en Verifyzon";
 }
 
 export function getLocalizedPushBody(language: AppLanguage, senderName: string, preview: string) {

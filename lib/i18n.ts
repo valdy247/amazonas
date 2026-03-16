@@ -116,7 +116,7 @@ export const authPageCopy = {
 export const landingCopy = {
   es: {
     verifiedCommunity: "Comunidad verificada",
-    headline: "Amazona Review",
+    headline: "Verifyzon",
     body: "Conectamos proveedores con resenadores altamente verificados, impulsando mas confianza, claridad y seguridad en cada colaboracion.",
     startNow: "Empezar ahora",
     alreadyHaveAccount: "Ya tengo cuenta",
@@ -140,7 +140,7 @@ export const landingCopy = {
     footerSocialSoon: "Espacio listo para conectar Instagram, TikTok, Facebook, X, YouTube y LinkedIn.",
     footerReserved: "Todos los derechos reservados.",
     providerInviteBadge: "Directorio oficial",
-    providerInviteTitle: "Join Amazona Review",
+    providerInviteTitle: "Join Verifyzon",
     providerInviteBody:
       "We have verified reviewers ready to collaborate with brands and providers. Create your account and get free access to discover them from one place.",
     providerInvitePrimary: "Ok, create account",
@@ -148,7 +148,7 @@ export const landingCopy = {
   },
   en: {
     verifiedCommunity: "Verified community",
-    headline: "Amazona Review",
+    headline: "Verifyzon",
     body: "We connect providers with highly verified reviewers, building more trust, clarity, and safety into every collaboration.",
     startNow: "Get started",
     alreadyHaveAccount: "I already have an account",
@@ -172,7 +172,7 @@ export const landingCopy = {
     footerSocialSoon: "Space ready to connect Instagram, TikTok, Facebook, X, YouTube, and LinkedIn.",
     footerReserved: "All rights reserved.",
     providerInviteBadge: "Official directory",
-    providerInviteTitle: "Join Amazona Review",
+    providerInviteTitle: "Join Verifyzon",
     providerInviteBody:
       "We have verified reviewers ready to collaborate with brands and providers. Create your account and get free access to discover them from one place.",
     providerInvitePrimary: "Ok, create account",
@@ -406,7 +406,7 @@ export const providerContactsCopy = {
     contactProviderBody: "Elige una via de contacto para abrir directamente el perfil o canal del proveedor.",
     contactVia: "Contactar por",
     whatsappTemplate:
-      "Hola, vi tu contacto en el directorio oficial de Amazona Review y me gustaria colaborar contigo. Si quieres unirte a Amazona Review para conocer resenadores con ID verificado, entra aqui: {inviteUrl}",
+      "Hola, vi tu contacto en el directorio oficial de Verifyzon y me gustaria colaborar contigo. Si quieres unirte a Verifyzon para conocer resenadores con ID verificado, entra aqui: {inviteUrl}",
   },
   en: {
     sessionError: "Your session could not be validated.",
@@ -422,7 +422,7 @@ export const providerContactsCopy = {
     contactProviderBody: "Choose a contact method to open the provider profile or channel directly.",
     contactVia: "Contact via",
     whatsappTemplate:
-      "Hi, I found your contact in the official Amazona Review directory and I would love to collaborate with you. If you want to join Amazona Review and access ID-verified reviewers, start here: {inviteUrl}",
+      "Hi, I found your contact in the official Verifyzon directory and I would love to collaborate with you. If you want to join Verifyzon and access ID-verified reviewers, start here: {inviteUrl}",
   },
 } as const;
 
@@ -519,7 +519,7 @@ export const dashboardCopy = {
     providerContacts: "Contactos de proveedores",
     messages: "Mensajes",
     welcomeBadge: "Bienvenido",
-    welcomeTitle: "Ya eres parte de la familia Amazona Review",
+    welcomeTitle: "Ya eres parte de la familia Verifyzon",
     welcomeBody:
       "Felicidades por activar tu acceso. Desde ahora compartiremos contigo proveedores confiables y tu perfil quedara visible para que proveedores compatibles puedan encontrarte y contactarte.",
     trustedProvidersTitle: "Proveedores confiables",
@@ -584,7 +584,7 @@ export const dashboardCopy = {
     providerContacts: "Provider contacts",
     messages: "Messages",
     welcomeBadge: "Welcome",
-    welcomeTitle: "You are now part of the Amazona Review family",
+    welcomeTitle: "You are now part of the Verifyzon family",
     welcomeBody:
       "Congratulations on activating your access. From now on, we will share trusted providers with you and your profile will stay visible so compatible providers can find and contact you.",
     trustedProvidersTitle: "Trusted providers",

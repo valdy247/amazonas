@@ -475,7 +475,7 @@ export default async function DashboardPage({
         return {
           id: `registered:${provider.id}`,
           title: providerAliasByRegisteredId.get(provider.id) || "Proveedor",
-          network: providerProfileData.country || matchedManualContact?.network || "Registrado en Amazona",
+          network: providerProfileData.country || matchedManualContact?.network || "Registered on Verifyzon",
           url: primaryMethod?.value || primaryFallback || matchedManualContact?.url || "",
           notes: providerProfileData.note || matchedManualContact?.notes || null,
           is_verified: matchedManualContact?.is_verified || false,

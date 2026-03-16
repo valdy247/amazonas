@@ -2,9 +2,9 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Amazona Review",
-    short_name: "Amazona",
-    description: "Comunidad verificada para reseñadores y proveedores",
+    name: "Verifyzon",
+    short_name: "Verifyzon",
+    description: "Verified collaboration platform for reviewers and providers",
     start_url: "/dashboard",
     scope: "/",
     display: "standalone",

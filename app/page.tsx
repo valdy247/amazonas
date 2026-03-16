@@ -19,7 +19,7 @@ export default function Home() {
       </Suspense>
 
       <section className="w-full border-b border-[#e5e5df] bg-white">
-        <Image src="/hero.png" alt="Amazona Review" width={1800} height={1200} className="h-auto w-full object-contain" priority />
+        <Image src="/hero.png" alt="Verifyzon" width={1800} height={1200} className="h-auto w-full object-contain" priority />
       </section>
 
       <main className="container-x py-6 sm:py-10">

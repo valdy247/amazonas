@@ -88,7 +88,7 @@ export async function POST(request: Request) {
 
     for (const participant of participants || []) {
       languageByUser.set(String(participant.id), normalizeLanguage(participant.preferred_language));
-      nameByUser.set(String(participant.id), typeof participant.full_name === "string" && participant.full_name.trim() ? participant.full_name.trim() : "Amazona Review");
+      nameByUser.set(String(participant.id), typeof participant.full_name === "string" && participant.full_name.trim() ? participant.full_name.trim() : "Verifyzon");
     }
 
     async function resolveLanguageForUser(userId: string) {
@@ -149,7 +149,7 @@ export async function POST(request: Request) {
 
     const localizedTargetLanguage = normalizePushLanguage(targetLanguage);
     const previewBody = translations[localizedTargetLanguage] || originalBody || (localizedTargetLanguage === "en" ? "New image" : "Nueva imagen");
-    const senderName = nameByUser.get(user.id) || "Amazona Review";
+    const senderName = nameByUser.get(user.id) || "Verifyzon";
 
     await sendPushNotificationToUser(receiverId, {
       title: getLocalizedPushTitle(localizedTargetLanguage),

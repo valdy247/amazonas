@@ -129,7 +129,7 @@ export async function createSquarePaymentLink(input: {
       idempotency_key: crypto.randomUUID(),
       description: `Membresia reviewer para ${input.email}`,
       quick_pay: {
-        name: "Membresia Amazona Review",
+        name: "Verifyzon Membership",
         price_money: {
           amount,
           currency,
