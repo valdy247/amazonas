@@ -285,6 +285,7 @@ export const chatCopy = {
     delivered: "Entregado",
     read: "Leido",
     typing: "Escribiendo",
+    online: "En linea",
   },
   en: {
     translatedFromEnglish: "Translated from English",
@@ -321,6 +322,7 @@ export const chatCopy = {
     delivered: "Delivered",
     read: "Read",
     typing: "Typing",
+    online: "Online",
   },
 } as const;
 

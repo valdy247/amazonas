@@ -142,11 +142,14 @@ export function CollaborationInbox({
   const [showOriginalByMessageId, setShowOriginalByMessageId] = useState<Record<number, boolean>>({});
   const [copiedMessageId, setCopiedMessageId] = useState<number | null>(null);
   const [typingByThread, setTypingByThread] = useState<Record<number, boolean>>({});
+  const [onlineByThread, setOnlineByThread] = useState<Record<number, boolean>>({});
   const [isPending, startTransition] = useTransition();
   const menuRef = useRef<HTMLDivElement | null>(null);
   const optimisticMessageIdRef = useRef(-1);
   const activeTypingChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const typingStopTimeoutRef = useRef<number | null>(null);
+  const messageListRef = useRef<HTMLDivElement | null>(null);
+  const bottomAnchorRef = useRef<HTMLDivElement | null>(null);
 
   const sortedThreads = useMemo(
     () =>
@@ -170,6 +173,8 @@ export function CollaborationInbox({
 
   const activeThread = sortedThreads.find((thread) => thread.requestId === activeThreadId) || null;
   const activeThreadIsTyping = activeThread ? typingByThread[activeThread.requestId] === true : false;
+  const activeThreadIsOnline = activeThread ? onlineByThread[activeThread.requestId] === true : false;
+  const activeMessageCount = activeThread?.messages.length ?? 0;
   const currentUserHasSentMessage = Boolean(
     activeThread && activeThread.messages.some((message) => message.senderId === currentUserId)
   );
@@ -278,10 +283,14 @@ export function CollaborationInbox({
       }
 
       const presenceState = channel.presenceState() as Record<string, Array<Record<string, unknown>>>;
+      const isCounterpartOnline = Object.values(presenceState).some((entries) =>
+        entries.some((entry) => entry.userId !== currentUserId)
+      );
       const isCounterpartTyping = Object.values(presenceState).some((entries) =>
         entries.some((entry) => entry.userId !== currentUserId && entry.typing === true)
       );
 
+      setOnlineByThread((current) => ({ ...current, [threadId]: isCounterpartOnline }));
       setTypingByThread((current) => ({ ...current, [threadId]: isCounterpartTyping }));
     },
     [currentUserId]
@@ -446,6 +455,7 @@ export function CollaborationInbox({
 
     return () => {
       setTypingByThread((current) => ({ ...current, [activeThread.requestId]: false }));
+      setOnlineByThread((current) => ({ ...current, [activeThread.requestId]: false }));
       if (typingStopTimeoutRef.current) {
         window.clearTimeout(typingStopTimeoutRef.current);
         typingStopTimeoutRef.current = null;
@@ -457,6 +467,22 @@ export function CollaborationInbox({
       }
     };
   }, [activeThread, currentUserId, supabase, syncTypingStateFromPresence]);
+
+  useEffect(() => {
+    if (!activeThreadId) {
+      return;
+    }
+
+    bottomAnchorRef.current?.scrollIntoView({ block: "end" });
+  }, [activeThreadId]);
+
+  useEffect(() => {
+    if (!activeThreadId) {
+      return;
+    }
+
+    bottomAnchorRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [activeMessageCount, activeThreadId]);
 
   useEffect(() => {
     return () => {
@@ -912,7 +938,6 @@ export function CollaborationInbox({
                 <div>
                   <p className="font-semibold text-[#131316]">{activeThread.counterpartName}</p>
                   <div className="flex min-h-[1rem] items-center gap-2">
-                    <p className="text-xs text-[#8f857b]">{activeThread.counterpartCountry || copy.noCountry}</p>
                     {activeThreadIsTyping ? (
                       <span className="inline-flex items-center gap-1 text-[11px] font-medium text-[#2b8a78]">
                         <span>{copy.typing}</span>
@@ -921,6 +946,11 @@ export function CollaborationInbox({
                           <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#2b8a78] [animation-delay:-0.1s]" />
                           <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#2b8a78]" />
                         </span>
+                      </span>
+                    ) : activeThreadIsOnline ? (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-medium text-[#2b8a78]">
+                        <span className="h-2 w-2 rounded-full bg-[#2b8a78]" />
+                        <span>{copy.online}</span>
                       </span>
                     ) : null}
                   </div>
@@ -931,7 +961,7 @@ export function CollaborationInbox({
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-4 py-4 [overscroll-behavior:contain]">
+            <div ref={messageListRef} className="flex-1 overflow-y-auto px-4 py-4 [overscroll-behavior:contain]">
               <div className="space-y-3">
                 {activeThread.messages.length ? (
                   activeThread.messages.map((message) => {
@@ -1009,6 +1039,7 @@ export function CollaborationInbox({
                     {copy.noMessages}
                   </div>
                 )}
+                <div ref={bottomAnchorRef} />
               </div>
             </div>
 
