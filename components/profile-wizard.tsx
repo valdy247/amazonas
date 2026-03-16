@@ -381,19 +381,24 @@ export function ProfileWizard({ initialValues, email, language }: ProfileWizardP
                 </div>
               </div>
 
-              <div className="grid gap-2">
-                {(["new", "growing", "advanced"] as ExperienceLevel[]).map((level) => (
-                  <button
-                    key={level}
-                    type="button"
-                    onClick={() => updateValue("experienceLevel", level)}
-                    className={`rounded-2xl border px-4 py-3 text-left transition ${
-                      values.experienceLevel === level ? "border-[#ff6b35] bg-[#fff3ec]" : "border-[#e5e5df]"
-                    }`}
+              <div className="rounded-[1.5rem] border border-[#eadfd6] bg-[#fcfaf7] p-4">
+                <p className="text-sm font-semibold text-[#131316]">{copy.experienceLevel ?? "Nivel de experiencia"}</p>
+                <p className="mt-1 text-sm text-[#62626d]">
+                  {copy.experienceLevelBody ?? "Elige el punto que mejor describe en que etapa te encuentras ahora."}
+                </p>
+                <div className="mt-4 rounded-[1.2rem] border border-[#e7ddd6] bg-white px-3 shadow-[0_10px_24px_rgba(37,22,12,0.04)]">
+                  <select
+                    className="h-12 w-full bg-transparent text-sm font-semibold text-[#131316] outline-none"
+                    value={values.experienceLevel}
+                    onChange={(event) => updateValue("experienceLevel", event.target.value as ExperienceLevel)}
                   >
-                    <p className="font-semibold">{EXPERIENCE_LABELS[level]}</p>
-                  </button>
-                ))}
+                    {(["new", "growing", "advanced"] as ExperienceLevel[]).map((level) => (
+                      <option key={level} value={level}>
+                        {EXPERIENCE_LABELS[level]}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               <div className="rounded-[1.75rem] border border-[#eadfd6] bg-[#fcfaf7] p-4">
