@@ -41,6 +41,16 @@ function normalizeEmail(value?: string | null) {
   return String(value || "").trim().toLowerCase();
 }
 
+function formatProviderAlias(sequenceId: number) {
+  return `Proveedor ${100 + sequenceId}`;
+}
+
+async function getNextProviderAlias(supabase: Awaited<ReturnType<typeof createClient>>) {
+  const { data } = await supabase.from("provider_contacts").select("id").order("id", { ascending: false }).limit(1).maybeSingle();
+  const nextId = (typeof data?.id === "number" ? data.id : 0) + 1;
+  return formatProviderAlias(nextId);
+}
+
 async function logAdminAction(input: {
   supabase: Awaited<ReturnType<typeof createClient>>;
   adminId: string;
@@ -100,7 +110,7 @@ async function assertUniqueProviderContact({
   });
 
   if (duplicateManual) {
-    throw new Error(`Ya este proveedor existe. Revisa telefono, email o enlaces de contacto de ${duplicateManual.title || "ese registro"}.`);
+    throw new Error(`Este proveedor ya ha sido agregado. Revisa el registro ${duplicateManual.title || `#${duplicateManual.id}`} y actualizalo si hace falta.`);
   }
 
   const { data: existingProfiles } = await supabase
@@ -125,14 +135,15 @@ async function assertUniqueProviderContact({
   });
 
   if (duplicateRegistered) {
-    throw new Error(`Ya este proveedor existe. Coincide con el provider registrado ${duplicateRegistered.full_name || duplicateRegistered.email || ""}.`);
+    throw new Error(
+      `Este proveedor ya existe como cuenta registrada. Coincide con ${duplicateRegistered.full_name || duplicateRegistered.email || "ese provider"}.`
+    );
   }
 }
 
 async function performCreateProviderContact(formData: FormData) {
   const { supabase, adminId } = await assertAdmin();
 
-  const title = String(formData.get("title") || "").trim();
   const email = normalizeEmail(String(formData.get("email") || ""));
   const whatsappPrefix = normalizeWhatsappPrefix(String(formData.get("whatsapp_prefix") || ""));
   const whatsappNumber = String(formData.get("whatsapp_number") || "").trim();
@@ -156,7 +167,7 @@ async function performCreateProviderContact(formData: FormData) {
     messenger,
   });
 
-  const safeTitle = title || "Proveedor sin nombre";
+  const safeTitle = await getNextProviderAlias(supabase);
   const safeUrl = getPrimaryContactUrl(contactMethods) || "#";
   const primaryNetwork = whatsapp ? "WhatsApp" : instagram ? "Instagram" : messenger ? "Messenger" : "";
 
@@ -251,7 +262,6 @@ export async function updateProviderContact(formData: FormData) {
   const { supabase, adminId } = await assertAdmin();
 
   const contactId = Number(formData.get("contact_id") || 0);
-  const title = String(formData.get("title") || "").trim();
   const email = normalizeEmail(String(formData.get("email") || ""));
   const whatsappPrefix = normalizeWhatsappPrefix(String(formData.get("whatsapp_prefix") || ""));
   const whatsappNumber = String(formData.get("whatsapp_number") || "").trim();
@@ -281,7 +291,7 @@ export async function updateProviderContact(formData: FormData) {
     messenger,
   });
 
-  const safeTitle = title || "Proveedor sin nombre";
+  const safeTitle = formatProviderAlias(contactId);
   const safeUrl = getPrimaryContactUrl(contactMethods) || "#";
   const primaryNetwork = whatsapp ? "WhatsApp" : instagram ? "Instagram" : messenger ? "Messenger" : "";
 

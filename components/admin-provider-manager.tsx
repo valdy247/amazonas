@@ -72,7 +72,7 @@ export function AdminProviderManager({ contacts, whatsappPrefixOptions }: AdminP
           className="input mt-2"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Nombre, WhatsApp, Instagram, Messenger o nota"
+          placeholder="Alias, WhatsApp, Instagram, Messenger, email o nota"
         />
       </div>
 
@@ -125,7 +125,9 @@ export function AdminProviderManager({ contacts, whatsappPrefixOptions }: AdminP
                 <div className="border-t border-[#efe5db] px-4 py-4">
                   <form action={updateProviderContact} className="grid gap-2">
                     <input type="hidden" name="contact_id" value={contact.id} />
-                    <input className="input" name="title" defaultValue={contact.title} placeholder="Nombre del proveedor" />
+                    <div className="rounded-[1.2rem] border border-[#eadfd6] bg-[#fcfaf7] px-4 py-3 text-sm text-[#62564a]">
+                      Alias generado: <span className="font-semibold text-[#131316]">{contact.title}</span>
+                    </div>
                     <input className="input" name="email" defaultValue={contact.email || ""} placeholder="Correo del proveedor (opcional)" type="email" />
                     <div className="rounded-[1.2rem] border border-[#eadfd6] bg-[#fcfaf7] p-3">
                       <p className="text-sm font-semibold text-[#131316]">WhatsApp</p>
