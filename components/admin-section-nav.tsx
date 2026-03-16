@@ -16,7 +16,7 @@ export function AdminSectionNav({ sections, activeSection }: AdminSectionNavProp
   return (
     <div className="w-full">
       <div className="overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        <div className="inline-flex min-w-full items-center gap-2 rounded-[1.7rem] border border-[#efd6ca] bg-[linear-gradient(180deg,#fffdfb_0%,#fff3ec_100%)] px-2.5 py-2.5 shadow-[0_18px_34px_rgba(45,25,15,0.12)]">
+        <div className="inline-flex min-w-full items-center gap-2 rounded-[1.85rem] border border-[#ead8ce] bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(255,244,237,0.96)_100%)] px-3 py-3 shadow-[0_18px_34px_rgba(45,25,15,0.1)] backdrop-blur">
           {sections.map((section) => {
             const active = activeSection === section.id;
 
@@ -24,14 +24,14 @@ export function AdminSectionNav({ sections, activeSection }: AdminSectionNavProp
               <Link
                 key={section.id}
                 href={`/admin?section=${section.id}`}
-                className={`relative flex-1 rounded-[1.3rem] px-4 py-3.5 text-center text-sm font-semibold transition ${
+                className={`relative flex-1 rounded-[1.35rem] px-5 py-3.5 text-center text-sm font-semibold transition ${
                   active
-                    ? "bg-[linear-gradient(180deg,#ff8458_0%,#ff6532_100%)] text-white shadow-[0_16px_32px_rgba(255,107,53,0.28)]"
-                    : "border border-[#f2dfd6] bg-[#fffaf7] text-[#4b3327] hover:border-[#ebd4c9] hover:bg-white hover:text-[#241710]"
+                    ? "bg-[linear-gradient(180deg,#ff8458_0%,#ff6532_100%)] text-white shadow-[0_16px_32px_rgba(255,107,53,0.26)]"
+                    : "border border-transparent bg-white/72 text-[#3f2a1f] hover:border-[#ebd4c9] hover:bg-white hover:text-[#241710]"
                 }`}
               >
                 <span className="block whitespace-nowrap">{section.label}</span>
-                {active ? <span className="absolute inset-x-5 -bottom-1 h-1 rounded-full bg-[#ffd4c3]" /> : null}
+                {active ? <span className="absolute inset-x-6 -bottom-1 h-1 rounded-full bg-[#ffd4c3]" /> : null}
               </Link>
             );
           })}
