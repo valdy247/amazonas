@@ -195,10 +195,14 @@ export default async function DashboardPage({
   const isProvider = role === "provider";
 
   const { data: membership } = await supabase.from("memberships").select("status").eq("user_id", user.id).single();
-  const { data: kyc } = await supabase.from("kyc_checks").select("status").eq("user_id", user.id).single();
+  const { data: kyc } = await supabase.from("kyc_checks").select("status, review_note").eq("user_id", user.id).single();
 
   const membershipStatus = PAYMENT_TEST_MODE && testingMembershipStatus ? testingMembershipStatus : membership?.status || "pending_payment";
   const kycStatus = KYC_TEST_MODE && testingKycStatus ? testingKycStatus : kyc?.status || "pending";
+  const kycReviewNote = typeof kyc?.review_note === "string" ? kyc.review_note : null;
+  const isManualNameReview =
+    kycStatus === "in_review" &&
+    Boolean(kycReviewNote && kycReviewNote.toLowerCase().includes("nombre verificado"));
   const canSeeContacts = !isProvider && membershipStatus === "active" && kycStatus === "approved";
   const squareStatus = typeof resolvedSearchParams.square === "string" ? resolvedSearchParams.square : null;
   const squareError = typeof resolvedSearchParams.square_error === "string" ? resolvedSearchParams.square_error : null;
@@ -699,19 +703,28 @@ export default async function DashboardPage({
                 ) : (
                   <>
                     <p className="mt-1 text-sm text-[#62626d]">
-                      Tu membresia ya esta activa. Ahora completa tu verificacion de identidad con Veriff para desbloquear contactos y dejar tu perfil listo para colaborar.
+                      {isManualNameReview
+                        ? "Detectamos una diferencia entre el nombre de tu perfil y el nombre validado con tu documento. Nuestro equipo va a revisar tu informacion con cuidado y te informara en breve."
+                        : "Tu membresia ya esta activa. Ahora completa tu verificacion de identidad con Veriff para desbloquear contactos y dejar tu perfil listo para colaborar."}
                     </p>
                     {veriffStatus === "processing" ? (
                       <p className="mt-3 rounded-2xl border border-[#d7ead9] bg-[#f4fff4] px-4 py-3 text-sm font-semibold text-[#1f7a4d]">
                         Regresaste desde Veriff. Estamos validando tu verificacion y activaremos el acceso completo en cuanto llegue la confirmacion.
                       </p>
                     ) : null}
+                    {isManualNameReview ? (
+                      <p className="mt-3 rounded-2xl border border-[#f7dbc9] bg-[#fff5ee] px-4 py-3 text-sm font-semibold text-[#c15a2a]">
+                        Gracias por completar tu verificacion. Como algunos datos no coinciden del todo, nuestro equipo hara una revision manual y te avisara muy pronto.
+                      </p>
+                    ) : null}
                     {veriffError ? (
                       <p className="mt-3 rounded-2xl border border-[#f2d7d7] bg-[#fff7f7] px-4 py-3 text-sm font-semibold text-red-600">{veriffError}</p>
                     ) : null}
-                    <a href="/api/veriff/session" className="btn-primary mt-3">
-                      Verificar con Veriff
-                    </a>
+                    {!isManualNameReview ? (
+                      <a href="/api/veriff/session" className="btn-primary mt-3">
+                        Verificar con Veriff
+                      </a>
+                    ) : null}
                   </>
                 )}
               </section>
