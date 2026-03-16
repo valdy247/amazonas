@@ -282,6 +282,9 @@ export const chatCopy = {
     sentImageAlt: "Imagen enviada en la conversacion",
     sending: "Enviando...",
     sendingMessage: "Enviando mensaje...",
+    delivered: "Entregado",
+    read: "Leido",
+    typing: "Escribiendo",
   },
   en: {
     translatedFromEnglish: "Translated from English",
@@ -315,6 +318,9 @@ export const chatCopy = {
     sentImageAlt: "Image sent in the conversation",
     sending: "Sending...",
     sendingMessage: "Sending message...",
+    delivered: "Delivered",
+    read: "Read",
+    typing: "Typing",
   },
 } as const;
 

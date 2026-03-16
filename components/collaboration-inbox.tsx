@@ -1,7 +1,7 @@
 "use client";
 
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { ArrowLeft, CheckCheck, Copy, EllipsisVertical, ImagePlus, MessageCircleMore, SendHorizontal, Star, Trash2, X } from "lucide-react";
+import { ArrowLeft, Check, CheckCheck, Copy, EllipsisVertical, ImagePlus, MessageCircleMore, SendHorizontal, Star, Trash2, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { chatCopy, languageToLocale, normalizeLanguage, type AppLanguage } from "@/lib/i18n";
 
@@ -74,6 +74,10 @@ function getLastIncomingMessageIdForThread(thread: ConversationThread, currentUs
   return lastIncoming?.id ?? null;
 }
 
+function getCounterpartRole(role: "provider" | "reviewer") {
+  return role === "provider" ? "reviewer" : "provider";
+}
+
 function getThreadPreferenceKey(role: "provider" | "reviewer", key: "favorite" | "hidden") {
   return `${role}${key === "favorite" ? "Favorite" : "Hidden"}`;
 }
@@ -137,9 +141,12 @@ export function CollaborationInbox({
   const [menuThreadId, setMenuThreadId] = useState<number | null>(null);
   const [showOriginalByMessageId, setShowOriginalByMessageId] = useState<Record<number, boolean>>({});
   const [copiedMessageId, setCopiedMessageId] = useState<number | null>(null);
+  const [typingByThread, setTypingByThread] = useState<Record<number, boolean>>({});
   const [isPending, startTransition] = useTransition();
   const menuRef = useRef<HTMLDivElement | null>(null);
   const optimisticMessageIdRef = useRef(-1);
+  const activeTypingChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const typingStopTimeoutRef = useRef<number | null>(null);
 
   const sortedThreads = useMemo(
     () =>
@@ -162,6 +169,7 @@ export function CollaborationInbox({
   );
 
   const activeThread = sortedThreads.find((thread) => thread.requestId === activeThreadId) || null;
+  const activeThreadIsTyping = activeThread ? typingByThread[activeThread.requestId] === true : false;
   const currentUserHasSentMessage = Boolean(
     activeThread && activeThread.messages.some((message) => message.senderId === currentUserId)
   );
@@ -262,6 +270,40 @@ export function CollaborationInbox({
     await supabase.from("reviewer_contact_requests").update({ request_data: nextRequestData }).eq("id", threadId);
   }, [currentUserId, currentUserRole, items, seenMessageIds, supabase]);
 
+  const syncTypingStateFromPresence = useCallback(
+    (threadId: number) => {
+      const channel = activeTypingChannelRef.current;
+      if (!channel) {
+        return;
+      }
+
+      const presenceState = channel.presenceState() as Record<string, Array<Record<string, unknown>>>;
+      const isCounterpartTyping = Object.values(presenceState).some((entries) =>
+        entries.some((entry) => entry.userId !== currentUserId && entry.typing === true)
+      );
+
+      setTypingByThread((current) => ({ ...current, [threadId]: isCounterpartTyping }));
+    },
+    [currentUserId]
+  );
+
+  const updateTypingPresence = useCallback(
+    async (typing: boolean) => {
+      const channel = activeTypingChannelRef.current;
+      if (!channel || !activeThreadId) {
+        return;
+      }
+
+      await channel.track({
+        threadId: activeThreadId,
+        typing,
+        userId: currentUserId,
+        updatedAt: new Date().toISOString(),
+      });
+    },
+    [activeThreadId, currentUserId]
+  );
+
   useEffect(() => {
     const channel = supabase
       .channel(`request-messages-${currentUserId}`)
@@ -324,6 +366,99 @@ export function CollaborationInbox({
   }, [activeThreadId, currentUserId, markThreadAsSeen, supabase]);
 
   useEffect(() => {
+    const channel = supabase
+      .channel(`request-updates-${currentUserId}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "reviewer_contact_requests" },
+        (payload) => {
+          const updatedRequest = payload.new as {
+            id: number;
+            request_data?: Record<string, unknown> | null;
+            last_activity_at?: string | null;
+          };
+
+          setItems((current) =>
+            current.map((thread) =>
+              thread.requestId === Number(updatedRequest.id)
+                ? {
+                    ...thread,
+                    requestData:
+                      updatedRequest.request_data && typeof updatedRequest.request_data === "object"
+                        ? (updatedRequest.request_data as Record<string, unknown>)
+                        : thread.requestData,
+                    lastActivityAt: typeof updatedRequest.last_activity_at === "string" ? updatedRequest.last_activity_at : thread.lastActivityAt,
+                  }
+                : thread
+            )
+          );
+
+          if (updatedRequest.request_data && typeof updatedRequest.request_data === "object") {
+            setSeenMessageIds((current) => ({
+              ...current,
+              [Number(updatedRequest.id)]: getSeenMessageIdForRole(
+                updatedRequest.request_data as Record<string, unknown>,
+                currentUserRole
+              ),
+            }));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [currentUserId, currentUserRole, supabase]);
+
+  useEffect(() => {
+    if (!activeThread) {
+      if (activeTypingChannelRef.current) {
+        void activeTypingChannelRef.current.untrack();
+        void supabase.removeChannel(activeTypingChannelRef.current);
+        activeTypingChannelRef.current = null;
+      }
+      return;
+    }
+
+    const channel = supabase.channel(`chat-typing-${activeThread.requestId}`, {
+      config: {
+        presence: { key: currentUserId },
+      },
+    });
+
+    activeTypingChannelRef.current = channel;
+
+    channel
+      .on("presence", { event: "sync" }, () => syncTypingStateFromPresence(activeThread.requestId))
+      .on("presence", { event: "join" }, () => syncTypingStateFromPresence(activeThread.requestId))
+      .on("presence", { event: "leave" }, () => syncTypingStateFromPresence(activeThread.requestId))
+      .subscribe(async (status) => {
+        if (status === "SUBSCRIBED") {
+          await channel.track({
+            threadId: activeThread.requestId,
+            typing: false,
+            userId: currentUserId,
+            updatedAt: new Date().toISOString(),
+          });
+        }
+      });
+
+    return () => {
+      setTypingByThread((current) => ({ ...current, [activeThread.requestId]: false }));
+      if (typingStopTimeoutRef.current) {
+        window.clearTimeout(typingStopTimeoutRef.current);
+        typingStopTimeoutRef.current = null;
+      }
+      void channel.untrack();
+      void supabase.removeChannel(channel);
+      if (activeTypingChannelRef.current === channel) {
+        activeTypingChannelRef.current = null;
+      }
+    };
+  }, [activeThread, currentUserId, supabase, syncTypingStateFromPresence]);
+
+  useEffect(() => {
     return () => {
       Object.values(mediaDrafts).forEach((item) => {
         if (item?.previewUrl) {
@@ -340,7 +475,27 @@ export function CollaborationInbox({
   }
 
   function closeChat() {
+    void updateTypingPresence(false);
     setActiveThreadId(null);
+  }
+
+  function handleDraftChange(requestId: number, value: string) {
+    setDrafts((current) => ({ ...current, [requestId]: value }));
+
+    if (activeThreadId !== requestId) {
+      return;
+    }
+
+    void updateTypingPresence(value.trim().length > 0);
+
+    if (typingStopTimeoutRef.current) {
+      window.clearTimeout(typingStopTimeoutRef.current);
+    }
+
+    typingStopTimeoutRef.current = window.setTimeout(() => {
+      void updateTypingPresence(false);
+      typingStopTimeoutRef.current = null;
+    }, 1600);
   }
 
   async function updateThreadRequestData(threadId: number, updater: (current: Record<string, unknown> | null | undefined) => Record<string, unknown>) {
@@ -483,6 +638,11 @@ export function CollaborationInbox({
 
     setError(null);
     setPendingId(requestId);
+    void updateTypingPresence(false);
+    if (typingStopTimeoutRef.current) {
+      window.clearTimeout(typingStopTimeoutRef.current);
+      typingStopTimeoutRef.current = null;
+    }
     const optimisticMessageId = optimisticMessageIdRef.current;
     optimisticMessageIdRef.current -= 1;
     const optimisticTimestamp = new Date().toISOString();
@@ -743,7 +903,7 @@ export function CollaborationInbox({
       {activeThread ? (
         <div className="fixed inset-0 z-40 overflow-hidden bg-[#17120d]/35 backdrop-blur-sm [overscroll-behavior:none]">
           <div className="flex h-screen min-h-screen w-screen flex-col bg-[#f8f3ed] supports-[height:100dvh]:h-[100dvh] supports-[height:100dvh]:min-h-[100dvh]">
-            <div className="mx-auto flex h-full w-full max-w-[430px] flex-col overflow-hidden bg-[#f8f3ed]">
+          <div className="mx-auto flex h-full w-full max-w-[430px] flex-col overflow-hidden bg-[#f8f3ed]">
             <div className="sticky top-0 z-20 flex shrink-0 items-center justify-between border-b border-[#eadfd6] bg-white px-4 py-3">
               <div className="flex items-center gap-3">
                 <button type="button" onClick={closeChat} className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#f7f1ea] text-[#131316]">
@@ -751,7 +911,19 @@ export function CollaborationInbox({
                 </button>
                 <div>
                   <p className="font-semibold text-[#131316]">{activeThread.counterpartName}</p>
-                  <p className="text-xs text-[#8f857b]">{activeThread.counterpartCountry || copy.noCountry}</p>
+                  <div className="flex min-h-[1rem] items-center gap-2">
+                    <p className="text-xs text-[#8f857b]">{activeThread.counterpartCountry || copy.noCountry}</p>
+                    {activeThreadIsTyping ? (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-medium text-[#2b8a78]">
+                        <span>{copy.typing}</span>
+                        <span className="inline-flex items-center gap-0.5">
+                          <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#2b8a78] [animation-delay:-0.2s]" />
+                          <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#2b8a78] [animation-delay:-0.1s]" />
+                          <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#2b8a78]" />
+                        </span>
+                      </span>
+                    ) : null}
+                  </div>
                 </div>
               </div>
               <button type="button" onClick={closeChat} className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#f7f1ea] text-[#131316]">
@@ -765,6 +937,11 @@ export function CollaborationInbox({
                   activeThread.messages.map((message) => {
                     const isMine = message.senderId === currentUserId;
                     const renderedMessage = getRenderedMessage(message, isMine);
+                    const counterpartSeenMessageId = getSeenMessageIdForRole(
+                      activeThread.requestData,
+                      getCounterpartRole(currentUserRole)
+                    );
+                    const isRead = isMine && !message.isPending && message.id > 0 && counterpartSeenMessageId >= message.id;
 
                     return (
                       <div key={message.id} className={`flex ${isMine ? "justify-end" : "justify-start"}`}>
@@ -813,9 +990,16 @@ export function CollaborationInbox({
                               ) : null}
                             </div>
                           ) : null}
-                          <p className={`mt-2 text-[11px] ${isMine ? "text-white/70" : "text-[#8f857b]"}`}>
-                            {new Date(message.createdAt).toLocaleString(languageToLocale(currentUserLanguage))}
-                          </p>
+                          <div className={`mt-2 flex items-center justify-between gap-2 text-[11px] ${isMine ? "text-white/70" : "text-[#8f857b]"}`}>
+                            <p>{new Date(message.createdAt).toLocaleString(languageToLocale(currentUserLanguage))}</p>
+                            {isMine ? (
+                              message.isPending ? null : isRead ? (
+                                <CheckCheck className="h-3.5 w-3.5 text-[#8fd3ff]" aria-label={copy.read} />
+                              ) : (
+                                <Check className="h-3.5 w-3.5 text-white/80" aria-label={copy.delivered} />
+                              )
+                            ) : null}
+                          </div>
                         </div>
                       </div>
                     );
@@ -902,7 +1086,7 @@ export function CollaborationInbox({
                   className="min-h-11 flex-1 resize-none border-none bg-transparent text-base text-[#131316] outline-none placeholder:text-[#8f857b] md:text-sm"
                   style={{ fontSize: "16px" }}
                   value={drafts[activeThread.requestId] || ""}
-                  onChange={(event) => setDrafts((current) => ({ ...current, [activeThread.requestId]: event.target.value }))}
+                  onChange={(event) => handleDraftChange(activeThread.requestId, event.target.value)}
                   placeholder={copy.writeMessage}
                   rows={1}
                 />
