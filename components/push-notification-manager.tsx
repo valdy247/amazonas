@@ -22,6 +22,7 @@ export function PushNotificationManager({ userId, language }: PushNotificationMa
   const [isBusy, setIsBusy] = useState(false);
   const [supported, setSupported] = useState(false);
   const [unsupported, setUnsupported] = useState(false);
+  const permission = typeof window !== "undefined" && "Notification" in window ? Notification.permission : "default";
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -124,7 +125,7 @@ export function PushNotificationManager({ userId, language }: PushNotificationMa
     setIsVisible(false);
   }
 
-  if ((!supported && !unsupported) || !isVisible || Notification.permission === "granted" || Notification.permission === "denied") {
+  if ((!supported && !unsupported) || !isVisible || permission === "granted" || permission === "denied") {
     return null;
   }
 
