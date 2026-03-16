@@ -573,12 +573,12 @@ export default async function DashboardPage({
       />
       <main className="container-x space-y-4 py-6">
         {currentSection === "home" ? (
-          <section className="overflow-hidden rounded-[1.8rem] border border-[#1f1b17] bg-[linear-gradient(135deg,#201915_0%,#2c221a_55%,#3f2a1d_100%)] p-5 text-white shadow-[0_26px_80px_rgba(35,22,13,0.22)]">
+          <section className="overflow-hidden rounded-[1.8rem] border border-[#f2c8d8] bg-[linear-gradient(135deg,#ffd8e7_0%,#f7abc5_42%,#eb7fa8_100%)] p-5 text-white shadow-[0_26px_80px_rgba(214,106,149,0.24)]">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h1 className="mt-2 text-3xl font-bold">Hola, {firstName}</h1>
               </div>
-              <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10">
+              <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-white/18 shadow-[0_12px_28px_rgba(255,255,255,0.16)]">
                 <Sparkles className="h-5 w-5" />
               </span>
             </div>
@@ -586,14 +586,14 @@ export default async function DashboardPage({
             {userInterests.length ? (
               <div className="mt-5 flex flex-wrap gap-2">
                 {userInterests.map((interest) => (
-                  <span key={interest} className="rounded-full border border-white/12 bg-white/8 px-3 py-1 text-xs font-semibold text-white">
+                  <span key={interest} className="rounded-full border border-white/26 bg-white/18 px-3 py-1 text-xs font-semibold text-white shadow-[0_8px_22px_rgba(138,35,82,0.12)]">
                     {interest}
                   </span>
                 ))}
               </div>
             ) : null}
 
-            {profileNote ? <p className="mt-4 max-w-2xl text-sm text-white/68">{profileNote}</p> : null}
+            {profileNote ? <p className="mt-4 max-w-2xl text-sm text-white/82">{profileNote}</p> : null}
           </section>
         ) : null}
         {currentSection === "home" && isProvider ? (
