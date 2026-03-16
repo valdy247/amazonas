@@ -1,4 +1,4 @@
-﻿import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Manrope, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 
@@ -15,6 +15,22 @@ const spaceGrotesk = Space_Grotesk({
 export const metadata: Metadata = {
   title: "Amazona Review",
   description: "Comunidad verificada para reseñadores y proveedores",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Amazona Review",
+  },
+  formatDetection: {
+    telephone: false,
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#ff6b35",
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -30,5 +46,3 @@ export default function RootLayout({
     </html>
   );
 }
-
-
