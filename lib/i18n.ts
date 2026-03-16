@@ -254,6 +254,8 @@ export const chatCopy = {
     remove: "Quitar",
     imagePreview: "Vista previa",
     sentImageAlt: "Imagen enviada en la conversacion",
+    sending: "Enviando...",
+    sendingMessage: "Enviando mensaje...",
   },
   en: {
     translatedFromEnglish: "Translated from English",
@@ -285,6 +287,8 @@ export const chatCopy = {
     remove: "Remove",
     imagePreview: "Preview",
     sentImageAlt: "Image sent in the conversation",
+    sending: "Sending...",
+    sendingMessage: "Sending message...",
   },
 } as const;
 

@@ -14,6 +14,7 @@ type ConversationMessage = {
   createdAt: string;
   imageUrl?: string | null;
   imagePath?: string | null;
+  isPending?: boolean;
 };
 
 type ConversationThread = {
@@ -138,6 +139,7 @@ export function CollaborationInbox({
   const [copiedMessageId, setCopiedMessageId] = useState<number | null>(null);
   const [isPending, startTransition] = useTransition();
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const optimisticMessageIdRef = useRef(-1);
 
   const sortedThreads = useMemo(
     () =>
@@ -481,6 +483,45 @@ export function CollaborationInbox({
 
     setError(null);
     setPendingId(requestId);
+    const optimisticMessageId = optimisticMessageIdRef.current;
+    optimisticMessageIdRef.current -= 1;
+    const optimisticTimestamp = new Date().toISOString();
+    const nextRequestData =
+      currentUserRole === "provider"
+        ? {
+            ...(activeThreadData || {}),
+            category: metaDraft?.category || "",
+            productName: metaDraft?.productName || "",
+            introSent: shouldAttachProviderIntro || (activeThreadData && (activeThreadData as { introSent?: unknown }).introSent === true) || false,
+          }
+        : activeThreadData || {};
+
+    setItems((current) =>
+      current.map((thread) =>
+        thread.requestId === requestId
+          ? {
+              ...thread,
+              lastActivityAt: optimisticTimestamp,
+              requestData: nextRequestData,
+              messages: [
+                ...thread.messages,
+                {
+                  id: optimisticMessageId,
+                  senderId: currentUserId,
+                  body: finalBody,
+                  sourceLanguage: currentUserLanguage,
+                  translations: null,
+                  createdAt: optimisticTimestamp,
+                  imageUrl: mediaDraft?.previewUrl || null,
+                  imagePath: null,
+                  isPending: true,
+                },
+              ],
+            }
+          : thread
+      )
+    );
+    setDrafts((current) => ({ ...current, [requestId]: "" }));
 
     startTransition(async () => {
       try {
@@ -535,15 +576,6 @@ export function CollaborationInbox({
         }
         const insertedMessage = payload.data;
 
-        const nextRequestData =
-          currentUserRole === "provider"
-            ? {
-                ...(activeThreadData || {}),
-                category: metaDraft?.category || "",
-                productName: metaDraft?.productName || "",
-                introSent: shouldAttachProviderIntro || (activeThreadData && (activeThreadData as { introSent?: unknown }).introSent === true) || false,
-              }
-            : (activeThreadData || {});
         const timestamp = insertedMessage.created_at;
 
         setItems((current) =>
@@ -553,26 +585,28 @@ export function CollaborationInbox({
                   ...thread,
                   lastActivityAt: timestamp,
                   requestData: nextRequestData,
-                  messages: thread.messages.some((item) => item.id === Number(insertedMessage.id))
-                    ? thread.messages
-                    : [
-                        ...thread.messages,
-                        {
-                          id: Number(insertedMessage.id),
-                          senderId: String(insertedMessage.sender_id),
-                          body: String(insertedMessage.body || ""),
-                          sourceLanguage: normalizeLanguage(insertedMessage.source_language),
-                          translations: insertedMessage.translations || null,
-                          createdAt: String(insertedMessage.created_at),
-                          imageUrl: typeof insertedMessage.image_url === "string" ? insertedMessage.image_url : null,
-                          imagePath: typeof insertedMessage.image_path === "string" ? insertedMessage.image_path : null,
-                        },
-                      ],
+                  messages: thread.messages
+                    .filter((item) => item.id !== optimisticMessageId)
+                    .concat(
+                      thread.messages.some((item) => item.id === Number(insertedMessage.id))
+                        ? []
+                        : [
+                            {
+                              id: Number(insertedMessage.id),
+                              senderId: String(insertedMessage.sender_id),
+                              body: String(insertedMessage.body || ""),
+                              sourceLanguage: normalizeLanguage(insertedMessage.source_language),
+                              translations: insertedMessage.translations || null,
+                              createdAt: String(insertedMessage.created_at),
+                              imageUrl: typeof insertedMessage.image_url === "string" ? insertedMessage.image_url : null,
+                              imagePath: typeof insertedMessage.image_path === "string" ? insertedMessage.image_path : null,
+                            },
+                          ]
+                    ),
                 }
               : thread
           )
         );
-        setDrafts((current) => ({ ...current, [requestId]: "" }));
         if (currentUserRole === "provider") {
           setMetaDrafts((current) => ({
             ...current,
@@ -585,6 +619,17 @@ export function CollaborationInbox({
         clearMediaDraft(requestId);
         setPendingId(null);
       } catch (caughtError) {
+        setItems((current) =>
+          current.map((thread) =>
+            thread.requestId === requestId
+              ? {
+                  ...thread,
+                  messages: thread.messages.filter((message) => message.id !== optimisticMessageId),
+                }
+              : thread
+          )
+        );
+        setDrafts((current) => ({ ...current, [requestId]: draft }));
         setError(caughtError instanceof Error ? caughtError.message : copy.sendMessageError);
         setPendingId(null);
       }
@@ -734,6 +779,11 @@ export function CollaborationInbox({
                               <img src={message.imageUrl} alt={copy.sentImageAlt} className="mb-3 max-h-72 w-full rounded-[1rem] object-cover" />
                             </div>
                           ) : null}
+                          {message.isPending ? (
+                            <div className={`mb-2 rounded-full px-2 py-1 text-[10px] font-semibold ${isMine ? "bg-white/15 text-white/80" : "bg-[#fff3ec] text-[#c4562a]"}`}>
+                              {copy.sending}
+                            </div>
+                          ) : null}
                           {renderedMessage.translatedBody && !isMine ? (
                             <div className={`mb-2 rounded-full px-2 py-1 text-[10px] font-semibold ${isMine ? "bg-white/15 text-white/80" : "bg-[#fff3ec] text-[#c4562a]"}`}>
                               {message.sourceLanguage === "en" ? copy.translatedFromEnglish : copy.translatedFromSpanish}
@@ -860,8 +910,13 @@ export function CollaborationInbox({
                   className="inline-flex h-11 w-11 flex-none items-center justify-center rounded-full bg-[#ff6b35] text-white shadow-[0_14px_32px_rgba(255,107,53,0.2)]"
                   onClick={() => sendMessage(activeThread.requestId)}
                   disabled={isPending && pendingId === activeThread.requestId}
+                  aria-label={isPending && pendingId === activeThread.requestId ? copy.sendingMessage : copy.writeMessage}
                 >
-                  <SendHorizontal className="h-4 w-4" />
+                  {isPending && pendingId === activeThread.requestId ? (
+                    <span className="text-[10px] font-semibold">{copy.sending}</span>
+                  ) : (
+                    <SendHorizontal className="h-4 w-4" />
+                  )}
                 </button>
               </div>
             </div>
