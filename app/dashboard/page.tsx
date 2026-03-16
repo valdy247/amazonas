@@ -636,8 +636,10 @@ export default async function DashboardPage({
                     <p className="mt-1 text-sm text-[#62626d]">Los proveedores podran encontrarte segun tus categorias, pais y disponibilidad para colaborar.</p>
                   </article>
                   <article className="rounded-[1.4rem] border border-white/70 bg-white/88 p-4">
-                    <p className="text-sm font-semibold text-[#131316]">Mensajeria centralizada</p>
-                    <p className="mt-1 text-sm text-[#62626d]">Tus solicitudes y conversaciones viven en el icono de mensajes para que el inicio se mantenga limpio.</p>
+                    <p className="text-sm font-semibold text-[#131316]">Contacto mas seguro</p>
+                    <p className="mt-1 text-sm text-[#62626d]">
+                      Puedes hablar con proveedores desde la pagina sin compartir tus datos personales y decidir con calma como quieres que te contacten.
+                    </p>
                   </article>
                 </div>
               </section>
