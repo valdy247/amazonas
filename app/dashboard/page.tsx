@@ -13,7 +13,7 @@ import { ProviderContactGrid } from "@/components/provider-contact-grid";
 import { getInterestLabel, normalizeInterestKeys, normalizeUserRole } from "@/lib/onboarding";
 import { getReviewerContactMethods, mergeProfileData, type ReviewerAvailability } from "@/lib/profile-data";
 import { normalizeContactRequestData } from "@/lib/contact-requests";
-import { buildContactMethodsFromFields } from "@/lib/provider-contact";
+import { buildContactMethodsFromFields, getComparableContactMethods } from "@/lib/provider-contact";
 import { dashboardCopy, normalizeLanguage, type AppLanguage } from "@/lib/i18n";
 
 type ProviderContact = {
@@ -23,6 +23,7 @@ type ProviderContact = {
   url: string;
   notes: string | null;
   is_verified: boolean;
+  email?: string | null;
   contact_methods?: string | null;
   source?: "admin" | "registered";
   source_label?: string | null;
@@ -158,6 +159,39 @@ function getLastIncomingMessageId(messages: ConversationThread["messages"], curr
 
 function formatProviderAlias(aliasNumber: number) {
   return `Proveedor ${aliasNumber}`;
+}
+
+function getRegisteredProviderComparableFields(provider: ProfileRow) {
+  const providerProfileData = mergeProfileData(provider.profile_data);
+  const contactMethods = buildContactMethodsFromFields({
+    whatsapp: providerProfileData.contact.whatsapp || provider.phone || "",
+    instagram: providerProfileData.contact.instagram,
+    messenger: providerProfileData.contact.messenger,
+  });
+
+  return {
+    profileData: providerProfileData,
+    contactMethods,
+    comparableContacts: getComparableContactMethods(contactMethods),
+    comparableEmail: normalizeComparable(provider.email),
+  };
+}
+
+function shouldMergeProviderContacts(
+  manualContact: Pick<ProviderContact, "contact_methods" | "url" | "network" | "email">,
+  registeredProvider: { comparableContacts: string[]; comparableEmail: string }
+) {
+  const manualContacts = getComparableContactMethods(
+    manualContact.contact_methods,
+    manualContact.url,
+    manualContact.network
+  );
+  const manualEmail = normalizeComparable(manualContact.email);
+
+  return (
+    manualContacts.some((value) => registeredProvider.comparableContacts.includes(value)) ||
+    (Boolean(manualEmail) && manualEmail === registeredProvider.comparableEmail)
+  );
 }
 
 function buildProviderAliasMaps(input: {
@@ -350,7 +384,7 @@ export default async function DashboardPage({
   if (!isProvider) {
     const registeredProvidersResult = await supabase
       .from("profiles")
-      .select("id, full_name, accepted_terms_at, profile_data, phone, created_at")
+      .select("id, full_name, email, accepted_terms_at, profile_data, phone, created_at")
       .eq("role", "provider")
       .not("accepted_terms_at", "is", null);
 
@@ -360,7 +394,7 @@ export default async function DashboardPage({
   if (canSeeContacts) {
     const withMethods = await supabase
       .from("provider_contacts")
-      .select("id, title, network, url, notes, is_verified, contact_methods")
+      .select("id, title, email, network, url, notes, is_verified, contact_methods")
       .eq("is_active", true);
 
     if (withMethods.error) {
@@ -374,6 +408,7 @@ export default async function DashboardPage({
         contacts = (fallback.data || []).map((contact) => ({
           ...contact,
           id: `admin:${contact.id}`,
+          email: null,
           is_verified: false,
           contact_methods: null,
           history_id: contact.id,
@@ -383,6 +418,7 @@ export default async function DashboardPage({
       } else {
         contacts = (withVerification.data || []).map((contact) => ({
           ...contact,
+          email: null,
           id: `admin:${contact.id}`,
           contact_methods: null,
           history_id: contact.id,
@@ -414,14 +450,13 @@ export default async function DashboardPage({
         .map((value) => `admin:${value}`);
     }
 
+    const manualContacts = [...contacts];
+    const matchedManualContactIds = new Set<string>();
     const registeredProviders = allRegisteredProviderProfiles
       .map((provider) => {
-        const providerProfileData = mergeProfileData(provider.profile_data);
-        const contactMethods = buildContactMethodsFromFields({
-          whatsapp: providerProfileData.contact.whatsapp || provider.phone || "",
-          instagram: providerProfileData.contact.instagram,
-          messenger: providerProfileData.contact.messenger,
-        });
+        const providerFields = getRegisteredProviderComparableFields(provider);
+        const providerProfileData = providerFields.profileData;
+        const contactMethods = providerFields.contactMethods;
         const primaryMethod = getReviewerContactMethods(providerProfileData)[0];
         const primaryFallback = providerProfileData.contact.whatsapp || provider.phone || "";
 
@@ -429,22 +464,31 @@ export default async function DashboardPage({
           return null;
         }
 
+        const matchedManualContact = manualContacts.find((contact) => {
+          const matches = shouldMergeProviderContacts(contact, providerFields);
+          if (matches) {
+            matchedManualContactIds.add(contact.id);
+          }
+          return matches;
+        });
+
         return {
           id: `registered:${provider.id}`,
           title: providerAliasByRegisteredId.get(provider.id) || "Proveedor",
-          network: providerProfileData.country || "Registrado en Amazona",
-          url: primaryMethod?.value || primaryFallback,
-          notes: providerProfileData.note || null,
-          is_verified: false,
+          network: providerProfileData.country || matchedManualContact?.network || "Registrado en Amazona",
+          url: primaryMethod?.value || primaryFallback || matchedManualContact?.url || "",
+          notes: providerProfileData.note || matchedManualContact?.notes || null,
+          is_verified: matchedManualContact?.is_verified || false,
+          email: provider.email || matchedManualContact?.email || null,
           contact_methods: contactMethods,
           source: "registered" as const,
-          source_label: "Registrado",
+          source_label: matchedManualContact?.is_verified ? "Verificado" : "Registrado",
           history_id: null,
         };
       })
       .filter(Boolean) as ProviderContact[];
 
-    contacts = [...contacts, ...registeredProviders].sort((left, right) => {
+    contacts = [...manualContacts.filter((contact) => !matchedManualContactIds.has(contact.id)), ...registeredProviders].sort((left, right) => {
       if (left.is_verified !== right.is_verified) {
         return Number(right.is_verified) - Number(left.is_verified);
       }
