@@ -568,7 +568,7 @@ export default async function DashboardPage({
       />
       <main className="container-x space-y-4 py-6">
         {currentSection === "home" ? (
-          <section className="overflow-hidden rounded-[1.8rem] border border-[#f2c8d8] bg-[linear-gradient(135deg,#ffd8e7_0%,#f7abc5_42%,#eb7fa8_100%)] p-5 text-white shadow-[0_26px_80px_rgba(214,106,149,0.24)]">
+          <section className="overflow-hidden rounded-[1.8rem] border border-[#ffc4a8] bg-[linear-gradient(135deg,#ffb28b_0%,#ff8356_38%,#ff6b35_100%)] p-5 text-white shadow-[0_26px_80px_rgba(220,95,45,0.24)]">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h1 className="mt-2 text-3xl font-bold">Hola, {firstName}</h1>
@@ -581,7 +581,7 @@ export default async function DashboardPage({
             {userInterests.length ? (
               <div className="mt-5 flex flex-wrap gap-2">
                 {userInterests.map((interest) => (
-                  <span key={interest} className="rounded-full border border-white/26 bg-white/18 px-3 py-1 text-xs font-semibold text-white shadow-[0_8px_22px_rgba(138,35,82,0.12)]">
+                  <span key={interest} className="rounded-full border border-white/26 bg-white/18 px-3 py-1 text-xs font-semibold text-white shadow-[0_8px_22px_rgba(146,64,24,0.16)]">
                     {interest}
                   </span>
                 ))}
