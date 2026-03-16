@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, ChevronLeft, ChevronRight, Compass, MapPin, Sparkles, Stars } from "lucide-react";
+import { CompactSelect } from "@/components/compact-select";
 import { createClient } from "@/lib/supabase/client";
 import { COUNTRY_OPTIONS, EXPERIENCE_LABELS, getInterestLabel, getInterestOptions, INTEREST_OPTIONS, type ExperienceLevel, type UserRole } from "@/lib/onboarding";
 import { buildProfileData } from "@/lib/profile-data";
@@ -388,22 +389,16 @@ export function ProfileWizard({ initialValues, email, language }: ProfileWizardP
                   <p className="mt-3 text-lg font-bold">{selectedCountryLabel}</p>
                   <p className="mt-1 text-sm text-white/65">{copy.mainRegionBody}</p>
                   <div className="mt-4">
-                    <div className="rounded-[1.2rem] border border-white/12 bg-white/8 px-3">
-                      <select
-                        className="h-12 w-full bg-transparent text-sm font-semibold text-white outline-none"
-                        value={values.country}
-                        onChange={(event) => updateValue("country", event.target.value)}
-                      >
-                        <option value="" className="text-[#131316]">
-                          {copy.noCountrySelected}
-                        </option>
-                        {COUNTRY_OPTIONS.map((country) => (
-                          <option key={country} value={country} className="text-[#131316]">
-                            {country}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
+                    <CompactSelect
+                      tone="dark"
+                      value={values.country}
+                      onChange={(nextValue) => updateValue("country", nextValue)}
+                      placeholder={copy.noCountrySelected}
+                      options={[
+                        { value: "", label: copy.noCountrySelected },
+                        ...COUNTRY_OPTIONS.map((country) => ({ value: country, label: country })),
+                      ]}
+                    />
                   </div>
                 </div>
               </div>
@@ -413,18 +408,15 @@ export function ProfileWizard({ initialValues, email, language }: ProfileWizardP
                 <p className="mt-1 text-sm text-[#62626d]">
                   {copy.experienceLevelBody ?? "Elige el punto que mejor describe en que etapa te encuentras ahora."}
                 </p>
-                <div className="mt-4 rounded-[1.2rem] border border-[#e7ddd6] bg-white px-3 shadow-[0_10px_24px_rgba(37,22,12,0.04)]">
-                  <select
-                    className="h-12 w-full bg-transparent text-sm font-semibold text-[#131316] outline-none"
+                <div className="mt-4">
+                  <CompactSelect
                     value={values.experienceLevel}
-                    onChange={(event) => updateValue("experienceLevel", event.target.value as ExperienceLevel)}
-                  >
-                    {(["new", "growing", "advanced"] as ExperienceLevel[]).map((level) => (
-                      <option key={level} value={level}>
-                        {EXPERIENCE_LABELS[level]}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(nextValue) => updateValue("experienceLevel", nextValue as ExperienceLevel)}
+                    options={(["new", "growing", "advanced"] as ExperienceLevel[]).map((level) => ({
+                      value: level,
+                      label: EXPERIENCE_LABELS[level],
+                    }))}
+                  />
                 </div>
               </div>
 
