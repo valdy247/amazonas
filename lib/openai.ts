@@ -32,7 +32,7 @@ export async function translateMessage(input: {
             {
               type: "input_text",
               text:
-                "Translate the chat message for the recipient. Preserve tone, line breaks, emojis, product names, links, usernames, and brand names. Return only the translated message text with no explanation.",
+                "Translate the chat message for the recipient in a natural, conversational way. Preserve the sender's intent, tone, line breaks, emojis, product names, links, usernames, and brand names. Fix minor spelling, punctuation, or grammar mistakes only when needed to make the translation sound natural and clear. Do not invent facts or add information that is not in the original message. Return only the translated message text with no explanation.",
             },
           ],
         },
