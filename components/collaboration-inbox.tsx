@@ -1,7 +1,7 @@
 "use client";
 
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { ArrowLeft, ImagePlus, MessageCircleMore, SendHorizontal, X } from "lucide-react";
+import { ArrowLeft, CheckCheck, EllipsisVertical, ImagePlus, MessageCircleMore, SendHorizontal, Star, Trash2, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 type ConversationMessage = {
@@ -69,6 +69,30 @@ function getLastIncomingMessageIdForThread(thread: ConversationThread, currentUs
   return lastIncoming?.id ?? null;
 }
 
+function getThreadPreferenceKey(role: "provider" | "reviewer", key: "favorite" | "hidden") {
+  return `${role}${key === "favorite" ? "Favorite" : "Hidden"}`;
+}
+
+function getThreadPreference(requestData: Record<string, unknown> | null | undefined, role: "provider" | "reviewer", key: "favorite" | "hidden") {
+  if (!requestData) {
+    return false;
+  }
+
+  return requestData[getThreadPreferenceKey(role, key)] === true;
+}
+
+function setThreadPreference(
+  requestData: Record<string, unknown> | null | undefined,
+  role: "provider" | "reviewer",
+  key: "favorite" | "hidden",
+  value: boolean
+) {
+  return {
+    ...(requestData || {}),
+    [getThreadPreferenceKey(role, key)]: value,
+  };
+}
+
 export function CollaborationInbox({
   currentUserId,
   currentUserRole,
@@ -103,16 +127,28 @@ export function CollaborationInbox({
   const [mediaDrafts, setMediaDrafts] = useState<Record<number, DraftMedia | undefined>>({});
   const [error, setError] = useState<string | null>(null);
   const [pendingId, setPendingId] = useState<number | null>(null);
+  const [menuThreadId, setMenuThreadId] = useState<number | null>(null);
   const [isPending, startTransition] = useTransition();
+  const menuRef = useRef<HTMLDivElement | null>(null);
 
   const sortedThreads = useMemo(
     () =>
-      [...items].sort(
-        (left, right) =>
+      [...items]
+        .filter((thread) => !getThreadPreference(thread.requestData, currentUserRole, "hidden"))
+        .sort((left, right) => {
+          const favoriteDiff =
+            Number(getThreadPreference(right.requestData, currentUserRole, "favorite")) -
+            Number(getThreadPreference(left.requestData, currentUserRole, "favorite"));
+          if (favoriteDiff !== 0) {
+            return favoriteDiff;
+          }
+
+          return (
           new Date(right.lastActivityAt).getTime() - new Date(left.lastActivityAt).getTime() ||
           left.counterpartName.localeCompare(right.counterpartName)
-      ),
-    [items]
+          );
+        }),
+    [currentUserRole, items]
   );
 
   const activeThread = sortedThreads.find((thread) => thread.requestId === activeThreadId) || null;
@@ -144,6 +180,19 @@ export function CollaborationInbox({
       document.documentElement.style.overscrollBehavior = previousHtmlOverscroll;
     };
   }, [activeThread]);
+
+  useEffect(() => {
+    function handlePointerDown(event: MouseEvent) {
+      if (!menuRef.current?.contains(event.target as Node)) {
+        setMenuThreadId(null);
+      }
+    }
+
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+    };
+  }, []);
 
   const markThreadAsSeen = useCallback(async (threadId: number, explicitSeenMessageId?: number) => {
     const thread = items.find((item) => item.requestId === threadId);
@@ -264,6 +313,46 @@ export function CollaborationInbox({
 
   function closeChat() {
     setActiveThreadId(null);
+  }
+
+  async function updateThreadRequestData(threadId: number, updater: (current: Record<string, unknown> | null | undefined) => Record<string, unknown>) {
+    const thread = items.find((item) => item.requestId === threadId);
+    if (!thread) {
+      return;
+    }
+
+    const nextRequestData = updater(thread.requestData);
+    setItems((current) =>
+      current.map((item) =>
+        item.requestId === threadId
+          ? {
+              ...item,
+              requestData: nextRequestData,
+            }
+          : item
+      )
+    );
+    await supabase.from("reviewer_contact_requests").update({ request_data: nextRequestData }).eq("id", threadId);
+  }
+
+  async function toggleFavorite(threadId: number) {
+    setMenuThreadId(null);
+    await updateThreadRequestData(threadId, (current) =>
+      setThreadPreference(current, currentUserRole, "favorite", !getThreadPreference(current, currentUserRole, "favorite"))
+    );
+  }
+
+  async function hideThread(threadId: number) {
+    setMenuThreadId(null);
+    if (activeThreadId === threadId) {
+      closeChat();
+    }
+    await updateThreadRequestData(threadId, (current) => setThreadPreference(current, currentUserRole, "hidden", true));
+  }
+
+  async function markAsReadFromMenu(threadId: number) {
+    setMenuThreadId(null);
+    await markThreadAsSeen(threadId);
   }
 
   function selectImage(threadId: number) {
@@ -487,6 +576,7 @@ export function CollaborationInbox({
             const lastMessage = thread.messages[thread.messages.length - 1];
             const preview = lastMessage?.body || (lastMessage?.imageUrl ? "Te enviaron una imagen" : "Toca para abrir el chat");
             const lastIncomingMessageId = getLastIncomingMessageIdForThread(thread, currentUserId);
+            const isFavorite = getThreadPreference(thread.requestData, currentUserRole, "favorite");
             const isUnread = Boolean(
               lastIncomingMessageId &&
                 thread.messages.some((message) => message.id === lastIncomingMessageId && message.senderId !== currentUserId) &&
@@ -494,26 +584,66 @@ export function CollaborationInbox({
             );
 
             return (
-              <button
-                key={thread.requestId}
-                type="button"
-                onClick={() => openChat(thread.requestId)}
-                className="flex w-full items-center gap-3 px-5 py-4 text-left transition hover:bg-[#fff9f5]"
-              >
-                <span className="inline-flex h-12 w-12 flex-none items-center justify-center rounded-full bg-[linear-gradient(135deg,#ff8a5b_0%,#ff6b35_100%)] text-base font-bold text-white">
-                  {thread.counterpartName.charAt(0)}
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="flex items-center justify-between gap-3">
-                    <span className="truncate text-base font-semibold text-[#131316]">{thread.counterpartName}</span>
-                    <span className="text-xs text-[#8f857b]">{new Date(thread.lastActivityAt).toLocaleDateString()}</span>
+              <div key={thread.requestId} className="relative flex items-center gap-3 px-5 py-4 transition hover:bg-[#fff9f5]">
+                <button type="button" onClick={() => openChat(thread.requestId)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
+                  <span className="inline-flex h-12 w-12 flex-none items-center justify-center rounded-full bg-[linear-gradient(135deg,#ff8a5b_0%,#ff6b35_100%)] text-base font-bold text-white">
+                    {thread.counterpartName.charAt(0)}
                   </span>
-                  <span className="mt-1 flex items-center gap-2">
-                    {isUnread ? <span className="h-2.5 w-2.5 rounded-full bg-[#ff3b30]" /> : null}
-                    <span className="truncate text-sm text-[#62626d]">{preview}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-center justify-between gap-3">
+                      <span className="flex items-center gap-2 truncate text-base font-semibold text-[#131316]">
+                        <span className="truncate">{thread.counterpartName}</span>
+                        {isFavorite ? <Star className="h-4 w-4 fill-[#ffb54c] text-[#ffb54c]" /> : null}
+                      </span>
+                      <span className="text-xs text-[#8f857b]">{new Date(thread.lastActivityAt).toLocaleDateString()}</span>
+                    </span>
+                    <span className="mt-1 flex items-center gap-2">
+                      {isUnread ? <span className="h-2.5 w-2.5 rounded-full bg-[#ff3b30]" /> : null}
+                      <span className="truncate text-sm text-[#62626d]">{preview}</span>
+                    </span>
                   </span>
-                </span>
-              </button>
+                </button>
+
+                <div ref={menuThreadId === thread.requestId ? menuRef : null} className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setMenuThreadId((current) => (current === thread.requestId ? null : thread.requestId))}
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-full text-[#8f857b] transition hover:bg-[#fff0e8] hover:text-[#131316]"
+                    aria-label="Opciones del chat"
+                  >
+                    <EllipsisVertical className="h-5 w-5" />
+                  </button>
+
+                  {menuThreadId === thread.requestId ? (
+                    <div className="absolute right-0 top-[calc(100%+0.35rem)] z-20 w-48 rounded-[1.1rem] border border-[#eadfd6] bg-white p-2 shadow-[0_18px_36px_rgba(22,18,14,0.12)]">
+                      <button
+                        type="button"
+                        onClick={() => void toggleFavorite(thread.requestId)}
+                        className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm text-[#131316] hover:bg-[#fff3ec]"
+                      >
+                        <Star className={`h-4 w-4 ${isFavorite ? "fill-[#ffb54c] text-[#ffb54c]" : "text-[#8f857b]"}`} />
+                        <span>{isFavorite ? "Quitar favorito" : "Marcar favorito"}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void markAsReadFromMenu(thread.requestId)}
+                        className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm text-[#131316] hover:bg-[#fff3ec]"
+                      >
+                        <CheckCheck className="h-4 w-4 text-[#8f857b]" />
+                        <span>Marcar como leido</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void hideThread(thread.requestId)}
+                        className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm text-[#131316] hover:bg-[#fff3ec]"
+                      >
+                        <Trash2 className="h-4 w-4 text-[#d45b3d]" />
+                        <span>Eliminar chat</span>
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
             );
           })}
         </div>
