@@ -154,13 +154,47 @@ export function AuthForm() {
             <p className="font-semibold text-[#131316]">{copy.identityTitle}</p>
             <p className="mt-2">{copy.identityBody}</p>
           </div>
-          <select className="input" name="preferred_language" value={preferredLanguage} onChange={(event) => setPreferredLanguage(normalizeLanguage(event.target.value))}>
-            {LANGUAGE_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {copy.language}: {option.label}
-              </option>
-            ))}
-          </select>
+          <input type="hidden" name="preferred_language" value={preferredLanguage} />
+          <div className="rounded-[1.5rem] border border-[#eadfd6] bg-[linear-gradient(180deg,#fffdfa_0%,#fcfaf7_100%)] p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-[#131316]">{copy.language}</p>
+                <p className="mt-1 text-sm text-[#62626d]">
+                  {preferredLanguage === "es"
+                    ? "Tu experiencia y tus mensajes se mostraran primero en espanol."
+                    : "Your experience and messages will be shown in English first."}
+                </p>
+              </div>
+              <span className="rounded-full bg-[#fff2eb] px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-[#dc4f1f]">
+                {preferredLanguage === "es" ? "Activo" : "Active"}
+              </span>
+            </div>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              {LANGUAGE_OPTIONS.map((option) => {
+                const active = preferredLanguage === option.value;
+                const helper =
+                  option.value === "es"
+                    ? "Ideal si prefieres registrarte y conversar en espanol."
+                    : "Ideal if you prefer to browse and chat in English.";
+
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => setPreferredLanguage(normalizeLanguage(option.value))}
+                    className={`rounded-[1.35rem] border px-4 py-4 text-left transition ${
+                      active
+                        ? "border-[#ff6b35] bg-[linear-gradient(135deg,#ff6b35_0%,#ff8b5e_100%)] text-white shadow-[0_18px_30px_rgba(255,107,53,0.18)]"
+                        : "border-[#eadfd6] bg-white text-[#131316] hover:border-[#f0cbb8] hover:bg-[#fff8f3]"
+                    }`}
+                  >
+                    <p className="text-base font-semibold">{option.label}</p>
+                    <p className={`mt-2 text-sm ${active ? "text-white/82" : "text-[#62626d]"}`}>{helper}</p>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
           <input className="input" name="first_name" placeholder={copy.firstName} required />
           <input className="input" name="last_name" placeholder={copy.lastName} required />
           <input className="input" name="phone" placeholder={copy.phone} required />
