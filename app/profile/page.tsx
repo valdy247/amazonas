@@ -36,7 +36,7 @@ export default async function ProfilePage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("full_name, phone, role, profile_data")
+    .select("full_name, phone, role, profile_data, preferred_language")
     .eq("id", user.id)
     .single();
 
@@ -90,6 +90,7 @@ export default async function ProfilePage() {
             contactWhatsapp: profileData.contact.whatsapp,
             contactInstagram: profileData.contact.instagram,
             contactMessenger: profileData.contact.messenger,
+            preferredLanguage: profile?.preferred_language === "en" ? "en" : "es",
           }}
         />
       </main>

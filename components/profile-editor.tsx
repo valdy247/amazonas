@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { COUNTRY_OPTIONS, EXPERIENCE_LABELS, INTEREST_OPTIONS, type ExperienceLevel, type UserRole } from "@/lib/onboarding";
 import { AVAILABILITY_OPTIONS, type ReviewerAvailability } from "@/lib/profile-data";
+import { LANGUAGE_OPTIONS, normalizeLanguage, profileCopy, type AppLanguage } from "@/lib/i18n";
 
 type ProfileEditorProps = {
   email?: string | null;
@@ -24,6 +25,7 @@ type ProfileEditorProps = {
     contactWhatsapp: string;
     contactInstagram: string;
     contactMessenger: string;
+    preferredLanguage: AppLanguage;
   };
 };
 
@@ -35,6 +37,7 @@ export function ProfileEditor({ email, initialValues }: ProfileEditorProps) {
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
   const [values, setValues] = useState(initialValues);
+  const copy = profileCopy[values.preferredLanguage];
 
   function updateValue<K extends keyof typeof values>(key: K, value: (typeof values)[K]) {
     setValues((current) => ({ ...current, [key]: value }));
@@ -98,6 +101,7 @@ export function ProfileEditor({ email, initialValues }: ProfileEditorProps) {
       .from("profiles")
       .update({
         phone: values.phone.trim(),
+        preferred_language: values.preferredLanguage,
         profile_data: {
           country: values.country,
           experienceLevel: values.experienceLevel,
@@ -135,6 +139,7 @@ export function ProfileEditor({ email, initialValues }: ProfileEditorProps) {
           instagram: values.contactInstagram.trim(),
           messenger: values.contactMessenger.trim(),
         },
+        preferred_language: values.preferredLanguage,
       },
     });
 
@@ -184,6 +189,17 @@ export function ProfileEditor({ email, initialValues }: ProfileEditorProps) {
         </div>
         <div className="mt-3">
           <input className="input" value={values.phone} onChange={(event) => updateValue("phone", event.target.value)} placeholder="Telefono" />
+        </div>
+        <div className="mt-3">
+          <label className="mb-2 block text-sm font-semibold text-[#131316]">{copy.language}</label>
+          <select className="input" value={values.preferredLanguage} onChange={(event) => updateValue("preferredLanguage", normalizeLanguage(event.target.value))}>
+            {LANGUAGE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+          <p className="mt-2 text-sm text-[#62626d]">{copy.languageHelp}</p>
         </div>
       </section>
 

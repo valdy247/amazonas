@@ -12,6 +12,7 @@ import { normalizeUserRole } from "@/lib/onboarding";
 import { getReviewerContactMethods, mergeProfileData, type ReviewerAvailability } from "@/lib/profile-data";
 import { normalizeContactRequestData } from "@/lib/contact-requests";
 import { buildContactMethodsFromFields } from "@/lib/provider-contact";
+import { normalizeLanguage, type AppLanguage } from "@/lib/i18n";
 
 type ProviderContact = {
   id: string;
@@ -32,6 +33,7 @@ type ProfileRow = {
   role: string | null;
   email?: string | null;
   phone?: string | null;
+  preferred_language?: AppLanguage | null;
   accepted_terms_at?: string | null;
   created_at?: string | null;
   profile_data?: unknown;
@@ -55,6 +57,8 @@ type MessageRow = {
   request_id: number;
   sender_id: string;
   body: string;
+  source_language?: AppLanguage | null;
+  translations?: Record<string, string> | null;
   created_at: string;
   image_url?: string | null;
   image_path?: string | null;
@@ -76,6 +80,8 @@ type ConversationThread = {
     id: number;
     senderId: string;
     body: string;
+    sourceLanguage: AppLanguage;
+    translations?: Record<string, string> | null;
     createdAt: string;
     imageUrl?: string | null;
     imagePath?: string | null;
@@ -186,7 +192,7 @@ export default async function DashboardPage({
 
   const withProfileData = await supabase
     .from("profiles")
-    .select("full_name, role, email, profile_data")
+    .select("full_name, role, email, preferred_language, profile_data")
     .eq("id", user.id)
     .single();
 
@@ -194,7 +200,7 @@ export default async function DashboardPage({
     ? (
         await supabase
           .from("profiles")
-          .select("full_name, role, email")
+          .select("full_name, role, email, preferred_language")
           .eq("id", user.id)
           .single()
       ).data
@@ -234,6 +240,11 @@ export default async function DashboardPage({
   const testingKycStatus = typeof metadata.testing_kyc_state === "string" ? metadata.testing_kyc_state : null;
   const isAdmin = hasAdminAccess(profile?.role, profile?.email || user.email);
   const isProvider = role === "provider";
+  const currentUserLanguage = normalizeLanguage((profile as ProfileRow | null)?.preferred_language || metadata.preferred_language);
+  const reviewerQuickReplies =
+    currentUserLanguage === "en"
+      ? ["Hi, I am a reviewer and I would love to collaborate with you.", "Hi, what kind of products do you offer?"]
+      : ["Hola, soy resenadora y me gustaria colaborar con usted.", "Hola, que tipo de productos ofreces?"];
 
   const { data: membership } = await supabase.from("memberships").select("status").eq("user_id", user.id).single();
   const { data: kyc } = await supabase.from("kyc_checks").select("status, review_note").eq("user_id", user.id).single();
@@ -521,7 +532,7 @@ export default async function DashboardPage({
     if (acceptedRequestIds.length) {
       const { data: messageRows } = await supabase
         .from("request_messages")
-        .select("id, request_id, sender_id, body, created_at, image_url, image_path")
+        .select("id, request_id, sender_id, body, source_language, translations, created_at, image_url, image_path")
         .in("request_id", acceptedRequestIds)
         .order("created_at", { ascending: true });
 
@@ -544,6 +555,8 @@ export default async function DashboardPage({
             id: message.id,
             senderId: message.sender_id,
             body: message.body,
+            sourceLanguage: normalizeLanguage(message.source_language),
+            translations: message.translations || null,
             createdAt: message.created_at,
             imageUrl: message.image_url || null,
             imagePath: message.image_path || null,
@@ -583,7 +596,7 @@ export default async function DashboardPage({
     if (acceptedRequestIds.length) {
       const { data: messageRows } = await supabase
         .from("request_messages")
-        .select("id, request_id, sender_id, body, created_at, image_url, image_path")
+        .select("id, request_id, sender_id, body, source_language, translations, created_at, image_url, image_path")
         .in("request_id", acceptedRequestIds)
         .order("created_at", { ascending: true });
 
@@ -606,6 +619,8 @@ export default async function DashboardPage({
             id: message.id,
             senderId: message.sender_id,
             body: message.body,
+            sourceLanguage: normalizeLanguage(message.source_language),
+            translations: message.translations || null,
             createdAt: message.created_at,
             imageUrl: message.image_url || null,
             imagePath: message.image_path || null,
@@ -864,6 +879,7 @@ export default async function DashboardPage({
               key={collaborationInboxKey}
               currentUserId={user.id}
               currentUserRole={isProvider ? "provider" : "reviewer"}
+              currentUserLanguage={currentUserLanguage}
               title="Conversaciones activas"
               description={
                 isProvider
@@ -882,10 +898,7 @@ export default async function DashboardPage({
               quickReplies={
                 isProvider
                   ? []
-                  : [
-                      "Hola, soy resenadora y me gustaria colaborar con usted.",
-                      "Hola, que tipo de productos ofreces?",
-                    ]
+                  : reviewerQuickReplies
               }
             />
           </>

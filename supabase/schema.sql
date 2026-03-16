@@ -9,6 +9,7 @@ create table if not exists public.profiles (
   last_name text,
   full_name text,
   phone text,
+  preferred_language text default 'es' check (preferred_language in ('es', 'en')),
   profile_data jsonb default '{}'::jsonb,
   role text default 'pending' check (role in ('pending', 'tester', 'reviewer', 'provider', 'admin')),
   accepted_terms_at timestamptz,
@@ -18,7 +19,12 @@ create table if not exists public.profiles (
 alter table public.profiles add column if not exists first_name text;
 alter table public.profiles add column if not exists last_name text;
 alter table public.profiles add column if not exists phone text;
+alter table public.profiles add column if not exists preferred_language text default 'es';
 alter table public.profiles add column if not exists profile_data jsonb default '{}'::jsonb;
+alter table public.profiles drop constraint if exists profiles_preferred_language_check;
+alter table public.profiles
+add constraint profiles_preferred_language_check
+check (preferred_language in ('es', 'en'));
 
 create table if not exists public.memberships (
   user_id uuid primary key references public.profiles(id) on delete cascade,
@@ -101,13 +107,21 @@ create table if not exists public.request_messages (
   request_id bigint references public.reviewer_contact_requests(id) on delete cascade,
   sender_id uuid references public.profiles(id) on delete cascade,
   body text not null,
+  source_language text default 'es' check (source_language in ('es', 'en')),
+  translations jsonb default '{}'::jsonb,
   image_url text,
   image_path text,
   created_at timestamptz default now()
 );
 
+alter table public.request_messages add column if not exists source_language text default 'es';
+alter table public.request_messages add column if not exists translations jsonb default '{}'::jsonb;
 alter table public.request_messages add column if not exists image_url text;
 alter table public.request_messages add column if not exists image_path text;
+alter table public.request_messages drop constraint if exists request_messages_source_language_check;
+alter table public.request_messages
+add constraint request_messages_source_language_check
+check (source_language in ('es', 'en'));
 
 create or replace function public.handle_new_user()
 returns trigger
@@ -116,14 +130,15 @@ security definer
 set search_path = public
 as $$
 begin
-  insert into public.profiles (id, email, first_name, last_name, full_name, phone)
+  insert into public.profiles (id, email, first_name, last_name, full_name, phone, preferred_language)
   values (
     new.id,
     new.email,
     coalesce(new.raw_user_meta_data ->> 'first_name', ''),
     coalesce(new.raw_user_meta_data ->> 'last_name', ''),
     coalesce(new.raw_user_meta_data ->> 'full_name', ''),
-    coalesce(new.raw_user_meta_data ->> 'phone', '')
+    coalesce(new.raw_user_meta_data ->> 'phone', ''),
+    coalesce(new.raw_user_meta_data ->> 'preferred_language', 'es')
   );
 
   insert into public.memberships (user_id)

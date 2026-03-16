@@ -4,6 +4,7 @@ import type { FormEvent } from "react";
 import { useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { authCopy, LANGUAGE_OPTIONS, normalizeLanguage } from "@/lib/i18n";
 
 const phoneRegex = /^\+?[0-9()\-\s]{8,20}$/;
 
@@ -21,9 +22,11 @@ export function AuthForm() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [preferredLanguage, setPreferredLanguage] = useState(() => normalizeLanguage(params.get("lang")));
 
   const mode = useMemo(() => (params.get("mode") === "signup" ? "signup" : "signin"), [params]);
   const createdOk = params.get("created") === "1";
+  const copy = authCopy[preferredLanguage];
 
   function humanizeAuthError(raw: string) {
     const msg = raw.toLowerCase();
@@ -49,6 +52,7 @@ export function AuthForm() {
     const phone = String(formData.get("phone") || "").trim();
     const fullName = `${firstName} ${lastName}`.trim();
     const identityConfirmed = String(formData.get("identity_confirmation") || "") === "on";
+    const preferredLanguageValue = normalizeLanguage(formData.get("preferred_language"));
 
     try {
       if (mode === "signup") {
@@ -66,7 +70,13 @@ export function AuthForm() {
           body: JSON.stringify({
             email,
             password,
-            data: { first_name: firstName, last_name: lastName, phone, full_name: fullName },
+            data: {
+              first_name: firstName,
+              last_name: lastName,
+              phone,
+              full_name: fullName,
+              preferred_language: preferredLanguageValue,
+            },
           }),
         });
 
@@ -130,31 +140,34 @@ export function AuthForm() {
 
   return (
     <form onSubmit={onSubmit} className="card w-full space-y-4 p-4" noValidate>
-      <h1 className="text-2xl font-bold">{mode === "signup" ? "Crear cuenta" : "Iniciar sesion"}</h1>
+      <h1 className="text-2xl font-bold">{mode === "signup" ? copy.signupTitle : copy.signinTitle}</h1>
 
       {createdOk ? (
         <p className="rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-          Tu cuenta se ha creado satisfactoriamente. Ahora inicia sesion.
+          {copy.createdOk}
         </p>
       ) : null}
 
       {mode === "signup" ? (
         <div className="grid gap-3">
           <div className="rounded-[1.4rem] border border-[#f2d2c0] bg-[linear-gradient(180deg,#fff6f1_0%,#fffdfa_100%)] px-4 py-4 text-sm text-[#62564a]">
-            <p className="font-semibold text-[#131316]">Revisa bien tu informacion antes de continuar</p>
-            <p className="mt-2">
-              Tu identidad sera validada mas adelante con un documento oficial. Es importante que escribas tu nombre y apellidos tal como aparecen en tu documento para evitar retrasos en la verificacion.
-            </p>
+            <p className="font-semibold text-[#131316]">{copy.identityTitle}</p>
+            <p className="mt-2">{copy.identityBody}</p>
           </div>
-          <input className="input" name="first_name" placeholder="Nombre" required />
-          <input className="input" name="last_name" placeholder="Apellidos" required />
-          <input className="input" name="phone" placeholder="Telefono" required />
+          <select className="input" name="preferred_language" value={preferredLanguage} onChange={(event) => setPreferredLanguage(normalizeLanguage(event.target.value))}>
+            {LANGUAGE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {copy.language}: {option.label}
+              </option>
+            ))}
+          </select>
+          <input className="input" name="first_name" placeholder={copy.firstName} required />
+          <input className="input" name="last_name" placeholder={copy.lastName} required />
+          <input className="input" name="phone" placeholder={copy.phone} required />
           <label className="rounded-[1.2rem] border border-[#eadfd6] bg-[#fcfaf7] px-4 py-3 text-sm text-[#62564a]">
             <span className="flex items-start gap-3">
               <input className="mt-1" type="checkbox" name="identity_confirmation" required />
-              <span>
-                Confirmo que mi nombre y apellidos estan escritos correctamente y coinciden con mi documento oficial.
-              </span>
+              <span>{copy.identityConfirmation}</span>
             </span>
           </label>
         </div>
@@ -163,17 +176,17 @@ export function AuthForm() {
       <input
         className="input"
         name="email"
-        placeholder="Correo"
+        placeholder={copy.email}
         type="email"
         required
         defaultValue={params.get("email") || ""}
       />
-      <input className="input" name="password" placeholder="Contrasena" type="password" minLength={8} required />
+      <input className="input" name="password" placeholder={copy.password} type="password" minLength={8} required />
       {mode === "signup" ? (
         <input
           className="input"
           name="confirm_password"
-          placeholder="Confirmar contrasena"
+          placeholder={copy.confirmPassword}
           type="password"
           minLength={8}
           required
@@ -183,7 +196,7 @@ export function AuthForm() {
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
 
       <button type="submit" disabled={loading} className="btn-primary w-full">
-        {loading ? "Procesando..." : mode === "signup" ? "Crear cuenta" : "Entrar"}
+        {loading ? copy.processing : mode === "signup" ? copy.createAccount : copy.enter}
       </button>
     </form>
   );

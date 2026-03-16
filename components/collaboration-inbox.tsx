@@ -1,13 +1,16 @@
 "use client";
 
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { ArrowLeft, CheckCheck, EllipsisVertical, ImagePlus, MessageCircleMore, SendHorizontal, Star, Trash2, X } from "lucide-react";
+import { ArrowLeft, CheckCheck, Copy, EllipsisVertical, ImagePlus, MessageCircleMore, SendHorizontal, Star, Trash2, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { chatCopy, languageToLocale, normalizeLanguage, type AppLanguage } from "@/lib/i18n";
 
 type ConversationMessage = {
   id: number;
   senderId: string;
   body: string;
+  sourceLanguage: AppLanguage;
+  translations?: Record<string, string> | null;
   createdAt: string;
   imageUrl?: string | null;
   imagePath?: string | null;
@@ -32,6 +35,7 @@ type ConversationThread = {
 type CollaborationInboxProps = {
   currentUserId: string;
   currentUserRole: "provider" | "reviewer";
+  currentUserLanguage: AppLanguage;
   title: string;
   description: string;
   emptyTitle: string;
@@ -96,6 +100,7 @@ function setThreadPreference(
 export function CollaborationInbox({
   currentUserId,
   currentUserRole,
+  currentUserLanguage,
   title,
   description,
   emptyTitle,
@@ -106,6 +111,7 @@ export function CollaborationInbox({
   quickReplies = [],
 }: CollaborationInboxProps) {
   const [supabase] = useState(() => createClient());
+  const copy = chatCopy[currentUserLanguage];
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [items, setItems] = useState(threads);
   const [activeThreadId, setActiveThreadId] = useState<number | null>(initialThreadId);
@@ -128,6 +134,8 @@ export function CollaborationInbox({
   const [error, setError] = useState<string | null>(null);
   const [pendingId, setPendingId] = useState<number | null>(null);
   const [menuThreadId, setMenuThreadId] = useState<number | null>(null);
+  const [showOriginalByMessageId, setShowOriginalByMessageId] = useState<Record<number, boolean>>({});
+  const [copiedMessageId, setCopiedMessageId] = useState<number | null>(null);
   const [isPending, startTransition] = useTransition();
   const menuRef = useRef<HTMLDivElement | null>(null);
 
@@ -158,6 +166,20 @@ export function CollaborationInbox({
   const providerHasSentMessage = Boolean(
     activeThread && activeThread.messages.some((message) => message.senderId === currentUserId)
   );
+
+  function getRenderedMessage(message: ConversationMessage, isMine: boolean) {
+    const translatedBody =
+      !isMine && currentUserLanguage !== message.sourceLanguage
+        ? message.translations?.[currentUserLanguage] || null
+        : null;
+    const showOriginal = Boolean(showOriginalByMessageId[message.id]);
+
+    return {
+      translatedBody,
+      displayBody: translatedBody && !showOriginal ? translatedBody : message.body,
+      showOriginalToggle: Boolean(translatedBody),
+    };
+  }
 
   useEffect(() => {
     if (!activeThread) {
@@ -250,6 +272,8 @@ export function CollaborationInbox({
             request_id: number;
             sender_id: string;
             body: string;
+            source_language?: string | null;
+            translations?: Record<string, string> | null;
             created_at: string;
             image_url?: string | null;
             image_path?: string | null;
@@ -274,6 +298,8 @@ export function CollaborationInbox({
                     id: Number(message.id),
                     senderId: String(message.sender_id),
                     body: String(message.body || ""),
+                    sourceLanguage: normalizeLanguage(message.source_language),
+                    translations: message.translations || null,
                     createdAt: String(message.created_at),
                     imageUrl: typeof message.image_url === "string" ? message.image_url : null,
                     imagePath: typeof message.image_path === "string" ? message.image_path : null,
@@ -467,25 +493,48 @@ export function CollaborationInbox({
           imagePath = uploadResult.filePath;
         }
 
-        const { data, error: insertError } = await supabase
-          .from("request_messages")
-          .insert({
-            request_id: requestId,
-            sender_id: currentUserId,
+        const response = await fetch("/api/chat/messages", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            requestId,
             body: finalBody,
-            image_url: imageUrl,
-            image_path: imagePath,
-          })
-          .select("id, sender_id, body, created_at, image_url, image_path")
-          .single();
+            imageUrl,
+            imagePath,
+            requestData:
+              currentUserRole === "provider"
+                ? {
+                    ...(activeThreadData || {}),
+                    category: metaDraft?.category || "",
+                    productName: metaDraft?.productName || "",
+                    introSent:
+                      shouldAttachProviderIntro || (activeThreadData && (activeThreadData as { introSent?: unknown }).introSent === true) || false,
+                  }
+                : activeThreadData || {},
+          }),
+        });
 
-        if (insertError) {
-          setError(insertError.message);
+        const payload = (await response.json()) as {
+          error?: string;
+          data?: {
+            id: number;
+            sender_id: string;
+            body: string;
+            source_language?: string | null;
+            translations?: Record<string, string> | null;
+            created_at: string;
+            image_url?: string | null;
+            image_path?: string | null;
+          };
+        };
+
+        if (!response.ok || !payload.data) {
+          setError(payload.error || "No se pudo enviar el mensaje.");
           setPendingId(null);
           return;
         }
+        const insertedMessage = payload.data;
 
-        const timestamp = new Date().toISOString();
         const nextRequestData =
           currentUserRole === "provider"
             ? {
@@ -495,14 +544,7 @@ export function CollaborationInbox({
                 introSent: shouldAttachProviderIntro || (activeThreadData && (activeThreadData as { introSent?: unknown }).introSent === true) || false,
               }
             : (activeThreadData || {});
-        await supabase
-          .from("reviewer_contact_requests")
-          .update({
-            updated_at: timestamp,
-            last_activity_at: timestamp,
-            request_data: nextRequestData,
-          })
-          .eq("id", requestId);
+        const timestamp = insertedMessage.created_at;
 
         setItems((current) =>
           current.map((thread) =>
@@ -511,17 +553,19 @@ export function CollaborationInbox({
                   ...thread,
                   lastActivityAt: timestamp,
                   requestData: nextRequestData,
-                  messages: thread.messages.some((item) => item.id === Number(data.id))
+                  messages: thread.messages.some((item) => item.id === Number(insertedMessage.id))
                     ? thread.messages
                     : [
                         ...thread.messages,
                         {
-                          id: Number(data.id),
-                          senderId: String(data.sender_id),
-                          body: String(data.body || ""),
-                          createdAt: String(data.created_at),
-                          imageUrl: typeof data.image_url === "string" ? data.image_url : null,
-                          imagePath: typeof data.image_path === "string" ? data.image_path : null,
+                          id: Number(insertedMessage.id),
+                          senderId: String(insertedMessage.sender_id),
+                          body: String(insertedMessage.body || ""),
+                          sourceLanguage: normalizeLanguage(insertedMessage.source_language),
+                          translations: insertedMessage.translations || null,
+                          createdAt: String(insertedMessage.created_at),
+                          imageUrl: typeof insertedMessage.image_url === "string" ? insertedMessage.image_url : null,
+                          imagePath: typeof insertedMessage.image_path === "string" ? insertedMessage.image_path : null,
                         },
                       ],
                 }
@@ -573,8 +617,10 @@ export function CollaborationInbox({
 
         <div className="divide-y divide-[#efe5db]">
           {sortedThreads.map((thread) => {
-            const lastMessage = thread.messages[thread.messages.length - 1];
-            const preview = lastMessage?.body || (lastMessage?.imageUrl ? "Te enviaron una imagen" : "Toca para abrir el chat");
+          const lastMessage = thread.messages[thread.messages.length - 1];
+            const renderedPreview =
+              lastMessage && getRenderedMessage(lastMessage, lastMessage.senderId === currentUserId).displayBody;
+            const preview = renderedPreview || (lastMessage?.imageUrl ? copy.imageReceived : copy.tapToOpen);
             const lastIncomingMessageId = getLastIncomingMessageIdForThread(thread, currentUserId);
             const isFavorite = getThreadPreference(thread.requestData, currentUserRole, "favorite");
             const isUnread = Boolean(
@@ -595,7 +641,7 @@ export function CollaborationInbox({
                         <span className="truncate">{thread.counterpartName}</span>
                         {isFavorite ? <Star className="h-4 w-4 fill-[#ffb54c] text-[#ffb54c]" /> : null}
                       </span>
-                      <span className="text-xs text-[#8f857b]">{new Date(thread.lastActivityAt).toLocaleDateString()}</span>
+                      <span className="text-xs text-[#8f857b]">{new Date(thread.lastActivityAt).toLocaleDateString(languageToLocale(currentUserLanguage))}</span>
                     </span>
                     <span className="mt-1 flex items-center gap-2">
                       {isUnread ? <span className="h-2.5 w-2.5 rounded-full bg-[#ff3b30]" /> : null}
@@ -673,6 +719,7 @@ export function CollaborationInbox({
                 {activeThread.messages.length ? (
                   activeThread.messages.map((message) => {
                     const isMine = message.senderId === currentUserId;
+                    const renderedMessage = getRenderedMessage(message, isMine);
 
                     return (
                       <div key={message.id} className={`flex ${isMine ? "justify-end" : "justify-start"}`}>
@@ -687,9 +734,39 @@ export function CollaborationInbox({
                               <img src={message.imageUrl} alt="Imagen enviada en la conversacion" className="mb-3 max-h-72 w-full rounded-[1rem] object-cover" />
                             </div>
                           ) : null}
-                          {message.body ? <p className="whitespace-pre-wrap text-sm">{message.body}</p> : null}
+                          {renderedMessage.translatedBody && !isMine ? (
+                            <div className={`mb-2 rounded-full px-2 py-1 text-[10px] font-semibold ${isMine ? "bg-white/15 text-white/80" : "bg-[#fff3ec] text-[#c4562a]"}`}>
+                              {message.sourceLanguage === "en" ? copy.translatedFromEnglish : copy.translatedFromSpanish}
+                            </div>
+                          ) : null}
+                          {renderedMessage.displayBody ? <p className="whitespace-pre-wrap text-sm">{renderedMessage.displayBody}</p> : null}
+                          {renderedMessage.showOriginalToggle ? (
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              <button
+                                type="button"
+                                className={`text-[11px] font-semibold ${isMine ? "text-white/80" : "text-[#c4562a]"}`}
+                                onClick={() =>
+                                  setShowOriginalByMessageId((current) => ({ ...current, [message.id]: !current[message.id] }))
+                                }
+                              >
+                                {showOriginalByMessageId[message.id] ? copy.hideOriginal : copy.viewOriginal}
+                              </button>
+                              <button
+                                type="button"
+                                className={`inline-flex items-center gap-1 text-[11px] font-semibold ${isMine ? "text-white/80" : "text-[#c4562a]"}`}
+                                onClick={async () => {
+                                  await navigator.clipboard.writeText(message.body);
+                                  setCopiedMessageId(message.id);
+                                  window.setTimeout(() => setCopiedMessageId((current) => (current === message.id ? null : current)), 1800);
+                                }}
+                              >
+                                <Copy className="h-3 w-3" />
+                                {copiedMessageId === message.id ? copy.copied : copy.copyOriginal}
+                              </button>
+                            </div>
+                          ) : null}
                           <p className={`mt-2 text-[11px] ${isMine ? "text-white/70" : "text-[#8f857b]"}`}>
-                            {new Date(message.createdAt).toLocaleString()}
+                            {new Date(message.createdAt).toLocaleString(languageToLocale(currentUserLanguage))}
                           </p>
                         </div>
                       </div>
@@ -697,7 +774,7 @@ export function CollaborationInbox({
                   })
                 ) : (
                   <div className="rounded-[1.4rem] border border-dashed border-[#e8ddd2] bg-white px-4 py-5 text-center text-sm text-[#8f857b]">
-                    Aun no hay mensajes. Escribe el primero.
+                    {copy.noMessages}
                   </div>
                 )}
               </div>
@@ -776,7 +853,7 @@ export function CollaborationInbox({
                   className="min-h-11 flex-1 resize-none border-none bg-transparent text-sm text-[#131316] outline-none placeholder:text-[#8f857b]"
                   value={drafts[activeThread.requestId] || ""}
                   onChange={(event) => setDrafts((current) => ({ ...current, [activeThread.requestId]: event.target.value }))}
-                  placeholder="Escribe un mensaje..."
+                  placeholder={copy.writeMessage}
                 />
                 <button
                   type="button"
