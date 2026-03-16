@@ -16,6 +16,20 @@ type AdminUserManagerProps = {
   members: MemberRow[];
 };
 
+function getRoleMeta(role: string | null) {
+  switch (role) {
+    case "admin":
+      return { label: "Admin", className: "bg-[#ffe8dc] text-[#c64b1e]" };
+    case "provider":
+      return { label: "Provider", className: "bg-[#efe7ff] text-[#6f4ad1]" };
+    case "reviewer":
+    case "tester":
+      return { label: "Resenador", className: "bg-[#e8f7f0] text-[#177a52]" };
+    default:
+      return { label: "Pendiente", className: "bg-[#f3efe9] text-[#62564a]" };
+  }
+}
+
 export function AdminUserManager({ members }: AdminUserManagerProps) {
   const [query, setQuery] = useState("");
   const [openUserId, setOpenUserId] = useState<string | null>(members[0]?.id ?? null);
@@ -64,6 +78,7 @@ export function AdminUserManager({ members }: AdminUserManagerProps) {
       {filteredMembers.length ? (
         filteredMembers.map((member) => {
           const isOpen = openUserId === member.id;
+          const roleMeta = getRoleMeta(member.role);
 
           return (
             <article key={member.id} className="overflow-hidden rounded-[1.35rem] border border-[#e5ddd3] bg-[#fffdfa]">
@@ -74,7 +89,12 @@ export function AdminUserManager({ members }: AdminUserManagerProps) {
               >
                 <div>
                   <p className="font-semibold">{member.full_name || "Sin nombre"}</p>
-                  <p className="mt-1 text-xs text-[#62626d]">{member.email || "Sin correo"} · {member.role || "sin definir"}</p>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <span className="text-xs text-[#62626d]">{member.email || "Sin correo"}</span>
+                    <span className={`rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] ${roleMeta.className}`}>
+                      {roleMeta.label}
+                    </span>
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="rounded-full bg-[#f6f0e9] px-3 py-1 text-xs font-semibold text-[#62564a]">
@@ -87,6 +107,7 @@ export function AdminUserManager({ members }: AdminUserManagerProps) {
               {isOpen ? (
                 <div className="border-t border-[#efe5db] px-4 py-4">
                   <div className="mb-3 flex flex-wrap gap-2 text-xs font-semibold text-[#62564a]">
+                    <span className={`rounded-full px-3 py-1 ${roleMeta.className}`}>Rol: {roleMeta.label}</span>
                     <span className="rounded-full bg-[#f6f0e9] px-3 py-1">Membresia: {member.membershipStatus}</span>
                     <span className="rounded-full bg-[#f6f0e9] px-3 py-1">KYC: {member.kycStatus}</span>
                   </div>
@@ -105,7 +126,9 @@ export function AdminUserManager({ members }: AdminUserManagerProps) {
                       <option value="approved">approved</option>
                       <option value="rejected">rejected</option>
                     </select>
-                    <button className="btn-secondary" type="submit">Actualizar</button>
+                    <button className="btn-secondary" type="submit">
+                      Actualizar
+                    </button>
                   </form>
                 </div>
               ) : null}
