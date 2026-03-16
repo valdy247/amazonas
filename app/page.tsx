@@ -1,7 +1,6 @@
-import Image from "next/image";
 import Link from "next/link";
 import { Suspense } from "react";
-import { ShieldCheck, Users } from "lucide-react";
+import { ShieldCheck, Sparkles, Users } from "lucide-react";
 import { LandingFooter } from "@/components/landing-footer";
 import { ProviderInviteModal } from "@/components/provider-invite-modal";
 import { SiteHeader } from "@/components/site-header";
@@ -18,22 +17,46 @@ export default function Home() {
         <ProviderInviteModal language={language} />
       </Suspense>
 
-      <section className="w-full border-b border-[#e5e5df] bg-white">
-        <Image src="/hero.png" alt="Verifyzon" width={1800} height={1200} className="h-auto w-full object-contain" priority />
-      </section>
-
       <main className="container-x py-6 sm:py-10">
-        <section className="space-y-4">
-          <span className="inline-flex rounded-full bg-[#fff3ec] px-3 py-1 text-xs font-bold text-[#dc4f1f]">{copy.verifiedCommunity}</span>
-          <h1 className="text-4xl font-extrabold leading-tight sm:text-5xl">{copy.headline}</h1>
-          <p className="text-sm text-[#62626d] sm:text-base">{copy.body}</p>
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <Link href={`/auth?mode=signup&lang=${language}`} className="btn-primary w-full sm:w-auto">
-              {copy.startNow}
-            </Link>
-            <Link href={`/auth?mode=signin&lang=${language}`} className="btn-secondary w-full sm:w-auto">
-              {copy.alreadyHaveAccount}
-            </Link>
+        <section className="overflow-hidden rounded-[2.3rem] border border-[#eadfd6] bg-[radial-gradient(circle_at_top_left,#fff7f1_0%,#fffdfb_45%,#ffffff_100%)] px-5 py-8 shadow-[0_26px_70px_rgba(24,20,16,0.06)] sm:px-8 sm:py-10">
+          <div className="mx-auto max-w-4xl text-center">
+            <span className="inline-flex items-center gap-2 rounded-full bg-[#fff1e8] px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-[#dc4f1f]">
+              <Sparkles className="h-3.5 w-3.5" />
+              {copy.verifiedCommunity}
+            </span>
+            <h1 className="mt-5 text-4xl font-extrabold leading-tight text-[#131316] sm:text-6xl">
+              {copy.headline}
+            </h1>
+            <p className="mx-auto mt-5 max-w-2xl text-sm leading-7 text-[#62564a] sm:text-base">
+              {copy.body}
+            </p>
+
+            <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
+              <Link href={`/auth?mode=signup&lang=${language}`} className="btn-primary w-full sm:w-auto">
+                {copy.startNow}
+              </Link>
+              <Link href={`/auth?mode=signin&lang=${language}`} className="btn-secondary w-full sm:w-auto">
+                {copy.alreadyHaveAccount}
+              </Link>
+            </div>
+
+            <div className="mt-8 grid gap-3 text-left sm:grid-cols-3">
+              <article className="rounded-[1.5rem] border border-[#eee4db] bg-white/90 p-4">
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8f857b]">KYC</p>
+                <p className="mt-2 text-sm font-semibold text-[#131316]">Verified identity</p>
+                <p className="mt-1 text-sm text-[#6a6158]">Profiles are designed to feel safer before any collaboration starts.</p>
+              </article>
+              <article className="rounded-[1.5rem] border border-[#eee4db] bg-white/90 p-4">
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8f857b]">Messaging</p>
+                <p className="mt-2 text-sm font-semibold text-[#131316]">Cross-language communication</p>
+                <p className="mt-1 text-sm text-[#6a6158]">Providers and reviewers can talk naturally even when they use different languages.</p>
+              </article>
+              <article className="rounded-[1.5rem] border border-[#eee4db] bg-white/90 p-4">
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8f857b]">Trust</p>
+                <p className="mt-2 text-sm font-semibold text-[#131316]">Clear collaboration rules</p>
+                <p className="mt-1 text-sm text-[#6a6158]">The platform is structured around transparency, identity checks, and cleaner contact flows.</p>
+              </article>
+            </div>
           </div>
         </section>
 
