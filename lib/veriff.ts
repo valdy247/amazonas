@@ -21,6 +21,11 @@ type VeriffDecisionPayload = {
     reason?: string | null;
     reasonCode?: number | null;
     decisionTime?: string | null;
+    person?: {
+      firstName?: string | null;
+      lastName?: string | null;
+      fullName?: string | null;
+    };
   };
 };
 
