@@ -23,11 +23,25 @@ export function PushNotificationManager({ userId, language }: PushNotificationMa
   const [supported, setSupported] = useState(false);
   const [unsupported, setUnsupported] = useState(false);
   const permission = typeof window !== "undefined" && "Notification" in window ? Notification.permission : "default";
+  const [isIosSafari, setIsIosSafari] = useState(false);
+  const [isStandalone, setIsStandalone] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") {
       return;
     }
+
+    const userAgent = window.navigator.userAgent;
+    const isIos = /iPad|iPhone|iPod/.test(userAgent);
+    const isSafari = /^((?!chrome|android).)*safari/i.test(userAgent);
+    const standalone =
+      window.matchMedia?.("(display-mode: standalone)")?.matches ||
+      (typeof navigator !== "undefined" &&
+        "standalone" in navigator &&
+        Boolean((navigator as Navigator & { standalone?: boolean }).standalone));
+
+    setIsIosSafari(isIos && isSafari);
+    setIsStandalone(Boolean(standalone));
 
     const isSupported =
       "Notification" in window &&
@@ -141,6 +155,23 @@ export function PushNotificationManager({ userId, language }: PushNotificationMa
             <p className="mt-1 text-sm text-[#62626d]">
               {unsupported ? copy.unsupported : copy.body}
             </p>
+            <div className="mt-3 rounded-[1.15rem] bg-[#fff8f3] px-4 py-3">
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#8f857b]">{copy.stepsLabel}</p>
+              <ol className="mt-2 space-y-2 text-sm text-[#62564a]">
+                {isIosSafari ? (
+                  <>
+                    {!isStandalone ? <li>{copy.iosStepInstall}</li> : <li>{copy.iosStepOpen}</li>}
+                    <li>{copy.iosStepAllow}</li>
+                    <li>{copy.iosStepKeep}</li>
+                  </>
+                ) : (
+                  <>
+                    <li>{copy.generalStepAllow}</li>
+                    <li>{copy.generalStepKeep}</li>
+                  </>
+                )}
+              </ol>
+            </div>
           </div>
         </div>
 
