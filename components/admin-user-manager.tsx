@@ -34,6 +34,32 @@ function getRoleMeta(role: string | null) {
   }
 }
 
+function getMembershipMeta(status: string) {
+  switch (status) {
+    case "active":
+      return { label: "Activa", className: "bg-[#e8f7f0] text-[#177a52]" };
+    case "paid":
+      return { label: "Pagada", className: "bg-[#fff3dc] text-[#b77212]" };
+    case "suspended":
+      return { label: "Suspendida", className: "bg-[#fff1f1] text-[#c24d3a]" };
+    default:
+      return { label: "Pago pendiente", className: "bg-[#f3efe9] text-[#62564a]" };
+  }
+}
+
+function getKycMeta(status: string) {
+  switch (status) {
+    case "approved":
+      return { label: "Aprobado", className: "bg-[#e8f7f0] text-[#177a52]" };
+    case "rejected":
+      return { label: "Rechazado", className: "bg-[#fff1f1] text-[#c24d3a]" };
+    case "in_review":
+      return { label: "En revision", className: "bg-[#fff3dc] text-[#b77212]" };
+    default:
+      return { label: "Pendiente", className: "bg-[#f3efe9] text-[#62564a]" };
+  }
+}
+
 export function AdminUserManager({ members }: AdminUserManagerProps) {
   const [query, setQuery] = useState("");
   const [openUserId, setOpenUserId] = useState<string | null>(members[0]?.id ?? null);
@@ -83,6 +109,8 @@ export function AdminUserManager({ members }: AdminUserManagerProps) {
         filteredMembers.map((member) => {
           const isOpen = openUserId === member.id;
           const roleMeta = getRoleMeta(member.role);
+          const membershipMeta = getMembershipMeta(member.membershipStatus);
+          const kycMeta = getKycMeta(member.kycStatus);
 
           return (
             <article key={member.id} className="overflow-hidden rounded-[1.35rem] border border-[#e5ddd3] bg-[#fffdfa]">
@@ -104,8 +132,8 @@ export function AdminUserManager({ members }: AdminUserManagerProps) {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="rounded-full bg-[#f6f0e9] px-3 py-1 text-xs font-semibold text-[#62564a]">
-                    {member.membershipStatus}
+                  <span className={`rounded-full px-3 py-1 text-xs font-semibold ${membershipMeta.className}`}>
+                    {membershipMeta.label}
                   </span>
                   <span className="text-lg text-[#8f857b]">{isOpen ? "-" : "+"}</span>
                 </div>
@@ -115,8 +143,8 @@ export function AdminUserManager({ members }: AdminUserManagerProps) {
                 <div className="border-t border-[#efe5db] px-4 py-4">
                   <div className="mb-3 flex flex-wrap gap-2 text-xs font-semibold text-[#62564a]">
                     <span className={`rounded-full px-3 py-1 ${roleMeta.className}`}>Rol: {roleMeta.label}</span>
-                    <span className="rounded-full bg-[#f6f0e9] px-3 py-1">Membresia: {member.membershipStatus}</span>
-                    <span className="rounded-full bg-[#f6f0e9] px-3 py-1">KYC: {member.kycStatus}</span>
+                    <span className={`rounded-full px-3 py-1 ${membershipMeta.className}`}>Membresia: {membershipMeta.label}</span>
+                    <span className={`rounded-full px-3 py-1 ${kycMeta.className}`}>KYC: {kycMeta.label}</span>
                   </div>
 
                   <div className="mb-4 grid gap-2 rounded-[1.1rem] border border-[#efe5db] bg-[#fffaf6] p-3 text-sm text-[#62564a]">
@@ -137,28 +165,47 @@ export function AdminUserManager({ members }: AdminUserManagerProps) {
                     </p>
                     {member.kycReviewNote ? (
                       <p>
-                        <span className="font-semibold text-[#131316]">Nota:</span> {member.kycReviewNote}
+                        <span className="font-semibold text-[#131316]">Nota de revision:</span> {member.kycReviewNote}
                       </p>
                     ) : null}
                   </div>
 
-                  <form action={updateMemberStatus} className="grid gap-2 sm:grid-cols-4 sm:items-center">
+                  <form action={updateMemberStatus} className="grid gap-3 rounded-[1.1rem] border border-[#efe5db] bg-[#fffaf6] p-3">
                     <input type="hidden" name="user_id" value={member.id} />
-                    <select className="input" name="membership_status" defaultValue={member.membershipStatus}>
-                      <option value="pending_payment">pending_payment</option>
-                      <option value="paid">paid</option>
-                      <option value="active">active</option>
-                      <option value="suspended">suspended</option>
-                    </select>
-                    <select className="input" name="kyc_status" defaultValue={member.kycStatus}>
-                      <option value="pending">pending</option>
-                      <option value="in_review">in_review</option>
-                      <option value="approved">approved</option>
-                      <option value="rejected">rejected</option>
-                    </select>
-                    <button className="btn-secondary" type="submit">
-                      Actualizar
-                    </button>
+                    <div className="grid gap-2 sm:grid-cols-3">
+                      <label className="grid gap-1 text-sm text-[#62564a]">
+                        <span className="font-semibold text-[#131316]">Membresia</span>
+                        <select className="input" name="membership_status" defaultValue={member.membershipStatus}>
+                          <option value="pending_payment">Pago pendiente</option>
+                          <option value="paid">Pagada</option>
+                          <option value="active">Activa</option>
+                          <option value="suspended">Suspendida</option>
+                        </select>
+                      </label>
+                      <label className="grid gap-1 text-sm text-[#62564a]">
+                        <span className="font-semibold text-[#131316]">Estado KYC</span>
+                        <select className="input" name="kyc_status" defaultValue={member.kycStatus}>
+                          <option value="pending">Pendiente</option>
+                          <option value="in_review">En revision</option>
+                          <option value="approved">Aprobado</option>
+                          <option value="rejected">Rechazado</option>
+                        </select>
+                      </label>
+                      <label className="grid gap-1 text-sm text-[#62564a] sm:col-span-1">
+                        <span className="font-semibold text-[#131316]">Nota de revision</span>
+                        <textarea
+                          className="input min-h-24"
+                          name="kyc_review_note"
+                          defaultValue={member.kycReviewNote || ""}
+                          placeholder="Explica si hubo mismatch, fraude, reintento o aprobacion manual."
+                        />
+                      </label>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <button className="btn-secondary" type="submit">
+                        Guardar decision
+                      </button>
+                    </div>
                   </form>
 
                   <div className="mt-4 grid gap-3 rounded-[1.1rem] border border-[#efe5db] bg-[#fffaf6] p-3 sm:grid-cols-2">

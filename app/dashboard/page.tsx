@@ -72,6 +72,7 @@ type SupportThreadRow = {
   category: string;
   subject: string;
   status: string;
+  priority: string;
   last_activity_at: string;
   assigned_admin_id?: string | null;
 };
@@ -330,8 +331,10 @@ export default async function DashboardPage({
     subject: string;
     category: string;
     status: string;
+    priority: string;
     lastActivityAt: string;
     assignedAdminId?: string | null;
+    assignedAdminName?: string | null;
     messages: Array<{
       id: number;
       senderId: string;
@@ -609,7 +612,7 @@ export default async function DashboardPage({
 
   const { data: supportThreadRows } = await supabase
     .from("support_threads")
-    .select("id, user_id, category, subject, status, last_activity_at, assigned_admin_id")
+    .select("id, user_id, category, subject, status, priority, last_activity_at, assigned_admin_id")
     .eq("user_id", user.id)
     .order("last_activity_at", { ascending: false });
 
@@ -629,8 +632,10 @@ export default async function DashboardPage({
       subject: thread.subject,
       category: thread.category,
       status: thread.status,
+      priority: thread.priority || "normal",
       lastActivityAt: thread.last_activity_at,
       assignedAdminId: thread.assigned_admin_id || null,
+      assignedAdminName: thread.assigned_admin_id ? "Soporte" : null,
       messages: ((supportMessageRows || []) as SupportMessageRow[])
         .filter((message) => message.thread_id === thread.id)
         .map((message) => ({

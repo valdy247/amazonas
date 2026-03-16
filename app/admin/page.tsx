@@ -5,8 +5,8 @@ import { AdminSectionNav } from "@/components/admin-section-nav";
 import { AdminUserManager } from "@/components/admin-user-manager";
 import { SupportCenter } from "@/components/support-center";
 import { SiteHeader } from "@/components/site-header";
-import { createClient } from "@/lib/supabase/server";
 import { hasAdminAccess } from "@/lib/admin";
+import { createClient } from "@/lib/supabase/server";
 import { WHATSAPP_PREFIX_OPTIONS } from "@/lib/whatsapp-prefix-options";
 import { createAdminUser } from "./actions";
 
@@ -49,6 +49,7 @@ type SupportThreadRow = {
   category: string;
   subject: string;
   status: string;
+  priority: string;
   last_activity_at: string;
   assigned_admin_id?: string | null;
 };
@@ -58,6 +59,15 @@ type SupportMessageRow = {
   thread_id: number;
   sender_id: string;
   body: string;
+  created_at: string;
+};
+
+type WebhookAuditRow = {
+  provider: string;
+  event_type: string | null;
+  status_code: number;
+  reference_id: string | null;
+  response_message: string | null;
   created_at: string;
 };
 
@@ -100,45 +110,65 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   const availableSections = [...ADMIN_SECTIONS, ...ADMIN_EXTRA_SECTIONS];
   const activeSection: string = availableSections.some((section) => section.id === requestedSection) ? String(requestedSection) : "providers";
 
-  const { data: members } = await supabase
-    .from("profiles")
-    .select("id, full_name, email, role")
-    .order("created_at", { ascending: false })
-    .limit(30);
-
+  const { data: members } = await supabase.from("profiles").select("id, full_name, email, role").order("created_at", { ascending: false }).limit(30);
   const memberIds = (members ?? []).map((member) => member.id);
 
-  const { data: memberships } = await supabase.from("memberships").select("user_id, status").in("user_id", memberIds);
-  const { data: kycRows } = await supabase
-    .from("kyc_checks")
-    .select("user_id, status, reference_id, verified_full_name, review_note, reviewed_at")
-    .in("user_id", memberIds);
+  const [
+    { data: memberships },
+    { data: kycRows },
+    { count: activeMembersCount },
+    { count: approvedKycCount },
+    { count: kycInReviewCount },
+    { count: pendingPaymentCount },
+    { count: chatThreadsCount },
+    messageThreadsResult,
+    { count: supportOpenCount },
+    { count: supportResolvedCount },
+    webhookLogResult,
+  ] = await Promise.all([
+    supabase.from("memberships").select("user_id, status").in("user_id", memberIds),
+    supabase.from("kyc_checks").select("user_id, status, reference_id, verified_full_name, review_note, reviewed_at").in("user_id", memberIds),
+    supabase.from("memberships").select("*", { count: "exact", head: true }).eq("status", "active"),
+    supabase.from("kyc_checks").select("*", { count: "exact", head: true }).eq("status", "approved"),
+    supabase.from("kyc_checks").select("*", { count: "exact", head: true }).eq("status", "in_review"),
+    supabase.from("memberships").select("*", { count: "exact", head: true }).eq("status", "pending_payment"),
+    supabase.from("reviewer_contact_requests").select("*", { count: "exact", head: true }),
+    supabase.from("request_messages").select("request_id"),
+    supabase.from("support_threads").select("*", { count: "exact", head: true }).in("status", ["open", "in_progress"]),
+    supabase.from("support_threads").select("*", { count: "exact", head: true }).eq("status", "resolved"),
+    supabase
+      .from("webhook_audit_logs")
+      .select("provider, event_type, status_code, reference_id, response_message, created_at")
+      .order("created_at", { ascending: false })
+      .limit(40),
+  ]);
 
   const membershipByUser = new Map((memberships as MembershipRow[] | null)?.map((item) => [item.user_id, item.status]) ?? []);
   const kycByUser = new Map((kycRows as KycRow[] | null)?.map((item) => [item.user_id, item]) ?? []);
   const reviewerCount = (members || []).filter((member) => member.role === "reviewer" || member.role === "tester").length;
   const providerCount = (members || []).filter((member) => member.role === "provider").length;
-  const [{ count: activeMembersCount }, { count: approvedKycCount }, { count: chatThreadsCount }, messageThreadsResult, { count: supportOpenCount }, webhookLogResult] =
-    await Promise.all([
-      supabase.from("memberships").select("*", { count: "exact", head: true }).eq("status", "active"),
-      supabase.from("kyc_checks").select("*", { count: "exact", head: true }).eq("status", "approved"),
-      supabase.from("reviewer_contact_requests").select("*", { count: "exact", head: true }),
-      supabase.from("request_messages").select("request_id"),
-      supabase.from("support_threads").select("*", { count: "exact", head: true }).in("status", ["open", "in_progress"]),
-      supabase.from("webhook_audit_logs").select("provider, status_code").order("created_at", { ascending: false }).limit(40),
-    ]);
   const chatsStartedCount = new Set(((messageThreadsResult.data as Array<{ request_id: number }> | null) || []).map((item) => item.request_id)).size;
+  const kycApprovalRate = Math.round(((approvedKycCount || 0) / Math.max((approvedKycCount || 0) + (kycInReviewCount || 0), 1)) * 100);
+  const supportResolutionRate = Math.round(((supportResolvedCount || 0) / Math.max((supportResolvedCount || 0) + (supportOpenCount || 0), 1)) * 100);
+  const webhookRows = ((webhookLogResult.data as WebhookAuditRow[] | null) || []);
+  const webhookFailureCount = webhookRows.filter((row) => row.status_code >= 400).length;
 
   const { data: supportThreadRows } = await supabase
     .from("support_threads")
-    .select("id, user_id, category, subject, status, last_activity_at, assigned_admin_id")
+    .select("id, user_id, category, subject, status, priority, last_activity_at, assigned_admin_id")
     .order("last_activity_at", { ascending: false })
     .limit(40);
-  const supportUserIds = Array.from(new Set(((supportThreadRows as SupportThreadRow[] | null) || []).map((row) => row.user_id)));
+  const supportUserIds = Array.from(
+    new Set(
+      ((supportThreadRows as SupportThreadRow[] | null) || []).flatMap((row) =>
+        [row.user_id, row.assigned_admin_id].filter(Boolean) as string[]
+      )
+    )
+  );
   const { data: supportProfiles } = supportUserIds.length
     ? await supabase.from("profiles").select("id, full_name, email").in("id", supportUserIds)
     : { data: [] };
-  const supportProfileMap = new Map((supportProfiles || []).map((profile: { id: string; full_name: string | null; email: string | null }) => [profile.id, profile]));
+  const supportProfileMap = new Map((supportProfiles || []).map((item: { id: string; full_name: string | null; email: string | null }) => [item.id, item]));
   const supportThreadIds = ((supportThreadRows as SupportThreadRow[] | null) || []).map((row) => row.id);
   const { data: supportMessageRows } = supportThreadIds.length
     ? await supabase
@@ -149,7 +179,6 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     : { data: [] };
 
   let contacts: ContactRow[] = [];
-
   const withMethods = await supabase
     .from("provider_contacts")
     .select("id, title, email, network, url, notes, is_active, is_verified, contact_methods")
@@ -168,11 +197,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         .order("created_at", { ascending: false });
 
       if (withNotes.error) {
-        const fallback = await supabase
-          .from("provider_contacts")
-          .select("id, title, network, url, is_active")
-          .order("created_at", { ascending: false });
-
+        const fallback = await supabase.from("provider_contacts").select("id, title, network, url, is_active").order("created_at", { ascending: false });
         contacts = (fallback.data || []).map((contact) => ({
           ...contact,
           email: null,
@@ -220,7 +245,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
               <p className="text-xs uppercase tracking-[0.24em] text-white/55">Control Center</p>
               <h1 className="mt-2 text-3xl font-bold">Panel admin</h1>
               <p className="mt-2 max-w-2xl text-sm text-white/70">
-                La lista de proveedores ahora vive en su propia seccion para que no quede escondida debajo del resto del panel.
+                Ahora tienes una vista mucho mas operativa para pagos, verificacion, soporte, proveedores y salud general del sistema.
               </p>
             </div>
           </div>
@@ -237,7 +262,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <h2 className="font-bold">Lista de proveedores</h2>
-                    <p className="mt-1 text-sm text-[#62626d]">Solo ves el nombre al inicio. Toca un proveedor para abrir su ficha y editarlo.</p>
+                    <p className="mt-1 text-sm text-[#62626d]">Solo ves el alias al inicio. Toca un proveedor para abrir su ficha, revisar sus datos y actualizarlo.</p>
                   </div>
                   <span className="rounded-full bg-[#fff2eb] px-3 py-2 text-xs font-bold uppercase tracking-[0.18em] text-[#dc4f1f]">
                     {contacts.length} contactos
@@ -259,7 +284,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <h2 className="font-bold">Usuarios</h2>
-                  <p className="mt-1 text-sm text-[#62626d]">Actualiza membresia y KYC sin perder tiempo buscando la seccion correcta.</p>
+                  <p className="mt-1 text-sm text-[#62626d]">Aqui puedes tomar decisiones manuales sobre membresia, KYC, recuperacion y cambios de correo sin salir del panel.</p>
                 </div>
                 <span className="rounded-full bg-[#fff2eb] px-3 py-2 text-xs font-bold uppercase tracking-[0.18em] text-[#dc4f1f]">
                   {members?.length || 0} visibles
@@ -285,10 +310,12 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
           {activeSection === "options" ? (
             <div className="card p-4">
               <h2 className="font-bold">Opciones admin</h2>
-              <p className="mt-1 text-sm text-[#62626d]">Gestiona permisos internos y accesos especiales.</p>
+              <p className="mt-1 text-sm text-[#62626d]">Gestiona permisos internos, administradores y accesos especiales.</p>
               <form action={createAdminUser} noValidate className="mt-4 flex flex-col gap-2 sm:flex-row">
                 <input className="input" name="email" placeholder="correo@dominio.com" />
-                <button className="btn-primary" type="submit">Asignar admin</button>
+                <button className="btn-primary" type="submit">
+                  Asignar admin
+                </button>
               </form>
             </div>
           ) : null}
@@ -298,7 +325,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <h2 className="font-bold">Metricas</h2>
-                  <p className="mt-1 text-sm text-[#62626d]">Resumen rapido del estado actual del panel admin.</p>
+                  <p className="mt-1 text-sm text-[#62626d]">Una vista operativa de conversion, soporte, mensajeria y salud tecnica.</p>
                 </div>
                 <span className="rounded-full bg-[#fff2eb] px-3 py-2 text-xs font-bold uppercase tracking-[0.18em] text-[#dc4f1f]">
                   Vista interna
@@ -306,59 +333,68 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
               </div>
 
               <div className="mt-4 grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
-                <div className="rounded-[1.4rem] border border-[#eadfd6] bg-[#fffaf7] p-4">
-                  <p className="text-xs uppercase tracking-[0.18em] text-[#8f857b]">Proveedores</p>
-                  <p className="mt-2 text-3xl font-bold text-[#131316]">{contacts.length}</p>
-                  <p className="mt-1 text-sm text-[#62626d]">Contactos cargados en el sistema.</p>
-                </div>
-                <div className="rounded-[1.4rem] border border-[#eadfd6] bg-[#fffaf7] p-4">
-                  <p className="text-xs uppercase tracking-[0.18em] text-[#8f857b]">Reseñadores</p>
-                  <p className="mt-2 text-3xl font-bold text-[#131316]">{reviewerCount}</p>
-                  <p className="mt-1 text-sm text-[#62626d]">Perfiles visibles de reseñadores en la lista actual.</p>
-                </div>
-                <div className="rounded-[1.4rem] border border-[#eadfd6] bg-[#fffaf7] p-4">
-                  <p className="text-xs uppercase tracking-[0.18em] text-[#8f857b]">Providers</p>
-                  <p className="mt-2 text-3xl font-bold text-[#131316]">{providerCount}</p>
-                  <p className="mt-1 text-sm text-[#62626d]">Perfiles visibles de providers en la lista actual.</p>
-                </div>
-                <div className="rounded-[1.4rem] border border-[#eadfd6] bg-[#fffaf7] p-4">
-                  <p className="text-xs uppercase tracking-[0.18em] text-[#8f857b]">Membresias activas</p>
-                  <p className="mt-2 text-3xl font-bold text-[#131316]">{activeMembersCount || 0}</p>
-                  <p className="mt-1 text-sm text-[#62626d]">Usuarios con acceso completo por pago.</p>
-                </div>
-                <div className="rounded-[1.4rem] border border-[#eadfd6] bg-[#fffaf7] p-4">
-                  <p className="text-xs uppercase tracking-[0.18em] text-[#8f857b]">KYC aprobados</p>
-                  <p className="mt-2 text-3xl font-bold text-[#131316]">{approvedKycCount || 0}</p>
-                  <p className="mt-1 text-sm text-[#62626d]">Identidades validadas correctamente.</p>
-                </div>
-                <div className="rounded-[1.4rem] border border-[#eadfd6] bg-[#fffaf7] p-4">
-                  <p className="text-xs uppercase tracking-[0.18em] text-[#8f857b]">Hilos iniciados</p>
-                  <p className="mt-2 text-3xl font-bold text-[#131316]">{chatThreadsCount || 0}</p>
-                  <p className="mt-1 text-sm text-[#62626d]">Contactos entre providers y reseñadores.</p>
-                </div>
-                <div className="rounded-[1.4rem] border border-[#eadfd6] bg-[#fffaf7] p-4">
-                  <p className="text-xs uppercase tracking-[0.18em] text-[#8f857b]">Chats activos</p>
-                  <p className="mt-2 text-3xl font-bold text-[#131316]">{chatsStartedCount}</p>
-                  <p className="mt-1 text-sm text-[#62626d]">Conversaciones con al menos un mensaje.</p>
-                </div>
-                <div className="rounded-[1.4rem] border border-[#eadfd6] bg-[#fffaf7] p-4">
-                  <p className="text-xs uppercase tracking-[0.18em] text-[#8f857b]">Soporte abierto</p>
-                  <p className="mt-2 text-3xl font-bold text-[#131316]">{supportOpenCount || 0}</p>
-                  <p className="mt-1 text-sm text-[#62626d]">Casos que siguen pendientes o en proceso.</p>
-                </div>
+                <MetricCard title="Proveedores" value={contacts.length} body="Contactos cargados en el sistema." />
+                <MetricCard title="Resenadores" value={reviewerCount} body="Perfiles visibles de resenadores en la lista actual." />
+                <MetricCard title="Providers" value={providerCount} body="Perfiles visibles de providers en la lista actual." />
+                <MetricCard title="Membresias activas" value={activeMembersCount || 0} body="Usuarios con acceso completo por pago." />
+                <MetricCard title="Pago pendiente" value={pendingPaymentCount || 0} body="Usuarios que aun no completan la membresia." />
+                <MetricCard title="KYC aprobados" value={approvedKycCount || 0} body="Identidades validadas correctamente." />
+                <MetricCard title="KYC en revision" value={kycInReviewCount || 0} body="Casos que requieren mirada manual." />
+                <MetricCard title="Aprobacion KYC" value={`${kycApprovalRate}%`} body="Conversion entre aprobados y casos en revision." />
+                <MetricCard title="Hilos iniciados" value={chatThreadsCount || 0} body="Contactos entre providers y resenadores." />
+                <MetricCard title="Chats activos" value={chatsStartedCount} body="Conversaciones con al menos un mensaje." />
+                <MetricCard title="Soporte abierto" value={supportOpenCount || 0} body="Casos que siguen pendientes o en proceso." />
+                <MetricCard title="Resolucion soporte" value={`${supportResolutionRate}%`} body="Casos resueltos frente a abiertos." />
               </div>
 
-              <div className="mt-5 rounded-[1.4rem] border border-[#eadfd6] bg-[#fffaf7] p-4">
-                <h3 className="font-bold text-[#131316]">Webhook health</h3>
-                <div className="mt-3 grid gap-2">
-                  {((webhookLogResult.data as Array<{ provider: string; status_code: number }> | null) || []).slice(0, 8).map((row, index) => (
-                    <div key={`${row.provider}-${index}`} className="flex items-center justify-between rounded-[1rem] bg-white px-3 py-2 text-sm">
-                      <span className="font-semibold text-[#131316]">{row.provider}</span>
-                      <span className={`rounded-full px-3 py-1 text-xs font-semibold ${row.status_code >= 400 ? "bg-[#fff1f1] text-[#c24d3a]" : "bg-[#eef9f0] text-[#177a52]"}`}>
-                        {row.status_code}
-                      </span>
+              <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
+                <div className="rounded-[1.4rem] border border-[#eadfd6] bg-[#fffaf7] p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <h3 className="font-bold text-[#131316]">Webhook health</h3>
+                    <span className={`rounded-full px-3 py-1 text-xs font-semibold ${webhookFailureCount ? "bg-[#fff1f1] text-[#c24d3a]" : "bg-[#eef9f0] text-[#177a52]"}`}>
+                      {webhookFailureCount ? `${webhookFailureCount} fallos recientes` : "Sin fallos recientes"}
+                    </span>
+                  </div>
+                  <div className="mt-3 space-y-2">
+                    {webhookRows.slice(0, 10).map((row, index) => (
+                      <div key={`${row.provider}-${row.reference_id || index}`} className="rounded-[1rem] bg-white px-3 py-3 text-sm">
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className="font-semibold text-[#131316]">
+                              {row.provider}
+                              {row.event_type ? ` · ${row.event_type}` : ""}
+                            </p>
+                            <p className="mt-1 text-xs text-[#8f857b]">
+                              {new Date(row.created_at).toLocaleString()}
+                              {row.reference_id ? ` · ${row.reference_id}` : ""}
+                            </p>
+                          </div>
+                          <span className={`rounded-full px-3 py-1 text-xs font-semibold ${row.status_code >= 400 ? "bg-[#fff1f1] text-[#c24d3a]" : "bg-[#eef9f0] text-[#177a52]"}`}>
+                            {row.status_code}
+                          </span>
+                        </div>
+                        {row.response_message ? <p className="mt-2 text-xs text-[#62564a]">{row.response_message}</p> : null}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="rounded-[1.4rem] border border-[#eadfd6] bg-[#fffaf7] p-4">
+                  <h3 className="font-bold text-[#131316]">Lectura operativa</h3>
+                  <div className="mt-3 space-y-3 text-sm text-[#62564a]">
+                    <div className="rounded-[1rem] bg-white px-3 py-3">
+                      <p className="font-semibold text-[#131316]">Atencion inmediata</p>
+                      <p className="mt-1">Tienes {kycInReviewCount || 0} casos KYC en revision y {supportOpenCount || 0} tickets de soporte activos.</p>
                     </div>
-                  ))}
+                    <div className="rounded-[1rem] bg-white px-3 py-3">
+                      <p className="font-semibold text-[#131316]">Embudo de ingresos</p>
+                      <p className="mt-1">{pendingPaymentCount || 0} usuarios siguen sin pagar y {activeMembersCount || 0} ya tienen acceso activo.</p>
+                    </div>
+                    <div className="rounded-[1rem] bg-white px-3 py-3">
+                      <p className="font-semibold text-[#131316]">Mensajeria</p>
+                      <p className="mt-1">{chatsStartedCount} conversaciones ya tienen mensajes reales y {chatThreadsCount || 0} hilos fueron iniciados.</p>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -379,8 +415,10 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                   subject: thread.subject,
                   category: thread.category,
                   status: thread.status,
+                  priority: thread.priority || "normal",
                   lastActivityAt: thread.last_activity_at,
                   assignedAdminId: thread.assigned_admin_id || null,
+                  assignedAdminName: thread.assigned_admin_id ? supportProfileMap.get(thread.assigned_admin_id)?.full_name || "Soporte" : null,
                   messages: ((supportMessageRows as SupportMessageRow[] | null) || [])
                     .filter((message) => message.thread_id === thread.id)
                     .map((message) => ({
@@ -396,6 +434,16 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
           ) : null}
         </section>
       </main>
+    </div>
+  );
+}
+
+function MetricCard({ title, value, body }: { title: string; value: string | number; body: string }) {
+  return (
+    <div className="rounded-[1.4rem] border border-[#eadfd6] bg-[#fffaf7] p-4">
+      <p className="text-xs uppercase tracking-[0.18em] text-[#8f857b]">{title}</p>
+      <p className="mt-2 text-3xl font-bold text-[#131316]">{value}</p>
+      <p className="mt-1 text-sm text-[#62626d]">{body}</p>
     </div>
   );
 }

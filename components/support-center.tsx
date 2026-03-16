@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { Headset, LifeBuoy, SendHorizontal } from "lucide-react";
 import { supportCopy, type AppLanguage } from "@/lib/i18n";
-import { SUPPORT_CATEGORIES, getSupportCategoryLabel, getSupportStatusLabel } from "@/lib/support";
+import { SUPPORT_CATEGORIES, getSupportCategoryLabel, getSupportPriorityLabel, getSupportStatusLabel } from "@/lib/support";
 
 type SupportThread = {
   id: number;
@@ -13,8 +13,10 @@ type SupportThread = {
   subject: string;
   category: string;
   status: string;
+  priority: string;
   lastActivityAt: string;
   assignedAdminId?: string | null;
+  assignedAdminName?: string | null;
   messages: Array<{
     id: number;
     senderId: string;
@@ -91,7 +93,10 @@ export function SupportCenter({ currentUserId, language, isAdmin = false, thread
         subject: newThreadSubject.trim(),
         category: newThreadCategory,
         status: "open",
+        priority: "normal",
         lastActivityAt: new Date().toISOString(),
+        assignedAdminId: null,
+        assignedAdminName: null,
         messages: [
           {
             id: Date.now(),
@@ -155,7 +160,7 @@ export function SupportCenter({ currentUserId, language, isAdmin = false, thread
     });
   }
 
-  async function updateStatus(status: string) {
+  async function updateThread(updates: { status?: string; priority?: string; assignToMe?: boolean }) {
     if (!isAdmin || !activeThread) {
       return;
     }
@@ -169,7 +174,7 @@ export function SupportCenter({ currentUserId, language, isAdmin = false, thread
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           threadId: activeThread.id,
-          status,
+          ...updates,
         }),
       });
 
@@ -181,7 +186,10 @@ export function SupportCenter({ currentUserId, language, isAdmin = false, thread
 
       prependOrUpdateThread({
         ...activeThread,
-        status,
+        status: updates.status || activeThread.status,
+        priority: updates.priority || activeThread.priority,
+        assignedAdminId: updates.assignToMe ? currentUserId : activeThread.assignedAdminId,
+        assignedAdminName: updates.assignToMe ? copy.supportLabel : activeThread.assignedAdminName,
         lastActivityAt: new Date().toISOString(),
       });
       setSuccess(copy.statusUpdated);
@@ -241,7 +249,12 @@ export function SupportCenter({ currentUserId, language, isAdmin = false, thread
                     {getSupportStatusLabel(thread.status, language)}
                   </span>
                 </div>
-                <p className="mt-1 text-xs text-[#8f857b]">{isAdmin ? thread.userName || thread.userEmail : getSupportCategoryLabel(thread.category, language)}</p>
+                <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[#8f857b]">
+                  <span>{isAdmin ? thread.userName || thread.userEmail : getSupportCategoryLabel(thread.category, language)}</span>
+                  <span className="rounded-full bg-[#fff3dc] px-2 py-0.5 font-semibold text-[#b77212]">
+                    {getSupportPriorityLabel(thread.priority, language)}
+                  </span>
+                </div>
               </button>
             ))
           ) : (
@@ -263,17 +276,43 @@ export function SupportCenter({ currentUserId, language, isAdmin = false, thread
                 <p className="mt-1 text-sm text-[#62626d]">
                   {isAdmin ? `${activeThread.userName || copy.userLabel} · ${activeThread.userEmail}` : getSupportStatusLabel(activeThread.status, language)}
                 </p>
+                {isAdmin ? (
+                  <p className="mt-1 text-xs text-[#8f857b]">
+                    {activeThread.assignedAdminId ? `${copy.assignedTo}: ${activeThread.assignedAdminName || copy.supportLabel}` : copy.unassigned}
+                  </p>
+                ) : null}
               </div>
+
               {isAdmin ? (
-                <select className="input max-w-[220px]" value={activeThread.status} onChange={(event) => void updateStatus(event.target.value)}>
-                  <option value="open">{getSupportStatusLabel("open", language)}</option>
-                  <option value="in_progress">{getSupportStatusLabel("in_progress", language)}</option>
-                  <option value="resolved">{getSupportStatusLabel("resolved", language)}</option>
-                </select>
+                <div className="flex flex-wrap items-center gap-2">
+                  <select className="input max-w-[220px]" value={activeThread.status} onChange={(event) => void updateThread({ status: event.target.value })}>
+                    <option value="open">{getSupportStatusLabel("open", language)}</option>
+                    <option value="in_progress">{getSupportStatusLabel("in_progress", language)}</option>
+                    <option value="resolved">{getSupportStatusLabel("resolved", language)}</option>
+                  </select>
+                  <select className="input max-w-[180px]" value={activeThread.priority} onChange={(event) => void updateThread({ priority: event.target.value })}>
+                    <option value="low">{getSupportPriorityLabel("low", language)}</option>
+                    <option value="normal">{getSupportPriorityLabel("normal", language)}</option>
+                    <option value="high">{getSupportPriorityLabel("high", language)}</option>
+                  </select>
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={() => void updateThread({ assignToMe: true })}
+                    disabled={activeThread.assignedAdminId === currentUserId}
+                  >
+                    {activeThread.assignedAdminId === currentUserId ? copy.assignedToMe : copy.assignToMe}
+                  </button>
+                </div>
               ) : (
-                <span className="rounded-full bg-[#f6f0e9] px-3 py-1 text-xs font-semibold text-[#62564a]">
-                  {getSupportStatusLabel(activeThread.status, language)}
-                </span>
+                <div className="flex flex-wrap gap-2">
+                  <span className="rounded-full bg-[#f6f0e9] px-3 py-1 text-xs font-semibold text-[#62564a]">
+                    {getSupportStatusLabel(activeThread.status, language)}
+                  </span>
+                  <span className="rounded-full bg-[#fff3dc] px-3 py-1 text-xs font-semibold text-[#b77212]">
+                    {getSupportPriorityLabel(activeThread.priority, language)}
+                  </span>
+                </div>
               )}
             </div>
 
@@ -283,7 +322,9 @@ export function SupportCenter({ currentUserId, language, isAdmin = false, thread
                 return (
                   <div key={message.id} className={`flex ${isMine ? "justify-end" : "justify-start"}`}>
                     <div className={`max-w-[82%] rounded-[1.3rem] px-4 py-3 ${isMine ? "bg-[#ff6b35] text-white" : "bg-[#fff8f3] text-[#62564a]"}`}>
-                      <p className="text-[11px] font-semibold opacity-80">{isMine ? (isAdmin ? copy.supportLabel : copy.userLabel) : isAdmin ? copy.userLabel : copy.supportLabel}</p>
+                      <p className="text-[11px] font-semibold opacity-80">
+                        {isMine ? (isAdmin ? copy.supportLabel : copy.userLabel) : isAdmin ? copy.userLabel : copy.supportLabel}
+                      </p>
                       <p className="mt-1 whitespace-pre-wrap text-sm">{message.body}</p>
                       <p className="mt-2 text-[11px] opacity-70">{new Date(message.createdAt).toLocaleString()}</p>
                     </div>

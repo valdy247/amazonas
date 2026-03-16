@@ -388,6 +388,7 @@ export async function updateMemberStatus(formData: FormData) {
   const userId = String(formData.get("user_id") || "");
   const membershipStatus = String(formData.get("membership_status") || "pending_payment");
   const kycStatus = String(formData.get("kyc_status") || "pending");
+  const kycReviewNote = String(formData.get("kyc_review_note") || "").trim();
 
   if (!userId) {
     throw new Error("Usuario inválido");
@@ -402,6 +403,7 @@ export async function updateMemberStatus(formData: FormData) {
   await supabase.from("kyc_checks").upsert({
     user_id: userId,
     status: kycStatus,
+    review_note: kycReviewNote || null,
     reviewed_at: new Date().toISOString(),
   });
 
@@ -410,7 +412,7 @@ export async function updateMemberStatus(formData: FormData) {
     adminId,
     action: "update_member_status",
     targetUserId: userId,
-    metadata: { membershipStatus, kycStatus },
+    metadata: { membershipStatus, kycStatus, kycReviewNote: kycReviewNote || null },
   });
 
   revalidatePath("/admin");

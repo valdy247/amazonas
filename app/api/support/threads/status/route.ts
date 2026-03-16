@@ -6,6 +6,8 @@ import { hasAdminAccess } from "@/lib/admin";
 type UpdateSupportStatusBody = {
   threadId?: number;
   status?: string;
+  priority?: string;
+  assignToMe?: boolean;
 };
 
 export async function POST(request: Request) {
@@ -28,21 +30,32 @@ export async function POST(request: Request) {
     const body = (await request.json()) as UpdateSupportStatusBody;
     const threadId = Number(body.threadId);
     const status = ["open", "in_progress", "resolved"].includes(String(body.status)) ? String(body.status) : null;
+    const priority = ["low", "normal", "high"].includes(String(body.priority)) ? String(body.priority) : null;
+    const assignToMe = body.assignToMe === true;
 
-    if (!Number.isFinite(threadId) || !status) {
-      return NextResponse.json({ error: "Estado invalido." }, { status: 400 });
+    if (!Number.isFinite(threadId) || (!status && !priority && !assignToMe)) {
+      return NextResponse.json({ error: "Actualizacion invalida." }, { status: 400 });
     }
 
     const now = new Date().toISOString();
-    const { error } = await admin
-      .from("support_threads")
-      .update({
-        status,
-        assigned_admin_id: user.id,
-        updated_at: now,
-        last_activity_at: now,
-      })
-      .eq("id", threadId);
+    const updatePayload: Record<string, unknown> = {
+      updated_at: now,
+    };
+
+    if (status) {
+      updatePayload.status = status;
+    }
+    if (priority) {
+      updatePayload.priority = priority;
+    }
+    if (assignToMe || status) {
+      updatePayload.assigned_admin_id = user.id;
+    }
+    if (status && status !== "resolved") {
+      updatePayload.last_activity_at = now;
+    }
+
+    const { error } = await admin.from("support_threads").update(updatePayload).eq("id", threadId);
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
