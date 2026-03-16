@@ -126,17 +126,42 @@ export async function POST(request: NextRequest) {
 
     const admin = createAdminClient();
     const { data: profile } = await admin.from("profiles").select("full_name").eq("id", userId).maybeSingle();
+    const { data: existingKyc } = await admin
+      .from("kyc_checks")
+      .select("status, reviewed_at, reference_id")
+      .eq("user_id", userId)
+      .maybeSingle();
     const baseStatus = mapVeriffDecisionStatus(verification.status);
     const hasReasonableNameMatch = namesReasonablyMatch({
       profileName: profile?.full_name,
       verifiedName: verifiedFullName,
     });
     const status = baseStatus === "approved" && !hasReasonableNameMatch ? "in_review" : baseStatus;
+    const processedAt = verification.decisionTime || new Date().toISOString();
+    const currentReviewedAt =
+      typeof existingKyc?.reviewed_at === "string" && !Number.isNaN(new Date(existingKyc.reviewed_at).getTime())
+        ? new Date(existingKyc.reviewed_at).getTime()
+        : null;
+    const incomingReviewedAt = !Number.isNaN(new Date(processedAt).getTime()) ? new Date(processedAt).getTime() : Date.now();
+
+    if (
+      currentReviewedAt !== null &&
+      incomingReviewedAt < currentReviewedAt &&
+      existingKyc?.reference_id &&
+      existingKyc.reference_id !== verification.id
+    ) {
+      return NextResponse.json({
+        ok: true,
+        ignored: true,
+        message: "Ignored an older Veriff decision because a newer one was already processed.",
+      });
+    }
+
     const updatePayload = {
       status,
       provider_name: "veriff",
       reference_id: verification.id,
-      reviewed_at: status === "approved" || status === "rejected" ? verification.decisionTime || new Date().toISOString() : null,
+      reviewed_at: processedAt,
       verified_full_name: verifiedFullName || null,
       review_note:
         baseStatus === "approved" && !hasReasonableNameMatch
