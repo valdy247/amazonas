@@ -135,7 +135,6 @@ export function AdminProviderManager({ contacts, whatsappPrefixOptions }: AdminP
                           name="whatsapp_prefix"
                           options={prefixOptionsForContact}
                           defaultValue={selectedPrefixValue}
-                          badgeLabel="Mundial"
                         />
                         <input
                           className="input h-14"

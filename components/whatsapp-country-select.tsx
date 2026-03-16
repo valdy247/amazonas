@@ -1,21 +1,19 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Check, ChevronDown, Globe2, Search } from "lucide-react";
+import { Check, ChevronDown, Search } from "lucide-react";
 import type { WhatsappPrefixOption } from "@/lib/whatsapp-prefix-options";
 
 type WhatsappCountrySelectProps = {
   name: string;
   options: readonly WhatsappPrefixOption[];
   defaultValue: string;
-  badgeLabel?: string;
 };
 
 export function WhatsappCountrySelect({
   name,
   options,
   defaultValue,
-  badgeLabel = "Cobertura mundial",
 }: WhatsappCountrySelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -95,10 +93,6 @@ export function WhatsappCountrySelect({
           <ChevronDown className={`ml-auto h-4 w-4 shrink-0 text-[#8f857b] transition ${isOpen ? "rotate-180" : ""}`} />
         </button>
 
-        <span className="hidden items-center gap-2 rounded-full bg-[#fff3ec] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#dc4f1f] sm:inline-flex">
-          <Globe2 className="h-3.5 w-3.5" />
-          {badgeLabel}
-        </span>
       </div>
       <p className="mt-2 px-1 text-[11px] text-[#8f857b]">Puedes buscar por pais o prefijo, por ejemplo 245 o +245.</p>
 
