@@ -17,35 +17,22 @@ type AccountMenuProps = {
   items?: AccountMenuItem[];
   messageHref?: string;
   hasUnreadMessages?: boolean;
-  unreadThreads?: Array<{ threadId: number; lastIncomingMessageId: number }>;
+  unreadThreads?: Array<{ threadId: number; lastIncomingMessageId: number; lastSeenMessageId: number }>;
 };
 
 export function AccountMenu({ user, items, messageHref, hasUnreadMessages = false, unreadThreads = [] }: AccountMenuProps) {
   const [supabase] = useState(() => createClient());
   const [isOpen, setIsOpen] = useState(false);
-  const [storedSeenMap, setStoredSeenMap] = useState<Record<number, number>>(() => {
-    if (!user || typeof window === "undefined") {
-      return {};
-    }
-
-    try {
-      const raw = window.localStorage.getItem(`chat-seen:${user.id}`);
-      if (!raw) {
-        return {};
-      }
-
-      const parsed = JSON.parse(raw) as Record<string, unknown>;
-      return Object.fromEntries(
-        Object.entries(parsed)
-          .map(([key, value]) => [Number(key), Number(value)])
-          .filter(([key, value]) => Number.isFinite(key) && Number.isFinite(value))
-      );
-    } catch {
-      return {};
-    }
-  });
+  const [seenOverrides, setSeenOverrides] = useState<Record<number, number>>({});
   const [liveIncomingMap, setLiveIncomingMap] = useState<Record<number, number>>({});
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const userId = user?.id || null;
+  const baseSeenMap = useMemo<Record<number, number>>(
+    () => Object.fromEntries(unreadThreads.map((thread) => [thread.threadId, thread.lastSeenMessageId || 0])) as Record<number, number>,
+    [unreadThreads]
+  );
+  const seenMap = useMemo<Record<number, number>>(() => ({ ...baseSeenMap, ...seenOverrides }), [baseSeenMap, seenOverrides]);
+  const threadIds = useMemo(() => unreadThreads.map((thread) => thread.threadId), [unreadThreads]);
   const resolvedItems =
     items ||
     (user
@@ -68,13 +55,13 @@ export function AccountMenu({ user, items, messageHref, hasUnreadMessages = fals
     }
 
     return eligibleThreads.some((thread) => {
-      if (!thread.lastIncomingMessageId) {
-        return (liveIncomingMap[thread.threadId] || 0) > 0;
-      }
       const latestIncomingId = Math.max(thread.lastIncomingMessageId, liveIncomingMap[thread.threadId] || 0);
-      return storedSeenMap[thread.threadId] !== latestIncomingId;
+      if (!latestIncomingId) {
+        return false;
+      }
+      return (seenMap[thread.threadId] || 0) < latestIncomingId;
     });
-  }, [hasUnreadMessages, liveIncomingMap, storedSeenMap, unreadThreads, user]);
+  }, [hasUnreadMessages, liveIncomingMap, seenMap, unreadThreads, user]);
 
   useEffect(() => {
     function handlePointerDown(event: MouseEvent) {
@@ -99,55 +86,36 @@ export function AccountMenu({ user, items, messageHref, hasUnreadMessages = fals
   }, []);
 
   useEffect(() => {
-    if (!user || typeof window === "undefined") {
+    if (!userId || typeof window === "undefined") {
       return;
     }
 
-    const storageKey = `chat-seen:${user.id}`;
-
-    function readSeenState() {
-      try {
-        const raw = window.localStorage.getItem(storageKey);
-        if (!raw) {
-          setStoredSeenMap({});
-          return;
-        }
-
-        const parsed = JSON.parse(raw) as Record<string, unknown>;
-        setStoredSeenMap(
-          Object.fromEntries(
-            Object.entries(parsed)
-              .map(([key, value]) => [Number(key), Number(value)])
-              .filter(([key, value]) => Number.isFinite(key) && Number.isFinite(value))
-          )
-        );
-      } catch {
-        setStoredSeenMap({});
+    function handleSeenUpdate(event: Event) {
+      const customEvent = event as CustomEvent<{ userId?: string; threadId?: number; seenMessageId?: number }>;
+      if (customEvent.detail?.userId !== userId || !customEvent.detail?.threadId || !customEvent.detail?.seenMessageId) {
+        return;
       }
+
+      setSeenOverrides((current) => ({
+        ...current,
+        [customEvent.detail.threadId as number]: customEvent.detail.seenMessageId as number,
+      }));
     }
 
-    readSeenState();
-    window.addEventListener("storage", readSeenState);
-    window.addEventListener("focus", readSeenState);
-    window.addEventListener("chat-seen-updated", readSeenState as EventListener);
+    window.addEventListener("chat-seen-updated", handleSeenUpdate as EventListener);
 
     return () => {
-      window.removeEventListener("storage", readSeenState);
-      window.removeEventListener("focus", readSeenState);
-      window.removeEventListener("chat-seen-updated", readSeenState as EventListener);
+      window.removeEventListener("chat-seen-updated", handleSeenUpdate as EventListener);
     };
-  }, [user]);
+  }, [userId]);
 
   useEffect(() => {
-    const eligibleThreads = unreadThreads.filter((thread) => thread.lastIncomingMessageId > 0);
-
-    if (!user || !eligibleThreads.length) {
+    if (!userId || !threadIds.length) {
       return;
     }
 
-    const threadIds = eligibleThreads.map((thread) => thread.threadId);
     const channel = supabase
-      .channel(`header-unread-${user.id}`)
+      .channel(`header-unread-${userId}`)
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "request_messages" },
@@ -158,7 +126,7 @@ export function AccountMenu({ user, items, messageHref, hasUnreadMessages = fals
             sender_id: string;
           };
 
-          if (String(message.sender_id) === user.id || !threadIds.includes(Number(message.request_id))) {
+          if (String(message.sender_id) === userId || !threadIds.includes(Number(message.request_id))) {
             return;
           }
 
@@ -173,7 +141,7 @@ export function AccountMenu({ user, items, messageHref, hasUnreadMessages = fals
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [supabase, unreadThreads, user]);
+  }, [supabase, threadIds, userId]);
 
   return (
     <div ref={containerRef} className="relative flex items-center gap-2">

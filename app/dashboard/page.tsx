@@ -114,6 +114,20 @@ function getProviderSnapshot(value: unknown): ProviderSnapshot | null {
   };
 }
 
+function getLastSeenMessageIdForRole(requestData: Record<string, unknown> | null | undefined, role: "provider" | "reviewer") {
+  if (!requestData) {
+    return 0;
+  }
+
+  const value = requestData[role === "provider" ? "providerLastSeenMessageId" : "reviewerLastSeenMessageId"];
+  return typeof value === "number" && Number.isFinite(value) ? value : 0;
+}
+
+function getLastIncomingMessageId(messages: ConversationThread["messages"], currentUserId: string) {
+  const incomingMessage = [...messages].reverse().find((message) => message.senderId !== currentUserId);
+  return incomingMessage?.id || 0;
+}
+
 export default async function DashboardPage({
   searchParams,
 }: {
@@ -543,8 +557,9 @@ export default async function DashboardPage({
   ];
 
   const unreadConversationCount = collaborationThreads.filter((thread) => {
-    const lastMessage = thread.messages[thread.messages.length - 1];
-    return lastMessage && lastMessage.senderId !== user.id;
+    const lastIncomingMessageId = getLastIncomingMessageId(thread.messages, user.id);
+    const lastSeenMessageId = getLastSeenMessageIdForRole(thread.requestData, isProvider ? "provider" : "reviewer");
+    return lastIncomingMessageId > lastSeenMessageId;
   }).length;
   const hasUnreadMessages = unreadConversationCount > 0;
   const menuItems = [
@@ -568,7 +583,8 @@ export default async function DashboardPage({
         hasUnreadMessages={hasUnreadMessages}
         unreadThreads={collaborationThreads.map((thread) => ({
           threadId: thread.requestId,
-          lastIncomingMessageId: [...thread.messages].reverse().find((message) => message.senderId !== user.id)?.id || 0,
+          lastIncomingMessageId: getLastIncomingMessageId(thread.messages, user.id),
+          lastSeenMessageId: getLastSeenMessageIdForRole(thread.requestData, isProvider ? "provider" : "reviewer"),
         }))}
       />
       <main className="container-x space-y-4 py-6">

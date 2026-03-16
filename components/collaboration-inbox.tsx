@@ -1,6 +1,6 @@
 "use client";
 
-import { type ChangeEvent, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { ArrowLeft, ImagePlus, MessageCircleMore, SendHorizontal, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
@@ -47,6 +47,23 @@ type DraftMedia = {
   previewUrl: string;
 };
 
+function getSeenMessageIdForRole(requestData: Record<string, unknown> | null | undefined, role: "provider" | "reviewer") {
+  if (!requestData) {
+    return 0;
+  }
+
+  const key = role === "provider" ? "providerLastSeenMessageId" : "reviewerLastSeenMessageId";
+  const value = requestData[key];
+  return typeof value === "number" && Number.isFinite(value) ? value : 0;
+}
+
+function setSeenMessageIdForRole(requestData: Record<string, unknown> | null | undefined, role: "provider" | "reviewer", seenMessageId: number) {
+  return {
+    ...(requestData || {}),
+    [role === "provider" ? "providerLastSeenMessageId" : "reviewerLastSeenMessageId"]: seenMessageId,
+  };
+}
+
 function getLastIncomingMessageIdForThread(thread: ConversationThread, currentUserId: string) {
   const lastIncoming = [...thread.messages].reverse().find((message) => message.senderId !== currentUserId);
   return lastIncoming?.id ?? null;
@@ -66,38 +83,11 @@ export function CollaborationInbox({
 }: CollaborationInboxProps) {
   const [supabase] = useState(() => createClient());
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const seenStorageKey = `chat-seen:${currentUserId}`;
   const [items, setItems] = useState(threads);
   const [activeThreadId, setActiveThreadId] = useState<number | null>(initialThreadId);
-  const [seenMessageIds, setSeenMessageIds] = useState<Record<number, number>>(() => {
-    const initialSeenEntries = initialThreadId
-      ? threads
-          .filter((thread) => thread.requestId === initialThreadId)
-          .map((thread) => [thread.requestId, getLastIncomingMessageIdForThread(thread, currentUserId)])
-          .filter((entry): entry is [number, number] => typeof entry[1] === "number")
-      : [];
-
-    if (typeof window === "undefined") {
-      return Object.fromEntries(initialSeenEntries);
-    }
-
-    try {
-      const stored = window.localStorage.getItem(seenStorageKey);
-      if (!stored) {
-        return Object.fromEntries(initialSeenEntries);
-      }
-
-      const parsed = JSON.parse(stored) as Record<string, unknown>;
-      return Object.fromEntries([
-        ...Object.entries(parsed)
-          .map(([key, value]) => [Number(key), Number(value)])
-          .filter(([key, value]) => Number.isFinite(key) && Number.isFinite(value)),
-        ...initialSeenEntries,
-      ]);
-    } catch {
-      return Object.fromEntries(initialSeenEntries);
-    }
-  });
+  const [seenMessageIds, setSeenMessageIds] = useState<Record<number, number>>(() =>
+    Object.fromEntries(threads.map((thread) => [thread.requestId, getSeenMessageIdForRole(thread.requestData, currentUserRole)]))
+  );
   const [drafts, setDrafts] = useState<Record<number, string>>({});
   const [metaDrafts, setMetaDrafts] = useState<Record<number, { category: string; productName: string }>>(
     Object.fromEntries(
@@ -134,15 +124,6 @@ export function CollaborationInbox({
   );
 
   useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    window.localStorage.setItem(seenStorageKey, JSON.stringify(seenMessageIds));
-    window.dispatchEvent(new CustomEvent("chat-seen-updated", { detail: { userId: currentUserId } }));
-  }, [currentUserId, seenMessageIds, seenStorageKey]);
-
-  useEffect(() => {
     if (!activeThread) {
       return;
     }
@@ -163,6 +144,50 @@ export function CollaborationInbox({
       document.documentElement.style.overscrollBehavior = previousHtmlOverscroll;
     };
   }, [activeThread]);
+
+  const markThreadAsSeen = useCallback(async (threadId: number, explicitSeenMessageId?: number) => {
+    const thread = items.find((item) => item.requestId === threadId);
+    if (!thread) {
+      return;
+    }
+
+    const lastIncomingMessageId = explicitSeenMessageId || getLastIncomingMessageIdForThread(thread, currentUserId);
+    if (!lastIncomingMessageId || (seenMessageIds[threadId] || 0) >= lastIncomingMessageId) {
+      return;
+    }
+
+    const nextRequestData = setSeenMessageIdForRole(thread.requestData, currentUserRole, lastIncomingMessageId);
+
+    setSeenMessageIds((current) => ({
+      ...current,
+      [threadId]: lastIncomingMessageId,
+    }));
+
+    setItems((current) =>
+      current.map((item) =>
+        item.requestId === threadId
+          ? {
+              ...item,
+              requestData: nextRequestData,
+            }
+          : item
+      )
+    );
+
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(
+        new CustomEvent("chat-seen-updated", {
+          detail: {
+            userId: currentUserId,
+            threadId,
+            seenMessageId: lastIncomingMessageId,
+          },
+        })
+      );
+    }
+
+    await supabase.from("reviewer_contact_requests").update({ request_data: nextRequestData }).eq("id", threadId);
+  }, [currentUserId, currentUserRole, items, seenMessageIds, supabase]);
 
   useEffect(() => {
     const channel = supabase
@@ -208,11 +233,9 @@ export function CollaborationInbox({
               };
             })
           );
+
           if (String(message.sender_id) !== currentUserId && activeThreadId === Number(message.request_id)) {
-            setSeenMessageIds((current) => ({
-              ...current,
-              [Number(message.request_id)]: Number(message.id),
-            }));
+            void markThreadAsSeen(Number(message.request_id), Number(message.id));
           }
         }
       )
@@ -221,24 +244,7 @@ export function CollaborationInbox({
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [activeThreadId, currentUserId, supabase]);
-
-  function markThreadAsSeen(threadId: number) {
-    const thread = items.find((item) => item.requestId === threadId);
-    if (!thread) {
-      return;
-    }
-
-    const lastIncomingMessageId = getLastIncomingMessageIdForThread(thread, currentUserId);
-    if (!lastIncomingMessageId) {
-      return;
-    }
-
-    setSeenMessageIds((current) => ({
-      ...current,
-      [threadId]: lastIncomingMessageId,
-    }));
-  }
+  }, [activeThreadId, currentUserId, markThreadAsSeen, supabase]);
 
   useEffect(() => {
     return () => {
@@ -253,7 +259,7 @@ export function CollaborationInbox({
   function openChat(threadId: number) {
     setActiveThreadId(threadId);
     setError(null);
-    markThreadAsSeen(threadId);
+    void markThreadAsSeen(threadId);
   }
 
   function closeChat() {
@@ -399,7 +405,7 @@ export function CollaborationInbox({
                 productName: metaDraft?.productName || "",
                 introSent: shouldAttachProviderIntro || (activeThreadData && (activeThreadData as { introSent?: unknown }).introSent === true) || false,
               }
-            : undefined;
+            : (activeThreadData || {});
         await supabase
           .from("reviewer_contact_requests")
           .update({
@@ -415,7 +421,7 @@ export function CollaborationInbox({
               ? {
                   ...thread,
                   lastActivityAt: timestamp,
-                  requestData: nextRequestData ?? thread.requestData,
+                  requestData: nextRequestData,
                   messages: thread.messages.some((item) => item.id === Number(data.id))
                     ? thread.messages
                     : [
@@ -484,7 +490,7 @@ export function CollaborationInbox({
             const isUnread = Boolean(
               lastIncomingMessageId &&
                 thread.messages.some((message) => message.id === lastIncomingMessageId && message.senderId !== currentUserId) &&
-                seenMessageIds[thread.requestId] !== lastIncomingMessageId
+                (seenMessageIds[thread.requestId] || 0) < lastIncomingMessageId
             );
 
             return (

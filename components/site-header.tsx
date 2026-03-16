@@ -11,7 +11,7 @@ type SiteHeaderProps = {
   }>;
   messageHref?: string;
   hasUnreadMessages?: boolean;
-  unreadThreads?: Array<{ threadId: number; lastIncomingMessageId: number }>;
+  unreadThreads?: Array<{ threadId: number; lastIncomingMessageId: number; lastSeenMessageId: number }>;
 };
 
 export async function SiteHeader({ menuItems, messageHref, hasUnreadMessages = false, unreadThreads = [] }: SiteHeaderProps = {}) {
