@@ -3,15 +3,10 @@ import Link from "next/link";
 import { ShieldCheck, Users } from "lucide-react";
 import { LandingFooter } from "@/components/landing-footer";
 import { SiteHeader } from "@/components/site-header";
-import { landingCopy, normalizeLanguage } from "@/lib/i18n";
+import { landingCopy } from "@/lib/i18n";
 
-export default async function Home({
-  searchParams,
-}: {
-  searchParams?: Promise<Record<string, string | string[] | undefined>>;
-}) {
-  const resolvedSearchParams = searchParams ? await searchParams : {};
-  const language = normalizeLanguage(typeof resolvedSearchParams.lang === "string" ? resolvedSearchParams.lang : undefined);
+export default function Home() {
+  const language = "en";
   const copy = landingCopy[language];
 
   return (
