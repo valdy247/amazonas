@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { normalizeLanguage, type AppLanguage } from "@/lib/i18n";
 import { translateMessage } from "@/lib/openai";
+import { getLocalizedPushBody, getLocalizedPushTitle, normalizePushLanguage, sendPushNotificationToUser } from "@/lib/push";
 
 type SendMessageBody = {
   requestId?: number;
@@ -73,13 +74,15 @@ export async function POST(request: Request) {
 
     const { data: participants } = await admin
       .from("profiles")
-      .select("id, preferred_language")
+      .select("id, full_name, preferred_language")
       .in("id", [user.id, receiverId]);
 
     const languageByUser = new Map<string, AppLanguage>();
+    const nameByUser = new Map<string, string>();
 
     for (const participant of participants || []) {
       languageByUser.set(String(participant.id), normalizeLanguage(participant.preferred_language));
+      nameByUser.set(String(participant.id), typeof participant.full_name === "string" && participant.full_name.trim() ? participant.full_name.trim() : "Amazona Review");
     }
 
     async function resolveLanguageForUser(userId: string) {
@@ -137,6 +140,17 @@ export async function POST(request: Request) {
         request_data: nextRequestData,
       })
       .eq("id", requestId);
+
+    const localizedTargetLanguage = normalizePushLanguage(targetLanguage);
+    const previewBody = translations[localizedTargetLanguage] || originalBody || (localizedTargetLanguage === "en" ? "New image" : "Nueva imagen");
+    const senderName = nameByUser.get(user.id) || "Amazona Review";
+
+    await sendPushNotificationToUser(receiverId, {
+      title: getLocalizedPushTitle(localizedTargetLanguage),
+      body: getLocalizedPushBody(localizedTargetLanguage, senderName, previewBody),
+      url: `/dashboard?section=messages&thread=${requestId}`,
+      tag: `chat-${requestId}`,
+    });
 
     return NextResponse.json({
       data: {

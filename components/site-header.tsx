@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { AccountMenu } from "@/components/account-menu";
+import { PushNotificationManager } from "@/components/push-notification-manager";
 import { hasAdminAccess } from "@/lib/admin";
 import { navigationCopy, normalizeLanguage, type AppLanguage } from "@/lib/i18n";
 
@@ -39,20 +40,23 @@ export async function SiteHeader({ menuItems, messageHref, hasUnreadMessages = f
     : undefined;
 
   return (
-    <header className="sticky top-0 z-10 border-b border-[#e5e5df] bg-[#f7f7f2]/90 backdrop-blur">
-      <div className="container-x flex items-center justify-between py-3">
-        <Link href="/" className="text-base font-extrabold tracking-tight">
-          Amazona Review
-        </Link>
-        <AccountMenu
-          user={user}
-          items={resolvedMenuItems}
-          messageHref={messageHref}
-          hasUnreadMessages={hasUnreadMessages}
-          unreadThreads={unreadThreads}
-          language={currentLanguage}
-        />
-      </div>
-    </header>
+    <>
+      <header className="sticky top-0 z-10 border-b border-[#e5e5df] bg-[#f7f7f2]/90 backdrop-blur">
+        <div className="container-x flex items-center justify-between py-3">
+          <Link href="/" className="text-base font-extrabold tracking-tight">
+            Amazona Review
+          </Link>
+          <AccountMenu
+            user={user}
+            items={resolvedMenuItems}
+            messageHref={messageHref}
+            hasUnreadMessages={hasUnreadMessages}
+            unreadThreads={unreadThreads}
+            language={currentLanguage}
+          />
+        </div>
+      </header>
+      {user ? <PushNotificationManager userId={user.id} language={currentLanguage} /> : null}
+    </>
   );
 }

@@ -5,6 +5,7 @@ import { mergeProfileData } from "@/lib/profile-data";
 import { normalizeLanguage, type AppLanguage } from "@/lib/i18n";
 import { normalizeInterestKeys } from "@/lib/onboarding";
 import { translateMessage } from "@/lib/openai";
+import { getLocalizedPushBody, getLocalizedPushTitle, sendPushNotificationToUser } from "@/lib/push";
 
 type CampaignBody = {
   reviewerIds?: string[];
@@ -197,6 +198,29 @@ export async function POST(request: Request) {
           })
           .eq("id", requestId);
       }
+
+      await Promise.allSettled(
+        eligibleReviewers.map(async (reviewer) => {
+          const requestMeta = existingByReviewer.get(String(reviewer.id));
+          if (!requestMeta) {
+            return;
+          }
+
+          const targetLanguage = languageByUser.get(String(reviewer.id)) || ("es" as AppLanguage);
+          const translatedBody = await translateMessage({
+            text: message,
+            sourceLanguage,
+            targetLanguage,
+          });
+
+          await sendPushNotificationToUser(String(reviewer.id), {
+            title: getLocalizedPushTitle(targetLanguage),
+            body: getLocalizedPushBody(targetLanguage, providerSnapshot.fullName, translatedBody || message),
+            url: `/dashboard?section=messages&thread=${requestMeta.id}`,
+            tag: `chat-${requestMeta.id}`,
+          });
+        })
+      );
     }
 
     return NextResponse.json({

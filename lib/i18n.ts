@@ -691,6 +691,23 @@ export const supportCopy = {
   },
 } as const;
 
+export const pushPromptCopy = {
+  es: {
+    title: "Activa notificaciones de mensajes",
+    body: "Recibe avisos push cuando te escriban, incluso si no tienes la conversacion abierta.",
+    allow: "Permitir notificaciones",
+    notNow: "Ahora no",
+    enabling: "Activando...",
+  },
+  en: {
+    title: "Turn on message notifications",
+    body: "Get push alerts when someone writes to you, even if the conversation is not open.",
+    allow: "Allow notifications",
+    notNow: "Not now",
+    enabling: "Enabling...",
+  },
+} as const;
+
 export const onboardingCopy = {
   es: {
     steps: {
