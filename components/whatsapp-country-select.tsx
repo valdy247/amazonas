@@ -61,6 +61,7 @@ export function WhatsappCountrySelect({
 
   const filteredOptions = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
+    const normalizedDigits = normalizedQuery.replace(/\D/g, "");
 
     if (!normalizedQuery) {
       return options;
@@ -68,7 +69,10 @@ export function WhatsappCountrySelect({
 
     return options.filter((option) => {
       const dialCode = option.value.split(":").slice(-1)[0];
-      return `${option.label} ${dialCode}`.toLowerCase().includes(normalizedQuery);
+      const normalizedDialDigits = dialCode.replace(/\D/g, "");
+      const searchableText = `${option.label} ${dialCode}`.toLowerCase();
+
+      return searchableText.includes(normalizedQuery) || (normalizedDigits ? normalizedDialDigits.includes(normalizedDigits) : false);
     });
   }, [options, query]);
 
@@ -96,6 +100,7 @@ export function WhatsappCountrySelect({
           {badgeLabel}
         </span>
       </div>
+      <p className="mt-2 px-1 text-[11px] text-[#8f857b]">Puedes buscar por pais o prefijo, por ejemplo 245 o +245.</p>
 
       {isOpen ? (
         <div className="absolute z-30 mt-2 w-[min(420px,calc(100vw-2rem))] overflow-hidden rounded-[1.3rem] border border-[#eadfd6] bg-white shadow-[0_22px_60px_rgba(18,18,23,0.16)]">
@@ -107,7 +112,7 @@ export function WhatsappCountrySelect({
                 className="w-full bg-transparent text-sm text-[#131316] outline-none placeholder:text-[#9b9288]"
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="Buscar pais o prefijo"
+                placeholder="Buscar pais o prefijo: 245, +245, Cuba..."
               />
             </div>
           </div>
