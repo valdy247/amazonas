@@ -744,7 +744,7 @@ export function CollaborationInbox({
         <div className="fixed inset-0 z-40 overflow-hidden bg-[#17120d]/35 backdrop-blur-sm [overscroll-behavior:none]">
           <div className="flex h-screen min-h-screen w-screen flex-col bg-[#f8f3ed] supports-[height:100dvh]:h-[100dvh] supports-[height:100dvh]:min-h-[100dvh]">
             <div className="mx-auto flex h-full w-full max-w-[430px] flex-col overflow-hidden bg-[#f8f3ed]">
-            <div className="flex items-center justify-between border-b border-[#eadfd6] bg-white px-4 py-3">
+            <div className="sticky top-0 z-20 flex shrink-0 items-center justify-between border-b border-[#eadfd6] bg-white px-4 py-3">
               <div className="flex items-center gap-3">
                 <button type="button" onClick={closeChat} className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#f7f1ea] text-[#131316]">
                   <ArrowLeft className="h-5 w-5" />
@@ -828,7 +828,7 @@ export function CollaborationInbox({
               </div>
             </div>
 
-            <div className="border-t border-[#eadfd6] bg-white px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+            <div className="sticky bottom-0 z-20 shrink-0 border-t border-[#eadfd6] bg-white px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
               {currentUserRole === "provider" && !providerHasSentMessage ? (
                 <div className="mb-3 rounded-[1.3rem] border border-[#efe4d9] bg-[#fff8f3] p-3">
                   <p className="text-sm font-semibold text-[#131316]">{copy.prepareMessage}</p>
@@ -850,7 +850,8 @@ export function CollaborationInbox({
                     ))}
                   </div>
                   <input
-                    className="input mt-3"
+                    className="input mt-3 text-base md:text-sm"
+                    style={{ fontSize: "16px" }}
                     value={metaDrafts[activeThread.requestId]?.productName || ""}
                     onChange={(event) => updateMetaDraft(activeThread.requestId, { productName: event.target.value })}
                     placeholder={copy.productPlaceholder}
@@ -898,10 +899,12 @@ export function CollaborationInbox({
                   <ImagePlus className="h-5 w-5" />
                 </button>
                 <textarea
-                  className="min-h-11 flex-1 resize-none border-none bg-transparent text-sm text-[#131316] outline-none placeholder:text-[#8f857b]"
+                  className="min-h-11 flex-1 resize-none border-none bg-transparent text-base text-[#131316] outline-none placeholder:text-[#8f857b] md:text-sm"
+                  style={{ fontSize: "16px" }}
                   value={drafts[activeThread.requestId] || ""}
                   onChange={(event) => setDrafts((current) => ({ ...current, [activeThread.requestId]: event.target.value }))}
                   placeholder={copy.writeMessage}
+                  rows={1}
                 />
                 <button
                   type="button"
