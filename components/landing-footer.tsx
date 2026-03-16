@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, CircleHelp, Instagram, Linkedin, Youtube } from "lucide-react";
+import { ArrowRight, Instagram, Youtube } from "lucide-react";
 import { landingCopy, type AppLanguage } from "@/lib/i18n";
 
 type LandingFooterProps = {
@@ -9,12 +9,26 @@ type LandingFooterProps = {
 function getSocialLinks() {
   return [
     { label: "Instagram", href: process.env.NEXT_PUBLIC_SOCIAL_INSTAGRAM || "", icon: Instagram },
-    { label: "TikTok", href: process.env.NEXT_PUBLIC_SOCIAL_TIKTOK || "", icon: CircleHelp },
-    { label: "Facebook", href: process.env.NEXT_PUBLIC_SOCIAL_FACEBOOK || "", icon: CircleHelp },
-    { label: "X", href: process.env.NEXT_PUBLIC_SOCIAL_X || "", icon: CircleHelp },
+    { label: "TikTok", href: process.env.NEXT_PUBLIC_SOCIAL_TIKTOK || "", icon: TikTokIcon },
+    { label: "Facebook", href: process.env.NEXT_PUBLIC_SOCIAL_FACEBOOK || "", icon: FacebookIcon },
     { label: "YouTube", href: process.env.NEXT_PUBLIC_SOCIAL_YOUTUBE || "", icon: Youtube },
-    { label: "LinkedIn", href: process.env.NEXT_PUBLIC_SOCIAL_LINKEDIN || "", icon: Linkedin },
   ];
+}
+
+function TikTokIcon({ className = "h-3.5 w-3.5" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className={className} fill="currentColor">
+      <path d="M19.59 6.69A4.83 4.83 0 0 1 16 5.08V16a5 5 0 1 1-5-5c.34 0 .67.03 1 .1v2.52a2.64 2.64 0 0 0-1-.2 2.58 2.58 0 1 0 2.58 2.58V2h2.47a4.85 4.85 0 0 0 4.24 4.84v-.15.01c.1 0 .2-.01.3-.01V9.1a7.24 7.24 0 0 1-4.59-1.64v5.18a5 5 0 1 1-5-5c.34 0 .67.03 1 .1V10.3a7.51 7.51 0 0 0-1-.07A7.42 7.42 0 1 0 18.41 17V9.54a7.3 7.3 0 0 0 4.18 1.32V8.39c-1.1 0-2.12-.3-3-.83V6.69Z" />
+    </svg>
+  );
+}
+
+function FacebookIcon({ className = "h-3.5 w-3.5" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className={className} fill="currentColor">
+      <path d="M13.5 22v-8h2.7l.4-3h-3.1V9.1c0-.87.24-1.46 1.49-1.46H16.7V4.96c-.31-.04-1.38-.12-2.63-.12-2.6 0-4.37 1.59-4.37 4.5V11H6.75v3H9.7v8h3.8Z" />
+    </svg>
+  );
 }
 
 export function LandingFooter({ language }: LandingFooterProps) {
