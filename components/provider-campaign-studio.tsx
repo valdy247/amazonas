@@ -39,8 +39,6 @@ export function ProviderCampaignStudio({ reviewers, providerInterests, language 
     [reviewers, selectedInterest]
   );
 
-  const previewNames = filteredReviewers.slice(0, 4).map((reviewer) => reviewer.firstName);
-
   async function improveWithAi() {
     const trimmed = message.trim();
     if (!trimmed) {
@@ -144,43 +142,21 @@ export function ProviderCampaignStudio({ reviewers, providerInterests, language 
           ))}
         </div>
 
-        <div className="mt-4 grid gap-3 md:grid-cols-[minmax(0,1.2fr)_minmax(220px,0.8fr)]">
-          <div className="rounded-[1.3rem] border border-[#efe4d9] bg-[#fffaf6] p-4">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8f857b]">{copy.selectedAudience}</p>
-                <p className="mt-2 text-3xl font-bold text-[#131316]">
-                  {filteredReviewers.length} <span className="text-base font-semibold text-[#8f857b]">{copy.recipients}</span>
-                </p>
-              </div>
-              <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-[#dc4f1f] shadow-sm">
-                <SendHorizontal className="h-5 w-5" />
-              </span>
+        <div className="mt-4 rounded-[1.4rem] border border-[#efe4d9] bg-[#fffaf6] p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8f857b]">{copy.selectedAudience}</p>
+              <p className="mt-2 text-xl font-bold text-[#131316]">
+                {filteredReviewers.length} <span className="text-base font-semibold text-[#8f857b]">{copy.recipients}</span>
+              </p>
             </div>
-            <p className="mt-3 text-sm text-[#62626d]">
-              {selectedInterest === "all" ? copy.audienceSummaryAll : copy.audienceSummaryFiltered}
-            </p>
+            <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-[#dc4f1f] shadow-sm">
+              <SendHorizontal className="h-5 w-5" />
+            </span>
           </div>
-
-          <div className="rounded-[1.3rem] border border-[#efe4d9] bg-[#fffaf6] p-4">
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8f857b]">{copy.previewLabel}</p>
-            {previewNames.length ? (
-              <div className="mt-3 flex flex-wrap gap-2">
-                {previewNames.map((name, index) => (
-                  <span key={`${name}-${index}`} className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-[#62564a]">
-                    {name}
-                  </span>
-                ))}
-                {filteredReviewers.length > previewNames.length ? (
-                  <span className="rounded-full bg-[#fff1e8] px-3 py-1 text-xs font-semibold text-[#dc4f1f]">
-                    +{filteredReviewers.length - previewNames.length}
-                  </span>
-                ) : null}
-              </div>
-            ) : (
-              <p className="mt-3 text-sm text-[#8f857b]">{copy.noReviewers}</p>
-            )}
-          </div>
+          <p className="mt-3 text-sm text-[#62626d]">
+            {selectedInterest === "all" ? copy.audienceSummaryAll : copy.audienceSummaryFiltered}
+          </p>
         </div>
 
         <div className="mt-4 rounded-[1.4rem] border border-[#efe4d9] bg-white p-4">
