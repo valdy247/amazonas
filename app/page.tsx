@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { ShieldCheck, Users } from "lucide-react";
+import { LandingFooter } from "@/components/landing-footer";
 import { SiteHeader } from "@/components/site-header";
 import { landingCopy, normalizeLanguage } from "@/lib/i18n";
 
@@ -54,6 +55,8 @@ export default async function Home({
           </article>
         </section>
       </main>
+
+      <LandingFooter language={language} />
     </div>
   );
 }
