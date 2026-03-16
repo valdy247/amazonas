@@ -52,6 +52,12 @@ export async function translateMessage(input: {
 
   const data = (await response.json()) as {
     output_text?: string;
+    output?: Array<{
+      content?: Array<{
+        type?: string;
+        text?: string;
+      }>;
+    }>;
     error?: { message?: string };
   };
 
@@ -59,6 +65,18 @@ export async function translateMessage(input: {
     throw new Error(data.error?.message || "No se pudo traducir el mensaje.");
   }
 
-  const translatedText = typeof data.output_text === "string" ? data.output_text.trim() : "";
+  const nestedOutputText =
+    Array.isArray(data.output)
+      ? data.output
+          .flatMap((item) => item.content || [])
+          .map((item) => (typeof item.text === "string" ? item.text : ""))
+          .find((item) => item.trim())
+      : "";
+  const translatedText =
+    typeof data.output_text === "string" && data.output_text.trim()
+      ? data.output_text.trim()
+      : typeof nestedOutputText === "string"
+        ? nestedOutputText.trim()
+        : "";
   return translatedText || null;
 }
