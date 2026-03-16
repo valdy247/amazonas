@@ -28,6 +28,8 @@ export function AccountMenu({ user, items, messageHref, hasUnreadMessages = fals
   const [seenOverrides, setSeenOverrides] = useState<Record<number, number>>({});
   const [liveIncomingMap, setLiveIncomingMap] = useState<Record<number, number>>({});
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const lastAlertedMessageIdRef = useRef<Record<number, number>>({});
   const userId = user?.id || null;
   const baseSeenMap = useMemo<Record<number, number>>(
     () => Object.fromEntries(unreadThreads.map((thread) => [thread.threadId, thread.lastSeenMessageId || 0])) as Record<number, number>,
@@ -66,6 +68,37 @@ export function AccountMenu({ user, items, messageHref, hasUnreadMessages = fals
       return (seenMap[thread.threadId] || 0) < latestIncomingId;
     });
   }, [hasUnreadMessages, liveIncomingMap, seenMap, unreadThreads, user]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    function unlockAudio() {
+      if (audioContextRef.current) {
+        return;
+      }
+
+      const ContextConstructor = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!ContextConstructor) {
+        return;
+      }
+
+      const context = new ContextConstructor();
+      audioContextRef.current = context;
+      if (context.state === "suspended") {
+        void context.resume();
+      }
+    }
+
+    window.addEventListener("pointerdown", unlockAudio, { once: true });
+    window.addEventListener("keydown", unlockAudio, { once: true });
+
+    return () => {
+      window.removeEventListener("pointerdown", unlockAudio);
+      window.removeEventListener("keydown", unlockAudio);
+    };
+  }, []);
 
   useEffect(() => {
     function handlePointerDown(event: MouseEvent) {
@@ -113,6 +146,33 @@ export function AccountMenu({ user, items, messageHref, hasUnreadMessages = fals
     };
   }, [userId]);
 
+  const playIncomingMessageSound = useMemo(
+    () => () => {
+      const context = audioContextRef.current;
+      if (!context) {
+        return;
+      }
+
+      if (context.state === "suspended") {
+        void context.resume();
+      }
+
+      const oscillator = context.createOscillator();
+      const gainNode = context.createGain();
+      oscillator.type = "sine";
+      oscillator.frequency.setValueAtTime(740, context.currentTime);
+      oscillator.frequency.exponentialRampToValueAtTime(920, context.currentTime + 0.12);
+      gainNode.gain.setValueAtTime(0.0001, context.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.05, context.currentTime + 0.02);
+      gainNode.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.28);
+      oscillator.connect(gainNode);
+      gainNode.connect(context.destination);
+      oscillator.start();
+      oscillator.stop(context.currentTime + 0.3);
+    },
+    []
+  );
+
   useEffect(() => {
     if (!userId || !threadIds.length) {
       return;
@@ -134,10 +194,33 @@ export function AccountMenu({ user, items, messageHref, hasUnreadMessages = fals
             return;
           }
 
+          const threadId = Number(message.request_id);
+          const messageId = Number(message.id);
+          if ((lastAlertedMessageIdRef.current[threadId] || 0) >= messageId) {
+            return;
+          }
+          lastAlertedMessageIdRef.current[threadId] = messageId;
+
           setLiveIncomingMap((current) => ({
             ...current,
-            [Number(message.request_id)]: Number(message.id),
+            [threadId]: messageId,
           }));
+
+          playIncomingMessageSound();
+
+          if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
+            const notification = new Notification(nav.newMessageTitle, {
+              body: nav.newMessageBody,
+              tag: `chat-${threadId}`,
+            });
+
+            notification.onclick = () => {
+              window.focus();
+              if (messageHref) {
+                window.location.href = messageHref;
+              }
+            };
+          }
         }
       )
       .subscribe();
@@ -145,7 +228,7 @@ export function AccountMenu({ user, items, messageHref, hasUnreadMessages = fals
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [supabase, threadIds, userId]);
+  }, [messageHref, nav.newMessageBody, nav.newMessageTitle, playIncomingMessageSound, supabase, threadIds, userId]);
 
   return (
     <div ref={containerRef} className="relative flex items-center gap-2">

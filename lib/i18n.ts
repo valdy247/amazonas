@@ -422,6 +422,8 @@ export const navigationCopy = {
     signIn: "Iniciar sesion",
     adminPanel: "Panel admin",
     signOut: "Cerrar sesion",
+    newMessageTitle: "Nuevo mensaje",
+    newMessageBody: "Tienes un mensaje nuevo en tu chat.",
   },
   en: {
     openMessages: "Open messages",
@@ -434,6 +436,8 @@ export const navigationCopy = {
     signIn: "Sign in",
     adminPanel: "Admin panel",
     signOut: "Sign out",
+    newMessageTitle: "New message",
+    newMessageBody: "You have a new chat message.",
   },
 } as const;
 
