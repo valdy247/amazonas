@@ -41,6 +41,16 @@ export function getSquareCurrency() {
   return process.env.SQUARE_CURRENCY || "USD";
 }
 
+export function getSquareSubscriptionPlanVariationId() {
+  const planVariationId = process.env.SQUARE_SUBSCRIPTION_PLAN_VARIATION_ID;
+
+  if (!planVariationId) {
+    throw new Error("Missing SQUARE_SUBSCRIPTION_PLAN_VARIATION_ID.");
+  }
+
+  return planVariationId;
+}
+
 export function getSquareWebhookSignatureKey() {
   const signatureKey = process.env.SQUARE_WEBHOOK_SIGNATURE_KEY;
 
@@ -118,6 +128,7 @@ export async function createSquarePaymentLink(input: {
   const amount = getSquareMembershipAmount();
   const currency = getSquareCurrency();
   const locationId = await getSquareLocationId();
+  const planVariationId = getSquareSubscriptionPlanVariationId();
   const response = await fetch(`${getSquareApiBaseUrl()}/v2/online-checkout/payment-links`, {
     method: "POST",
     headers: {
@@ -138,6 +149,7 @@ export async function createSquarePaymentLink(input: {
       },
       checkout_options: {
         redirect_url: input.redirectUrl,
+        subscription_plan_id: planVariationId,
       },
       payment_note: `reviewer_access:${input.userId}`,
       pre_populated_data: {
@@ -160,6 +172,77 @@ export async function createSquarePaymentLink(input: {
   }
 
   return { orderId, url };
+}
+
+type SquareSubscriptionStatus =
+  | "PENDING"
+  | "ACTIVE"
+  | "CANCELED"
+  | "PAUSED"
+  | "DEACTIVATED"
+  | "UNPAID";
+
+export async function searchSquareSubscriptionByCustomer(customerId: string) {
+  const accessToken = getSquareAccessToken();
+  const locationId = await getSquareLocationId();
+  const planVariationId = getSquareSubscriptionPlanVariationId();
+  const response = await fetch(`${getSquareApiBaseUrl()}/v2/subscriptions/search`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+      "Square-Version": "2025-10-16",
+    },
+    body: JSON.stringify({
+      query: {
+        filter: {
+          location_ids: [locationId],
+          customer_ids: [customerId],
+        },
+      },
+    }),
+    cache: "no-store",
+  });
+
+  const payload = (await response.json()) as {
+    subscriptions?: Array<{
+      id?: string;
+      customer_id?: string;
+      plan_variation_id?: string;
+      status?: SquareSubscriptionStatus;
+      created_at?: string;
+      paid_until_date?: string;
+      charged_through_date?: string;
+      canceled_date?: string;
+    }>;
+  };
+
+  if (!response.ok) {
+    throw new Error(`Square subscriptions search failed: ${JSON.stringify(payload)}`);
+  }
+
+  const subscriptions = (payload.subscriptions || [])
+    .filter((subscription) => subscription.plan_variation_id === planVariationId)
+    .sort((a, b) => {
+      const aTime = a.created_at ? Date.parse(a.created_at) : 0;
+      const bTime = b.created_at ? Date.parse(b.created_at) : 0;
+      return bTime - aTime;
+    });
+
+  const subscription = subscriptions[0];
+
+  if (!subscription?.id) {
+    return null;
+  }
+
+  return {
+    id: subscription.id,
+    customerId: subscription.customer_id || customerId,
+    status: subscription.status || null,
+    paidUntilDate: subscription.paid_until_date || null,
+    chargedThroughDate: subscription.charged_through_date || null,
+    canceledDate: subscription.canceled_date || null,
+  };
 }
 
 export async function getSquarePaymentStatusFromOrder(input: {
@@ -206,6 +289,7 @@ export async function getSquarePaymentStatusFromOrder(input: {
     payment?: {
       id?: string;
       status?: string;
+      customer_id?: string;
     };
   };
 
@@ -216,6 +300,7 @@ export async function getSquarePaymentStatusFromOrder(input: {
   return {
     paymentId: paymentPayload.payment?.id || paymentId,
     status: paymentPayload.payment?.status || null,
+    customerId: paymentPayload.payment?.customer_id || null,
   };
 }
 
