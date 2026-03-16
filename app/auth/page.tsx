@@ -25,7 +25,7 @@ export default async function AuthPage({
     <main className="container-x min-h-screen py-8">
       <div className="mx-auto w-full max-w-md">
         <div className="mb-3 flex items-center justify-between gap-2">
-          <Link href="/" className="btn-secondary">
+          <Link href={`/?lang=${language}`} className="btn-secondary">
             {copy.backHome}
           </Link>
           <div className="flex gap-2 text-sm">

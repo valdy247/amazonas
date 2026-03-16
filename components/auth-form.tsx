@@ -30,10 +30,10 @@ export function AuthForm() {
 
   function humanizeAuthError(raw: string) {
     const msg = raw.toLowerCase();
-    if (msg.includes("email rate limit exceeded")) return "Limite temporal de email en Supabase. Espera un minuto y vuelve a intentar.";
-    if (msg.includes("user already registered")) return "Ese correo ya esta registrado. Inicia sesion.";
-    if (msg.includes("email not confirmed")) return "Debes confirmar tu correo antes de iniciar sesion.";
-    if (msg.includes("invalid login credentials")) return "Correo o contrasena incorrectos.";
+    if (msg.includes("email rate limit exceeded")) return copy.signupEmailRateLimit;
+    if (msg.includes("user already registered")) return copy.signupAlreadyRegistered;
+    if (msg.includes("email not confirmed")) return copy.signinEmailNotConfirmed;
+    if (msg.includes("invalid login credentials")) return copy.signinInvalidCredentials;
     return raw;
   }
 
@@ -56,13 +56,13 @@ export function AuthForm() {
 
     try {
       if (mode === "signup") {
-        if (!firstName || !lastName) return setError("Debes ingresar nombre y apellidos."), void setLoading(false);
-        if (!phoneRegex.test(phone)) return setError("Numero de telefono invalido."), void setLoading(false);
+        if (!firstName || !lastName) return setError(copy.requiredName), void setLoading(false);
+        if (!phoneRegex.test(phone)) return setError(copy.invalidPhone), void setLoading(false);
         if (!identityConfirmed) {
-          return setError("Debes confirmar que tu nombre coincide con tu documento oficial."), void setLoading(false);
+          return setError(copy.identityRequired), void setLoading(false);
         }
-        if (password.length < 8) return setError("La contrasena debe tener al menos 8 caracteres."), void setLoading(false);
-        if (password !== confirmPassword) return setError("Las contrasenas no coinciden."), void setLoading(false);
+        if (password.length < 8) return setError(copy.passwordMin), void setLoading(false);
+        if (password !== confirmPassword) return setError(copy.passwordMismatch), void setLoading(false);
 
         const res = await fetch("/api/auth/signup", {
           method: "POST",
@@ -83,12 +83,12 @@ export function AuthForm() {
         const json = (await res.json()) as ApiResponse;
 
         if (!res.ok || json.error) {
-          setError(humanizeAuthError(json.error || "No se pudo crear la cuenta"));
+          setError(humanizeAuthError(json.error || copy.createFailed));
           return;
         }
 
         if (!json.data?.user?.id) {
-          setError("No se pudo confirmar la creacion de la cuenta. Intenta de nuevo.");
+          setError(copy.createConfirmFailed);
           return;
         }
 
@@ -106,7 +106,7 @@ export function AuthForm() {
       const json = (await res.json()) as ApiResponse;
 
       if (!res.ok || json.error) {
-        setError(humanizeAuthError(json.error || "No se pudo iniciar sesion"));
+        setError(humanizeAuthError(json.error || copy.signinFailed));
         return;
       }
 
@@ -114,7 +114,7 @@ export function AuthForm() {
       const refreshToken = json.data?.refresh_token;
 
       if (!accessToken || !refreshToken) {
-        setError("No se recibio sesion valida.");
+        setError(copy.invalidSession);
         return;
       }
 
@@ -125,14 +125,14 @@ export function AuthForm() {
       });
 
       if (setSessionError) {
-        setError("Sesion creada pero no se pudo guardar localmente.");
+        setError(copy.localSessionFailed);
         return;
       }
 
       router.push("/dashboard");
       return;
     } catch {
-      setError("No se pudo conectar con el servidor. Intenta otra vez.");
+      setError(copy.serverError);
     } finally {
       setLoading(false);
     }
@@ -160,22 +160,17 @@ export function AuthForm() {
               <div>
                 <p className="text-sm font-semibold text-[#131316]">{copy.language}</p>
                 <p className="mt-1 text-sm text-[#62626d]">
-                  {preferredLanguage === "es"
-                    ? "Tu experiencia y tus mensajes se mostraran primero en espanol."
-                    : "Your experience and messages will be shown in English first."}
+                  {copy.experienceSpanishFirst}
                 </p>
               </div>
               <span className="rounded-full bg-[#fff2eb] px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-[#dc4f1f]">
-                {preferredLanguage === "es" ? "Activo" : "Active"}
+                {copy.active}
               </span>
             </div>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               {LANGUAGE_OPTIONS.map((option) => {
                 const active = preferredLanguage === option.value;
-                const helper =
-                  option.value === "es"
-                    ? "Ideal si prefieres registrarte y conversar en espanol."
-                    : "Ideal if you prefer to browse and chat in English.";
+                const helper = option.value === "es" ? copy.spanishOptionHelp : copy.englishOptionHelp;
 
                 return (
                   <button

@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { NotebookTabs, Sparkles, Star } from "lucide-react";
+import { NotebookTabs, Sparkles, Star, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { EXPERIENCE_LABELS } from "@/lib/onboarding";
 import { AVAILABILITY_OPTIONS, type ReviewerAvailability } from "@/lib/profile-data";
@@ -106,6 +106,7 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
     }))
   );
   const [isPending, startTransition] = useTransition();
+
   const availableCountries = useMemo(
     () => Array.from(new Set(reviewers.map((reviewer) => reviewer.country.trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b)),
     [reviewers]
@@ -139,33 +140,34 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
     [requestLog]
   );
 
-  const filteredReviewers = useMemo(() => {
-    return reviewers.filter((reviewer) => {
-      if (selectedInterest && !reviewer.interests.some((interest) => normalizeFilterValue(interest) === normalizeFilterValue(selectedInterest))) {
-        return false;
-      }
+  const filteredReviewers = useMemo(
+    () =>
+      reviewers.filter((reviewer) => {
+        if (selectedInterest && !reviewer.interests.some((interest) => normalizeFilterValue(interest) === normalizeFilterValue(selectedInterest))) {
+          return false;
+        }
 
-      if (selectedCountry && normalizeFilterValue(reviewer.country) !== normalizeFilterValue(selectedCountry)) {
-        return false;
-      }
+        if (selectedCountry && normalizeFilterValue(reviewer.country) !== normalizeFilterValue(selectedCountry)) {
+          return false;
+        }
 
-      return true;
-    });
-  }, [reviewers, selectedCountry, selectedInterest]);
+        return true;
+      }),
+    [reviewers, selectedCountry, selectedInterest]
+  );
+
   const activeContactReviewer = contactOptionsId ? reviewers.find((reviewer) => reviewer.id === contactOptionsId) || null : null;
 
   useEffect(() => {
-    if (!activeContactReviewer) {
-      return;
-    }
+    if (!activeContactReviewer) return;
 
-    const previousOverflow = document.body.style.overflow;
+    const previousBodyOverflow = document.body.style.overflow;
     const previousHtmlOverflow = document.documentElement.style.overflow;
     document.body.style.overflow = "hidden";
     document.documentElement.style.overflow = "hidden";
 
     return () => {
-      document.body.style.overflow = previousOverflow;
+      document.body.style.overflow = previousBodyOverflow;
       document.documentElement.style.overflow = previousHtmlOverflow;
     };
   }, [activeContactReviewer]);
@@ -188,6 +190,13 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
         .select("full_name, profile_data")
         .eq("id", userResult.user.id)
         .single();
+      const providerInterestsFromProfile =
+        providerProfile &&
+        Array.isArray(providerProfile.profile_data && (providerProfile.profile_data as { interests?: unknown }).interests)
+          ? ((providerProfile.profile_data as { interests?: unknown }).interests as unknown[]).filter(
+              (item): item is string => typeof item === "string"
+            )
+          : providerInterests;
 
       const providerSnapshot = {
         fullName:
@@ -197,11 +206,7 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
               ? userResult.user.user_metadata.full_name
               : "Provider",
         country: mergeProfileSnapshotCountry(providerProfile?.profile_data, userResult.user.user_metadata),
-        interests: Array.isArray(providerProfile?.profile_data && (providerProfile.profile_data as { interests?: unknown }).interests)
-          ? ((providerProfile?.profile_data as { interests?: unknown }).interests as unknown[]).filter(
-              (item): item is string => typeof item === "string"
-            )
-          : providerInterests,
+        interests: providerInterestsFromProfile,
       };
 
       const existingThread = requestLog.find((request) => request.reviewerId === reviewerId);
@@ -250,10 +255,6 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
       router.push(`/dashboard?section=messages&thread=${createdRequest.id}`);
       router.refresh();
     });
-  }
-
-  function openContactOptions(reviewerId: string) {
-    setContactOptionsId((current) => (current === reviewerId ? null : reviewerId));
   }
 
   function openReviewerContact(reviewerId: string) {
@@ -336,7 +337,6 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
                 ))}
               </div>
             </div>
-
           </div>
         </div>
       </section>
@@ -365,7 +365,9 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
                     <p className="font-bold">{reviewer.fullName}</p>
                     <p className="mt-1 text-sm text-[#62626d]">{reviewer.country || copy.noCountry} · {EXPERIENCE_LABELS[reviewer.experienceLevel]}</p>
                   </div>
-                  <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-[#dc4f1f]">{reviewer.matchPercent}% {copy.compatible}</span>
+                  <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-[#dc4f1f]">
+                    {reviewer.matchPercent}% {copy.compatible}
+                  </span>
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {reviewer.interests.slice(0, 3).map((interest) => (
@@ -382,8 +384,10 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
       ) : null}
 
       <div className="flex items-center justify-between gap-3 text-sm text-[#62626d]">
-        <span>{filteredReviewers.length} {copy.reviewersFound}</span>
-        {(selectedCountry || selectedInterest) ? (
+        <span>
+          {filteredReviewers.length} {copy.reviewersFound}
+        </span>
+        {selectedCountry || selectedInterest ? (
           <button
             type="button"
             className="font-semibold text-[#dc4f1f]"
@@ -437,7 +441,7 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
                 </div>
 
                 <div className="text-right">
-                    <p className="text-xs uppercase tracking-[0.18em] text-[#8f857b]">{language === "en" ? "Match" : "Compatibilidad"}</p>
+                  <p className="text-xs uppercase tracking-[0.18em] text-[#8f857b]">{copy.matchLabel}</p>
                   <p className="mt-1 text-2xl font-bold text-[#131316]">{reviewer.matchPercent}%</p>
                   <div className="mt-2 h-2.5 w-24 overflow-hidden rounded-full bg-[#f1e3d8]">
                     <div className="h-full rounded-full bg-[linear-gradient(90deg,#ff8a5b_0%,#ff6b35_100%)]" style={{ width: `${reviewer.matchPercent}%` }} />
@@ -457,12 +461,8 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
                   <div className="mt-4 rounded-[1.35rem] border border-[#eadfd6] bg-[linear-gradient(180deg,#fcfaf7_0%,#fff5ef_100%)] p-4">
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <p className="text-sm font-semibold text-[#131316]">{language === "en" ? "Contact" : "Contacto"}</p>
-                        <p className="mt-1 text-sm text-[#62626d]">
-                          {language === "en"
-                            ? "First choose how you want to contact this reviewer based on what they allowed in their profile."
-                            : "Primero elige por donde quieres contactar a este reseñador segun lo que haya autorizado en su perfil."}
-                        </p>
+                        <p className="text-sm font-semibold text-[#131316]">{copy.contactTitle}</p>
+                        <p className="mt-1 text-sm text-[#62626d]">{copy.contactBody}</p>
                       </div>
                       <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-white text-[#dc4f1f] shadow-sm">
                         <NotebookTabs className="h-5 w-5" />
@@ -470,7 +470,7 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
                     </div>
 
                     <div className="mt-4 flex flex-wrap gap-2">
-                      <button type="button" className="btn-primary" onClick={() => openContactOptions(reviewer.id)}>
+                      <button type="button" className="btn-primary" onClick={() => setContactOptionsId(reviewer.id)}>
                         {copy.contact}
                       </button>
                     </div>
@@ -487,19 +487,23 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
       {activeContactReviewer ? (
         <div className="fixed inset-0 z-40 bg-[#17120d]/35 backdrop-blur-sm" onClick={() => setContactOptionsId(null)}>
           <div className="flex min-h-screen items-end justify-center p-4 sm:items-center">
-            <div className="w-full max-w-[360px] rounded-[1.8rem] border border-[#eadfd6] bg-white p-5 shadow-[0_24px_60px_rgba(22,18,14,0.16)]" onClick={(event) => event.stopPropagation()}>
+            <div
+              className="w-full max-w-[360px] rounded-[1.8rem] border border-[#eadfd6] bg-white p-5 shadow-[0_24px_60px_rgba(22,18,14,0.16)]"
+              onClick={(event) => event.stopPropagation()}
+            >
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="text-sm font-semibold text-[#dc4f1f]">Metodos de contacto</p>
+                  <p className="text-sm font-semibold text-[#dc4f1f]">{copy.contactMethods}</p>
                   <h3 className="mt-1 text-xl font-bold text-[#131316]">{activeContactReviewer.fullName}</h3>
-                  <p className="mt-1 text-sm text-[#62626d]">Elige la via mas comoda para empezar la conversacion.</p>
+                  <p className="mt-1 text-sm text-[#62626d]">{copy.contactMethodsBody}</p>
                 </div>
                 <button
                   type="button"
                   className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#f7f1ea] text-[#131316]"
                   onClick={() => setContactOptionsId(null)}
+                  aria-label={copy.close}
                 >
-                  ×
+                  <X className="h-4 w-4" />
                 </button>
               </div>
 
@@ -510,7 +514,7 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
                   onClick={() => openPlatformChat(activeContactReviewer.id)}
                   disabled={isPending && pendingAction === activeContactReviewer.id}
                 >
-                  {isPending && pendingAction === activeContactReviewer.id ? "Abriendo..." : "A traves de la pagina"}
+                  {isPending && pendingAction === activeContactReviewer.id ? copy.opening : copy.throughPlatform}
                 </button>
                 {activeContactReviewer.directContactMethods.map((method) => (
                   <a
@@ -518,7 +522,11 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
                     href={toHref(method.value)}
                     target="_blank"
                     rel="noreferrer"
-                    className={method.label === "WhatsApp" ? "inline-flex items-center justify-center rounded-full bg-[#1f9d55] px-4 py-3 text-sm font-semibold text-white shadow-[0_14px_32px_rgba(31,157,85,0.22)] transition hover:brightness-105" : "btn-secondary justify-center"}
+                    className={
+                      method.label === "WhatsApp"
+                        ? "inline-flex items-center justify-center rounded-full bg-[#1f9d55] px-4 py-3 text-sm font-semibold text-white shadow-[0_14px_32px_rgba(31,157,85,0.22)] transition hover:brightness-105"
+                        : "btn-secondary justify-center"
+                    }
                   >
                     {method.label}
                   </a>

@@ -49,6 +49,7 @@ export function ProfileWizard({ initialValues, email, language }: ProfileWizardP
     note: initialValues.note || "",
     acceptTerms: Boolean(initialValues.acceptTerms),
   });
+
   const hasEssentialProfile = Boolean(values.firstName.trim() && values.lastName.trim() && phoneRegex.test(values.phone.trim()));
   const baseSteps = useMemo(
     () =>
@@ -67,10 +68,7 @@ export function ProfileWizard({ initialValues, email, language }: ProfileWizardP
   const isLastStep = step === steps.length - 1;
   const progressPercent = Math.round(((step + 1) / steps.length) * 100);
   const selectedCountryLabel = values.country || copy.noCountrySelected;
-  const roleCopy =
-    values.role === "reviewer"
-      ? copy.reviewerRoleCopy
-      : copy.providerRoleCopy;
+  const roleCopy = values.role === "reviewer" ? copy.reviewerRoleCopy : copy.providerRoleCopy;
 
   function updateValue<K extends keyof WizardValues>(key: K, value: WizardValues[K]) {
     setValues((current) => ({ ...current, [key]: value }));
@@ -94,33 +92,31 @@ export function ProfileWizard({ initialValues, email, language }: ProfileWizardP
 
   function validateCurrentStep() {
     if (!currentStep) {
-      return "No se pudo cargar este paso.";
+      return copy.stepLoadError;
     }
 
     if (currentStep.id === "profile") {
       if (!values.firstName.trim() || !values.lastName.trim()) {
-        return "Completa nombre y apellidos.";
+        return copy.fullNameRequired;
       }
 
       if (!phoneRegex.test(values.phone.trim())) {
-        return "Ingresa un telefono valido.";
+        return copy.invalidPhone;
       }
     }
 
     if (currentStep.id === "focus") {
       if (!values.country) {
-        return "Selecciona tu pais principal.";
+        return copy.selectCountry;
       }
 
       if (values.interests.length < 3) {
-        return values.role === "reviewer"
-          ? "Selecciona al menos 3 intereses para que el matching tenga contexto."
-          : "Selecciona al menos 3 categorias de producto para encontrar reseñadores afines.";
+        return values.role === "reviewer" ? copy.reviewerInterestsMin : copy.providerInterestsMin;
       }
     }
 
     if (currentStep.id === "confirm" && !values.acceptTerms) {
-      return "Debes aceptar terminos y reglas para activar tu perfil.";
+      return copy.acceptTerms;
     }
 
     return null;
@@ -128,7 +124,7 @@ export function ProfileWizard({ initialValues, email, language }: ProfileWizardP
 
   async function handleNext() {
     if (!currentStep) {
-      setError("No se pudo cargar este paso.");
+      setError(copy.stepLoadError);
       return;
     }
 
@@ -160,7 +156,7 @@ export function ProfileWizard({ initialValues, email, language }: ProfileWizardP
     } = await supabase.auth.getUser();
 
     if (userError || !user) {
-      setError("No se pudo validar tu sesion.");
+      setError(copy.sessionError);
       setLoading(false);
       return;
     }
@@ -225,16 +221,16 @@ export function ProfileWizard({ initialValues, email, language }: ProfileWizardP
         <div className="card overflow-hidden border-none bg-[linear-gradient(140deg,#1a1713,#33261a)] p-5 text-white shadow-[0_24px_80px_rgba(34,25,17,0.18)]">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="text-xs uppercase tracking-[0.24em] text-white/65">Onboarding</p>
-              <h1 className="mt-2 text-3xl font-bold">Perfil paso a paso</h1>
-              <p className="mt-2 max-w-xs text-sm text-white/72">{currentStep.description}</p>
+              <p className="text-xs uppercase tracking-[0.24em] text-white/65">{copy.onboarding}</p>
+              <h1 className="mt-2 text-3xl font-bold">{copy.stepByStep}</h1>
+              <p className="mt-2 max-w-xs text-sm text-white/72">{currentStep?.description}</p>
             </div>
             <div className="flex flex-col items-end gap-2">
               <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-white/10">
                 <Sparkles className="h-5 w-5" />
               </span>
               <div className="rounded-[1.1rem] border border-white/10 bg-white/8 px-3 py-2 text-right">
-                <p className="text-[11px] uppercase tracking-[0.18em] text-white/55">Progreso</p>
+                <p className="text-[11px] uppercase tracking-[0.18em] text-white/55">{copy.progress}</p>
                 <p className="mt-1 text-lg font-bold">{progressPercent}%</p>
               </div>
             </div>
@@ -243,13 +239,13 @@ export function ProfileWizard({ initialValues, email, language }: ProfileWizardP
           <div className="mt-5 rounded-[1.5rem] border border-white/10 bg-white/6 p-4">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-[11px] uppercase tracking-[0.22em] text-white/50">Etapa actual</p>
+                <p className="text-[11px] uppercase tracking-[0.22em] text-white/50">{copy.currentStage}</p>
                 <p className="mt-1 text-base font-semibold">
-                  Paso {step + 1} de {steps.length}: {currentStep?.title}
+                  {copy.stepLabel} {step + 1} {language === "en" ? "of" : "de"} {steps.length}: {currentStep?.title}
                 </p>
               </div>
               <div className="rounded-full bg-white/10 px-3 py-2 text-xs font-semibold text-white/75">
-                {steps.length - step - 1} pendientes
+                {steps.length - step - 1} {copy.pending}
               </div>
             </div>
 
@@ -299,22 +295,14 @@ export function ProfileWizard({ initialValues, email, language }: ProfileWizardP
           {currentStep?.id === "role" ? (
             <>
               <div>
-                <p className="text-sm font-semibold text-[#dc4f1f]">Elige tu ruta inicial</p>
+                <p className="text-sm font-semibold text-[#dc4f1f]">{copy.choosePath}</p>
                 <p className="mt-1 text-sm text-[#62626d]">{roleCopy}</p>
               </div>
 
               <div className="grid gap-3">
                 {[
-                  {
-                    role: "reviewer" as const,
-                    title: "Soy reseñador",
-                    description: "Voy a completar mi perfil para recibir oportunidades alineadas con mis intereses.",
-                  },
-                  {
-                    role: "provider" as const,
-                    title: "Soy proveedor",
-                    description: "Quiero preparar mi perfil segun los productos que ofrezco para encontrar reseñadores relevantes.",
-                  },
+                  { role: "reviewer" as const, title: copy.reviewerTitle, description: copy.reviewerDescription },
+                  { role: "provider" as const, title: copy.providerTitle, description: copy.providerDescription },
                 ].map((option) => (
                   <button
                     key={option.role}
@@ -335,19 +323,17 @@ export function ProfileWizard({ initialValues, email, language }: ProfileWizardP
           {currentStep?.id === "profile" ? (
             <>
               <div>
-                <p className="text-sm font-semibold text-[#dc4f1f]">Completa lo esencial</p>
-                <p className="mt-1 text-sm text-[#62626d]">
-                  Este paso debe sentirse rapido en movil, sin campos innecesarios.
-                </p>
+                <p className="text-sm font-semibold text-[#dc4f1f]">{copy.essentials}</p>
+                <p className="mt-1 text-sm text-[#62626d]">{copy.essentialsBody}</p>
               </div>
 
               <div className="grid gap-3">
-                <input className="input" value={values.firstName} onChange={(event) => updateValue("firstName", event.target.value)} placeholder="Nombre" />
-                <input className="input" value={values.lastName} onChange={(event) => updateValue("lastName", event.target.value)} placeholder="Apellidos" />
-                <input className="input" value={values.phone} onChange={(event) => updateValue("phone", event.target.value)} placeholder="Telefono" />
+                <input className="input" value={values.firstName} onChange={(event) => updateValue("firstName", event.target.value)} placeholder={copy.firstName} />
+                <input className="input" value={values.lastName} onChange={(event) => updateValue("lastName", event.target.value)} placeholder={copy.lastName} />
+                <input className="input" value={values.phone} onChange={(event) => updateValue("phone", event.target.value)} placeholder={copy.phone} />
                 <div className="rounded-2xl border border-dashed border-[#e5e5df] bg-[#f8f4ef] p-3 text-sm text-[#62626d]">
-                  <p className="font-semibold text-[#131316]">Correo de acceso</p>
-                  <p className="mt-1">{email || "Sin correo disponible"}</p>
+                  <p className="font-semibold text-[#131316]">{copy.accessEmail}</p>
+                  <p className="mt-1">{email || copy.noEmail}</p>
                 </div>
               </div>
             </>
@@ -359,12 +345,10 @@ export function ProfileWizard({ initialValues, email, language }: ProfileWizardP
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <p className="text-sm font-semibold text-[#dc4f1f]">
-                      {values.role === "reviewer" ? "Que te interesa probar" : "Que tipo de productos ofreces"}
+                      {values.role === "reviewer" ? copy.reviewerInterestTitle : copy.providerInterestTitle}
                     </p>
                     <p className="mt-1 text-sm text-[#62626d]">
-                      {values.role === "reviewer"
-                        ? "Estas etiquetas nos ayudan a personalizar el dashboard y futuros matches."
-                        : "Usaremos estas mismas etiquetas como categorias de producto para encontrar reseñadores compatibles."}
+                      {values.role === "reviewer" ? copy.reviewerInterestBody : copy.providerInterestBody}
                     </p>
                   </div>
                   <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-[#ff6b35] shadow-sm">
@@ -375,12 +359,10 @@ export function ProfileWizard({ initialValues, email, language }: ProfileWizardP
                 <div className="mt-4 rounded-[1.5rem] bg-[#1e1712] p-4 text-white">
                   <div className="flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-white/55">
                     <MapPin className="h-4 w-4" />
-                    Region principal
+                    {copy.mainRegion}
                   </div>
                   <p className="mt-3 text-lg font-bold">{selectedCountryLabel}</p>
-                  <p className="mt-1 text-sm text-white/65">
-                    Elegimos un pais base para mostrar oportunidades y matches relevantes primero.
-                  </p>
+                  <p className="mt-1 text-sm text-white/65">{copy.mainRegionBody}</p>
                   <div className="mt-4 grid grid-cols-2 gap-2">
                     {COUNTRY_OPTIONS.map((country) => {
                       const active = values.country === country;
@@ -391,9 +373,7 @@ export function ProfileWizard({ initialValues, email, language }: ProfileWizardP
                           type="button"
                           onClick={() => updateValue("country", country)}
                           className={`rounded-2xl border px-3 py-3 text-left text-sm font-semibold transition ${
-                            active
-                              ? "border-[#ff8a5b] bg-[#ff8a5b] text-white"
-                              : "border-white/12 bg-white/6 text-white/82"
+                            active ? "border-[#ff8a5b] bg-[#ff8a5b] text-white" : "border-white/12 bg-white/6 text-white/82"
                           }`}
                         >
                           {country}
@@ -423,17 +403,15 @@ export function ProfileWizard({ initialValues, email, language }: ProfileWizardP
                 <div className="flex items-center justify-between gap-4">
                   <div>
                     <p className="text-sm font-semibold text-[#131316]">
-                      {values.role === "reviewer" ? "Mapa de intereses" : "Mapa de productos"}
+                      {values.role === "reviewer" ? copy.interestMap : copy.productMap}
                     </p>
                     <p className="mt-1 text-sm text-[#62626d]">
-                      {values.role === "reviewer"
-                        ? "Selecciona al menos 3 para entrenar mejor tu perfil."
-                        : "Selecciona al menos 3 categorias de producto para encontrar reseñadores afines."}
+                      {values.role === "reviewer" ? copy.interestMapBody : copy.productMapBody}
                     </p>
                   </div>
                   <div className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-2 text-xs font-semibold text-[#dc4f1f] shadow-sm">
                     <Compass className="h-4 w-4" />
-                    {values.interests.length} seleccionados
+                    {values.interests.length} {copy.selected}
                   </div>
                 </div>
 
@@ -448,11 +426,7 @@ export function ProfileWizard({ initialValues, email, language }: ProfileWizardP
                     }`}
                   >
                     <span className="flex items-center justify-between gap-2">
-                      <span>
-                        {values.interests.length === INTEREST_OPTIONS.length
-                          ? "Quitar seleccion completa"
-                          : "Seleccionar todos"}
-                      </span>
+                      <span>{values.interests.length === INTEREST_OPTIONS.length ? copy.clearSelection : copy.selectAll}</span>
                       {values.interests.length === INTEREST_OPTIONS.length ? <Check className="h-4 w-4" /> : null}
                     </span>
                   </button>
@@ -484,11 +458,7 @@ export function ProfileWizard({ initialValues, email, language }: ProfileWizardP
                 className="input min-h-28 resize-none"
                 value={values.note}
                 onChange={(event) => updateValue("note", event.target.value)}
-                placeholder={
-                  values.role === "reviewer"
-                    ? "Cuentanos que tipo de productos te gusta resenar o en que eres fuerte."
-                    : "Describe que tipo de productos ofreces, tu enfoque y el reseñador ideal para colaborar."
-                }
+                placeholder={values.role === "reviewer" ? copy.reviewerNote : copy.providerNote}
               />
             </>
           ) : null}
@@ -496,21 +466,19 @@ export function ProfileWizard({ initialValues, email, language }: ProfileWizardP
           {currentStep?.id === "confirm" ? (
             <>
               <div>
-                <p className="text-sm font-semibold text-[#dc4f1f]">Resumen rapido</p>
-                <p className="mt-1 text-sm text-[#62626d]">
-                  El objetivo es activar tu perfil sin friccion y dejar una base clara para agregar pasos despues.
-                </p>
+                <p className="text-sm font-semibold text-[#dc4f1f]">{copy.summary}</p>
+                <p className="mt-1 text-sm text-[#62626d]">{copy.summaryBody}</p>
               </div>
 
               <div className="rounded-[1.5rem] bg-[#f8f4ef] p-4">
-                <p className="text-sm text-[#62626d]">Rol</p>
+                <p className="text-sm text-[#62626d]">{copy.role}</p>
                 <p className="font-semibold capitalize">{values.role}</p>
-                <p className="mt-3 text-sm text-[#62626d]">Perfil</p>
+                <p className="mt-3 text-sm text-[#62626d]">{copy.profile}</p>
                 <p className="font-semibold">
                   {values.firstName} {values.lastName}
                 </p>
-                <p className="text-sm text-[#62626d]">{values.country || "Pais pendiente"}</p>
-                <p className="mt-3 text-sm text-[#62626d]">{values.role === "reviewer" ? "Intereses" : "Categorias de producto"}</p>
+                <p className="text-sm text-[#62626d]">{values.country || copy.pendingCountry}</p>
+                <p className="mt-3 text-sm text-[#62626d]">{values.role === "reviewer" ? copy.interests : copy.productCategories}</p>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {values.interests.map((interest) => (
                     <span key={interest} className="rounded-full bg-white px-3 py-1 text-sm font-semibold text-[#dc4f1f]">
@@ -522,7 +490,7 @@ export function ProfileWizard({ initialValues, email, language }: ProfileWizardP
 
               <label className="flex items-start gap-3 rounded-2xl border border-[#e5e5df] p-4 text-sm">
                 <input type="checkbox" checked={values.acceptTerms} onChange={(event) => updateValue("acceptTerms", event.target.checked)} className="mt-1" />
-                <span>Acepto terminos, privacidad y reglas de cumplimiento para activar mi acceso.</span>
+                <span>{copy.terms}</span>
               </label>
             </>
           ) : null}
@@ -545,7 +513,7 @@ export function ProfileWizard({ initialValues, email, language }: ProfileWizardP
         </button>
 
         <button type="button" onClick={handleNext} disabled={loading} className="btn-primary h-12 w-full gap-2">
-          <span>{loading ? "Guardando..." : isLastStep ? "Activar perfil" : "Continuar"}</span>
+          <span>{loading ? copy.activating : isLastStep ? copy.activateProfile : copy.continue}</span>
           {!loading ? <ChevronRight className="h-4 w-4" /> : null}
         </button>
       </div>
