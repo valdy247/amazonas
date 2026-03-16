@@ -23,6 +23,10 @@ type MembershipRow = {
 type KycRow = {
   user_id: string;
   status: string;
+  reference_id?: string | null;
+  verified_full_name?: string | null;
+  review_note?: string | null;
+  reviewed_at?: string | null;
 };
 
 type ContactRow = {
@@ -91,10 +95,13 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   const memberIds = (members ?? []).map((member) => member.id);
 
   const { data: memberships } = await supabase.from("memberships").select("user_id, status").in("user_id", memberIds);
-  const { data: kycRows } = await supabase.from("kyc_checks").select("user_id, status").in("user_id", memberIds);
+  const { data: kycRows } = await supabase
+    .from("kyc_checks")
+    .select("user_id, status, reference_id, verified_full_name, review_note, reviewed_at")
+    .in("user_id", memberIds);
 
   const membershipByUser = new Map((memberships as MembershipRow[] | null)?.map((item) => [item.user_id, item.status]) ?? []);
-  const kycByUser = new Map((kycRows as KycRow[] | null)?.map((item) => [item.user_id, item.status]) ?? []);
+  const kycByUser = new Map((kycRows as KycRow[] | null)?.map((item) => [item.user_id, item]) ?? []);
   const reviewerCount = (members || []).filter((member) => member.role === "reviewer" || member.role === "tester").length;
   const providerCount = (members || []).filter((member) => member.role === "provider").length;
 
@@ -221,7 +228,11 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                   email: member.email,
                   role: member.role,
                   membershipStatus: membershipByUser.get(member.id) || "pending_payment",
-                  kycStatus: kycByUser.get(member.id) || "pending",
+                  kycStatus: kycByUser.get(member.id)?.status || "pending",
+                  kycReferenceId: kycByUser.get(member.id)?.reference_id || null,
+                  kycVerifiedFullName: kycByUser.get(member.id)?.verified_full_name || null,
+                  kycReviewNote: kycByUser.get(member.id)?.review_note || null,
+                  kycReviewedAt: kycByUser.get(member.id)?.reviewed_at || null,
                 }))}
               />
             </div>

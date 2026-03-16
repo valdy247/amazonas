@@ -10,6 +10,10 @@ type MemberRow = {
   role: string | null;
   membershipStatus: string;
   kycStatus: string;
+  kycReferenceId?: string | null;
+  kycVerifiedFullName?: string | null;
+  kycReviewNote?: string | null;
+  kycReviewedAt?: string | null;
 };
 
 type AdminUserManagerProps = {
@@ -94,6 +98,9 @@ export function AdminUserManager({ members }: AdminUserManagerProps) {
                     <span className={`rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] ${roleMeta.className}`}>
                       {roleMeta.label}
                     </span>
+                    <span className="rounded-full bg-[#f6f0e9] px-3 py-1 text-[11px] font-semibold text-[#62564a]">
+                      ID: {member.id.slice(0, 8)}
+                    </span>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -110,6 +117,29 @@ export function AdminUserManager({ members }: AdminUserManagerProps) {
                     <span className={`rounded-full px-3 py-1 ${roleMeta.className}`}>Rol: {roleMeta.label}</span>
                     <span className="rounded-full bg-[#f6f0e9] px-3 py-1">Membresia: {member.membershipStatus}</span>
                     <span className="rounded-full bg-[#f6f0e9] px-3 py-1">KYC: {member.kycStatus}</span>
+                  </div>
+
+                  <div className="mb-4 grid gap-2 rounded-[1.1rem] border border-[#efe5db] bg-[#fffaf6] p-3 text-sm text-[#62564a]">
+                    <p>
+                      <span className="font-semibold text-[#131316]">User ID:</span> {member.id}
+                    </p>
+                    <p>
+                      <span className="font-semibold text-[#131316]">Referencia KYC:</span>{" "}
+                      {member.kycReferenceId || "Sin referencia"}
+                    </p>
+                    <p>
+                      <span className="font-semibold text-[#131316]">Nombre verificado:</span>{" "}
+                      {member.kycVerifiedFullName || "Aun no disponible"}
+                    </p>
+                    <p>
+                      <span className="font-semibold text-[#131316]">Revision KYC:</span>{" "}
+                      {member.kycReviewedAt || "Sin fecha"}
+                    </p>
+                    {member.kycReviewNote ? (
+                      <p>
+                        <span className="font-semibold text-[#131316]">Nota:</span> {member.kycReviewNote}
+                      </p>
+                    ) : null}
                   </div>
 
                   <form action={updateMemberStatus} className="grid gap-2 sm:grid-cols-4 sm:items-center">
