@@ -11,7 +11,22 @@ type VeriffSessionResponse = {
 };
 
 type VeriffDecisionPayload = {
+  id?: string;
+  sessionId?: string;
+  vendorData?: string | null;
+  endUserId?: string | null;
+  time?: string | null;
+  acceptanceTime?: string | null;
   status?: string;
+  data?: {
+    verification?: {
+      decision?: string | null;
+      person?: {
+        firstName?: { value?: string | null } | null;
+        lastName?: { value?: string | null } | null;
+      } | null;
+    } | null;
+  } | null;
   verification?: {
     id?: string;
     vendorData?: string | null;

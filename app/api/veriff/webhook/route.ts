@@ -2,12 +2,49 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { mapVeriffDecisionStatus, parseVeriffDecisionPayload, verifyVeriffWebhookSignature } from "@/lib/veriff";
 
-function resolveUserId(payload: ReturnType<typeof parseVeriffDecisionPayload>) {
-  const verification = payload.verification;
-  const value = verification?.endUserId || verification?.vendorData || null;
+type VeriffWebhookPayload = ReturnType<typeof parseVeriffDecisionPayload>;
 
-  if (typeof value === "string" && /^[a-f0-9-]{36}$/i.test(value)) {
-    return value;
+function isUuid(value: unknown) {
+  return typeof value === "string" && /^[a-f0-9-]{36}$/i.test(value);
+}
+
+function getObjectValue(value: unknown) {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const nestedValue = (value as { value?: unknown }).value;
+  return typeof nestedValue === "string" ? nestedValue : null;
+}
+
+function resolveVerificationId(payload: VeriffWebhookPayload) {
+  const candidates = [
+    payload.verification?.id,
+    payload.sessionId,
+    payload.id,
+  ];
+
+  for (const candidate of candidates) {
+    if (isUuid(candidate)) {
+      return candidate;
+    }
+  }
+
+  return null;
+}
+
+function resolveUserId(payload: VeriffWebhookPayload) {
+  const candidates = [
+    payload.verification?.endUserId,
+    payload.verification?.vendorData,
+    payload.endUserId,
+    payload.vendorData,
+  ];
+
+  for (const candidate of candidates) {
+    if (isUuid(candidate)) {
+      return candidate;
+    }
   }
 
   return null;
@@ -45,7 +82,7 @@ function tokenReasonablyMatches(left: string, right: string) {
   return false;
 }
 
-function getVerifiedFullName(payload: ReturnType<typeof parseVeriffDecisionPayload>) {
+function getVerifiedFullName(payload: VeriffWebhookPayload) {
   const person = payload.verification?.person;
   const fullName = person?.fullName?.trim();
 
@@ -53,7 +90,47 @@ function getVerifiedFullName(payload: ReturnType<typeof parseVeriffDecisionPaylo
     return fullName;
   }
 
-  return [person?.firstName, person?.lastName].filter(Boolean).join(" ").trim();
+  const directName = [person?.firstName, person?.lastName].filter(Boolean).join(" ").trim();
+  if (directName) {
+    return directName;
+  }
+
+  const fullAutoPerson = payload.data?.verification?.person;
+  const extractedName = [
+    getObjectValue(fullAutoPerson?.firstName),
+    getObjectValue(fullAutoPerson?.lastName),
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
+
+  return extractedName || null;
+}
+
+function resolveDecisionStatus(payload: VeriffWebhookPayload) {
+  const decision = payload.verification?.status || payload.data?.verification?.decision || null;
+  return typeof decision === "string" ? decision : null;
+}
+
+function resolveDecisionReason(payload: VeriffWebhookPayload) {
+  const reason = payload.verification?.reason;
+  return typeof reason === "string" ? reason : null;
+}
+
+function resolveDecisionTime(payload: VeriffWebhookPayload) {
+  const candidates = [
+    payload.verification?.decisionTime,
+    payload.time,
+    payload.acceptanceTime,
+  ];
+
+  for (const candidate of candidates) {
+    if (typeof candidate === "string" && !Number.isNaN(new Date(candidate).getTime())) {
+      return candidate;
+    }
+  }
+
+  return new Date().toISOString();
 }
 
 function namesReasonablyMatch(input: { profileName: string | null | undefined; verifiedName: string | null | undefined }) {
@@ -116,11 +193,16 @@ export async function POST(request: NextRequest) {
     }
 
     const payload = parseVeriffDecisionPayload(body);
-    const verification = payload.verification;
     const userId = resolveUserId(payload);
+    const verificationId = resolveVerificationId(payload);
+    const decisionStatus = resolveDecisionStatus(payload);
     const verifiedFullName = getVerifiedFullName(payload);
 
-    if (!verification?.id || !userId) {
+    if (!decisionStatus) {
+      return NextResponse.json({ ok: true, ignored: true, message: "Event webhook received without final decision." });
+    }
+
+    if (!verificationId || !userId) {
       return NextResponse.json({ ok: false, message: "Webhook does not include a valid Veriff session or user." }, { status: 400 });
     }
 
@@ -131,13 +213,13 @@ export async function POST(request: NextRequest) {
       .select("status, reviewed_at, reference_id")
       .eq("user_id", userId)
       .maybeSingle();
-    const baseStatus = mapVeriffDecisionStatus(verification.status);
+    const baseStatus = mapVeriffDecisionStatus(decisionStatus);
     const hasReasonableNameMatch = namesReasonablyMatch({
       profileName: profile?.full_name,
       verifiedName: verifiedFullName,
     });
     const status = baseStatus === "approved" && !hasReasonableNameMatch ? "in_review" : baseStatus;
-    const processedAt = verification.decisionTime || new Date().toISOString();
+    const processedAt = resolveDecisionTime(payload);
     const currentReviewedAt =
       typeof existingKyc?.reviewed_at === "string" && !Number.isNaN(new Date(existingKyc.reviewed_at).getTime())
         ? new Date(existingKyc.reviewed_at).getTime()
@@ -148,7 +230,7 @@ export async function POST(request: NextRequest) {
       currentReviewedAt !== null &&
       incomingReviewedAt < currentReviewedAt &&
       existingKyc?.reference_id &&
-      existingKyc.reference_id !== verification.id
+      existingKyc.reference_id !== verificationId
     ) {
       return NextResponse.json({
         ok: true,
@@ -160,13 +242,13 @@ export async function POST(request: NextRequest) {
     const updatePayload = {
       status,
       provider_name: "veriff",
-      reference_id: verification.id,
+      reference_id: verificationId,
       reviewed_at: processedAt,
       verified_full_name: verifiedFullName || null,
       review_note:
         baseStatus === "approved" && !hasReasonableNameMatch
           ? "El nombre verificado no coincide razonablemente con el nombre del perfil."
-          : verification.reason || null,
+          : resolveDecisionReason(payload),
     };
 
     const { error } = await admin.from("kyc_checks").update(updatePayload).eq("user_id", userId);
