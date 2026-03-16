@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Suspense } from "react";
-import { ArrowRight, ShieldCheck, Users } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { LandingFooter } from "@/components/landing-footer";
 import { ProviderInviteModal } from "@/components/provider-invite-modal";
 import { SiteHeader } from "@/components/site-header";
@@ -118,24 +118,6 @@ export default function Home() {
           </article>
         </section>
 
-        <section className="mt-8 grid gap-3 sm:grid-cols-3">
-          <article className="card p-4">
-            <ShieldCheck className="h-5 w-5 text-[#ff6b35]" />
-            <h2 className="mt-2 font-bold">{copy.legalFlowTitle}</h2>
-            <p className="mt-1 text-sm text-[#62626d]">{copy.legalFlowBody}</p>
-          </article>
-          <article className="card p-4">
-            <Users className="h-5 w-5 text-[#ff6b35]" />
-            <h2 className="mt-2 font-bold">{copy.clearRolesTitle}</h2>
-            <p className="mt-1 text-sm text-[#62626d]">{copy.clearRolesBody}</p>
-          </article>
-          <article className="card p-4">
-            <ShieldCheck className="h-5 w-5 text-[#ff6b35]" />
-            <h2 className="mt-2 font-bold">{copy.verifiedNetworkTitle}</h2>
-            <p className="mt-1 text-sm text-[#62626d]">{copy.verifiedNetworkBody}</p>
-          </article>
-        </section>
-
         <section className="mt-8 rounded-[2rem] border border-[#eadfd6] bg-[linear-gradient(135deg,#15120f_0%,#241a12_100%)] px-5 py-7 text-white shadow-[0_24px_70px_rgba(22,18,14,0.18)] sm:px-8">
           <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
             <div className="max-w-2xl">
@@ -146,12 +128,12 @@ export default function Home() {
               </p>
             </div>
 
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <Link href={`/auth?mode=signup&lang=${language}`} className="inline-flex items-center justify-center gap-2 rounded-full bg-[#ff6b35] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#ff7c4e]">
+            <div className="flex w-full max-w-xs flex-col gap-3">
+              <Link href={`/auth?mode=signup&lang=${language}`} className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#ff6b35] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#ff7c4e]">
                 Create account
                 <ArrowRight className="h-4 w-4" />
               </Link>
-              <Link href={`/terms?lang=${language}`} className="inline-flex items-center justify-center rounded-full border border-white/15 px-5 py-3 text-sm font-semibold text-white/82 transition hover:border-white/30 hover:text-white">
+              <Link href={`/terms?lang=${language}`} className="inline-flex w-full items-center justify-center rounded-full border border-white/15 px-5 py-3 text-sm font-semibold text-white/82 transition hover:border-white/30 hover:text-white">
                 Review terms
               </Link>
             </div>
