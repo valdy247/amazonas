@@ -647,7 +647,7 @@ export function CollaborationInbox({
 
   return (
     <>
-      <section className="overflow-hidden rounded-[1.9rem] border border-[#e8ddd2] bg-white shadow-[0_24px_60px_rgba(22,18,14,0.06)]">
+      <section className="rounded-[1.9rem] border border-[#e8ddd2] bg-white shadow-[0_24px_60px_rgba(22,18,14,0.06)]">
         <div className="border-b border-[#efe5db] px-5 py-4">
           <div className="flex items-start justify-between gap-3">
             <div>
