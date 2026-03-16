@@ -17,6 +17,11 @@ type WizardValues = {
   experienceLevel: ExperienceLevel;
   interests: string[];
   note: string;
+  publicProfile: boolean;
+  allowsDirectContact: boolean;
+  contactWhatsapp: string;
+  contactInstagram: string;
+  contactMessenger: string;
   acceptTerms: boolean;
 };
 
@@ -47,6 +52,11 @@ export function ProfileWizard({ initialValues, email, language }: ProfileWizardP
     experienceLevel: initialValues.experienceLevel || "new",
     interests: normalizeInterests(initialValues.interests),
     note: initialValues.note || "",
+    publicProfile: initialValues.publicProfile === false ? false : true,
+    allowsDirectContact: Boolean(initialValues.allowsDirectContact),
+    contactWhatsapp: initialValues.contactWhatsapp || "",
+    contactInstagram: initialValues.contactInstagram || "",
+    contactMessenger: initialValues.contactMessenger || "",
     acceptTerms: Boolean(initialValues.acceptTerms),
   });
 
@@ -114,6 +124,16 @@ export function ProfileWizard({ initialValues, email, language }: ProfileWizardP
       if (values.interests.length < 3) {
         return values.role === "reviewer" ? copy.reviewerInterestsMin : copy.providerInterestsMin;
       }
+
+      if (values.allowsDirectContact) {
+        const directContactCount = [values.contactWhatsapp, values.contactInstagram, values.contactMessenger]
+          .map((item) => item.trim())
+          .filter(Boolean).length;
+
+        if (!directContactCount) {
+          return copy.directContactRequired;
+        }
+      }
     }
 
     if (currentStep.id === "confirm" && !values.acceptTerms) {
@@ -177,6 +197,13 @@ export function ProfileWizard({ initialValues, email, language }: ProfileWizardP
           experienceLevel: values.experienceLevel,
           interests: values.interests,
           note: values.note.trim(),
+          allowsDirectContact: values.allowsDirectContact,
+          publicProfile: values.publicProfile,
+          contact: {
+            whatsapp: values.contactWhatsapp.trim(),
+            instagram: values.contactInstagram.trim(),
+            messenger: values.contactMessenger.trim(),
+          },
         }),
       })
       .eq("id", user.id);
@@ -195,12 +222,12 @@ export function ProfileWizard({ initialValues, email, language }: ProfileWizardP
         interests: values.interests,
         profile_note: values.note.trim(),
         availability: "open",
-        allows_direct_contact: false,
-        public_profile: true,
+        allows_direct_contact: values.allowsDirectContact,
+        public_profile: values.publicProfile,
         reviewer_contact: {
-          whatsapp: "",
-          instagram: "",
-          messenger: "",
+          whatsapp: values.contactWhatsapp.trim(),
+          instagram: values.contactInstagram.trim(),
+          messenger: values.contactMessenger.trim(),
         },
         role: values.role,
       },
@@ -399,6 +426,57 @@ export function ProfileWizard({ initialValues, email, language }: ProfileWizardP
                     ))}
                   </select>
                 </div>
+              </div>
+
+              <div className="rounded-[1.5rem] border border-[#eadfd6] bg-[#fcfaf7] p-4">
+                <p className="text-sm font-semibold text-[#131316]">{copy.visibilityContactTitle}</p>
+                <p className="mt-1 text-sm text-[#62626d]">
+                  {values.role === "reviewer" ? copy.reviewerContactHelp : copy.providerContactHelp}
+                </p>
+
+                <div className="mt-4 grid gap-3">
+                  <label className="flex items-start gap-3 rounded-2xl border border-[#e5e5df] bg-white p-4 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={values.publicProfile}
+                      onChange={(event) => updateValue("publicProfile", event.target.checked)}
+                      className="mt-1"
+                    />
+                    <span>{values.role === "reviewer" ? copy.showProfileReviewer : copy.showProfileProvider}</span>
+                  </label>
+                  <label className="flex items-start gap-3 rounded-2xl border border-[#e5e5df] bg-white p-4 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={values.allowsDirectContact}
+                      onChange={(event) => updateValue("allowsDirectContact", event.target.checked)}
+                      className="mt-1"
+                    />
+                    <span>{copy.allowDirectContact}</span>
+                  </label>
+                </div>
+
+                {values.allowsDirectContact ? (
+                  <div className="mt-4 grid gap-3">
+                    <input
+                      className="input"
+                      value={values.contactWhatsapp}
+                      onChange={(event) => updateValue("contactWhatsapp", event.target.value)}
+                      placeholder={copy.whatsappPlaceholder}
+                    />
+                    <input
+                      className="input"
+                      value={values.contactInstagram}
+                      onChange={(event) => updateValue("contactInstagram", event.target.value)}
+                      placeholder={copy.instagramPlaceholder}
+                    />
+                    <input
+                      className="input"
+                      value={values.contactMessenger}
+                      onChange={(event) => updateValue("contactMessenger", event.target.value)}
+                      placeholder={copy.messengerPlaceholder}
+                    />
+                  </div>
+                ) : null}
               </div>
 
               <div className="rounded-[1.75rem] border border-[#eadfd6] bg-[#fcfaf7] p-4">

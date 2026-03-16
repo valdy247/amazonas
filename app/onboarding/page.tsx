@@ -75,6 +75,26 @@ export default async function OnboardingPage() {
                 : "new",
             interests: Array.isArray(metadata.interests) ? metadata.interests : [],
             note: typeof metadata.profile_note === "string" ? metadata.profile_note : "",
+            publicProfile: metadata.public_profile === false ? false : true,
+            allowsDirectContact: Boolean(metadata.allows_direct_contact),
+            contactWhatsapp:
+              metadata.reviewer_contact &&
+              typeof metadata.reviewer_contact === "object" &&
+              typeof (metadata.reviewer_contact as Record<string, unknown>).whatsapp === "string"
+                ? ((metadata.reviewer_contact as Record<string, unknown>).whatsapp as string)
+                : "",
+            contactInstagram:
+              metadata.reviewer_contact &&
+              typeof metadata.reviewer_contact === "object" &&
+              typeof (metadata.reviewer_contact as Record<string, unknown>).instagram === "string"
+                ? ((metadata.reviewer_contact as Record<string, unknown>).instagram as string)
+                : "",
+            contactMessenger:
+              metadata.reviewer_contact &&
+              typeof metadata.reviewer_contact === "object" &&
+              typeof (metadata.reviewer_contact as Record<string, unknown>).messenger === "string"
+                ? ((metadata.reviewer_contact as Record<string, unknown>).messenger as string)
+                : "",
           }}
         />
       </main>
