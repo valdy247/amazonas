@@ -219,37 +219,37 @@ export function ProfileWizard({ initialValues, email, language }: ProfileWizardP
   return (
     <div className="mx-auto w-full max-w-md pb-24 pt-1">
       <div className="space-y-4">
-        <div className="card overflow-hidden border-none bg-[linear-gradient(145deg,#1a1713,#33261a)] p-4 text-white shadow-[0_20px_70px_rgba(34,25,17,0.16)]">
+        <div className="space-y-4 px-1 pt-1 text-[#131316]">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-[11px] uppercase tracking-[0.24em] text-white/60">{copy.onboarding}</p>
+              <p className="text-[11px] uppercase tracking-[0.24em] text-[#8f6a58]">{copy.onboarding}</p>
               <div className="mt-2 flex items-center gap-2">
-                <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-white/10">
+                <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-[#fff0e8] text-[#ff6b35] shadow-[0_10px_24px_rgba(255,107,53,0.16)]">
                   <Sparkles className="h-4 w-4" />
                 </span>
                 <div className="min-w-0">
                   <h1 className="text-xl font-bold leading-tight sm:text-2xl">{currentStep?.title}</h1>
-                  <p className="mt-1 text-sm text-white/70">{currentStep?.description}</p>
+                  <p className="mt-1 text-sm text-[#5c5c66]">{currentStep?.description}</p>
                 </div>
               </div>
             </div>
 
-            <div className="rounded-[1.1rem] border border-white/10 bg-white/8 px-3 py-2 text-right">
-              <p className="text-[10px] uppercase tracking-[0.18em] text-white/50">{copy.progress}</p>
+            <div className="rounded-[1.1rem] border border-[#f2d6ca] bg-white px-3 py-2 text-right shadow-[0_10px_24px_rgba(37,22,12,0.05)]">
+              <p className="text-[10px] uppercase tracking-[0.18em] text-[#8f6a58]">{copy.progress}</p>
               <p className="mt-1 text-base font-bold">{progressPercent}%</p>
             </div>
           </div>
 
           <div className="mt-4 flex items-center justify-between gap-3">
-            <p className="text-sm font-semibold text-white/88">
+            <p className="text-sm font-semibold text-[#2a2019]">
               {copy.stepLabel} {step + 1} {language === "en" ? "of" : "de"} {steps.length}
             </p>
-            <div className="rounded-full bg-white/10 px-3 py-1.5 text-[11px] font-semibold text-white/72">
+            <div className="rounded-full border border-[#f0d4c8] bg-[#fff6f1] px-3 py-1.5 text-[11px] font-semibold text-[#a45735]">
               {steps.length - step - 1} {copy.pending}
             </div>
           </div>
 
-          <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-white/10">
+          <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-[#f5ddd2]">
             <div
               className="relative h-full rounded-full bg-[linear-gradient(90deg,#ff8a5b_0%,#ff6b35_65%,#ffd0bc_100%)] transition-all"
               style={{ width: `${progressPercent}%` }}
@@ -270,13 +270,13 @@ export function ProfileWizard({ initialValues, email, language }: ProfileWizardP
                     isCurrent
                       ? "border-[#ff9b74] bg-[#ff8a5b] text-white shadow-[0_14px_28px_rgba(255,107,53,0.22)]"
                       : isDone
-                        ? "border-white/10 bg-white/10 text-white"
-                        : "border-white/8 bg-black/10 text-white/52"
+                        ? "border-[#f0d4c8] bg-[#fff5ef] text-[#a45735]"
+                        : "border-[#e7ddd6] bg-[#f3f1ee] text-[#7f7f88]"
                   }`}
                 >
                   <span
                     className={`inline-flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${
-                      isCurrent ? "bg-white/18 text-white" : isDone ? "bg-[#ff8a5b] text-white" : "bg-white/8 text-white/55"
+                      isCurrent ? "bg-white/18 text-white" : isDone ? "bg-[#ff8a5b] text-white" : "bg-white text-[#8b8b92]"
                     }`}
                   >
                     {isDone ? <Check className="h-4 w-4" /> : index + 1}
