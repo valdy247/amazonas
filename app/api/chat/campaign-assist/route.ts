@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { improveCampaignMessage } from "@/lib/openai";
 import { normalizeLanguage } from "@/lib/i18n";
+import { rejectUntrustedOrigin } from "@/lib/security";
 
 type CampaignAssistBody = {
   message?: string;
@@ -10,6 +11,11 @@ type CampaignAssistBody = {
 
 export async function POST(request: Request) {
   try {
+    const originError = rejectUntrustedOrigin(request);
+    if (originError) {
+      return originError;
+    }
+
     const supabase = await createClient();
     const {
       data: { user },

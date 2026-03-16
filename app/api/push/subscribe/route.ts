@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { savePushSubscription } from "@/lib/push";
+import { rejectUntrustedOrigin } from "@/lib/security";
 
 type SubscribeBody = {
   subscription?: {
@@ -14,6 +15,11 @@ type SubscribeBody = {
 
 export async function POST(request: Request) {
   try {
+    const originError = rejectUntrustedOrigin(request);
+    if (originError) {
+      return originError;
+    }
+
     const supabase = await createClient();
     const {
       data: { user },

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { callSupabaseAuth } from "@/lib/auth-api";
+import { rejectUntrustedOrigin } from "@/lib/security";
 
 type SignupBody = {
   email?: string;
@@ -9,6 +10,11 @@ type SignupBody = {
 
 export async function POST(request: Request) {
   try {
+    const originError = rejectUntrustedOrigin(request);
+    if (originError) {
+      return originError;
+    }
+
     const body = (await request.json()) as SignupBody;
     const email = String(body.email || "").trim().toLowerCase();
     const password = String(body.password || "");

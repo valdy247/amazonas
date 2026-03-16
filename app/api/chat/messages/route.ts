@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { normalizeLanguage, type AppLanguage } from "@/lib/i18n";
 import { translateMessage } from "@/lib/openai";
 import { getLocalizedPushBody, getLocalizedPushTitle, normalizePushLanguage, sendPushNotificationToUser } from "@/lib/push";
+import { rejectUntrustedOrigin } from "@/lib/security";
 
 type SendMessageBody = {
   requestId?: number;
@@ -15,6 +16,11 @@ type SendMessageBody = {
 
 export async function POST(request: Request) {
   try {
+    const originError = rejectUntrustedOrigin(request);
+    if (originError) {
+      return originError;
+    }
+
     const body = (await request.json()) as SendMessageBody;
     const requestId = Number(body.requestId);
 

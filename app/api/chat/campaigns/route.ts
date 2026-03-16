@@ -6,6 +6,7 @@ import { normalizeLanguage, type AppLanguage } from "@/lib/i18n";
 import { normalizeInterestKeys } from "@/lib/onboarding";
 import { translateMessage } from "@/lib/openai";
 import { getLocalizedPushBody, getLocalizedPushTitle, sendPushNotificationToUser } from "@/lib/push";
+import { rejectUntrustedOrigin } from "@/lib/security";
 
 type CampaignBody = {
   reviewerIds?: string[];
@@ -20,6 +21,11 @@ type ProfileLanguageRow = {
 
 export async function POST(request: Request) {
   try {
+    const originError = rejectUntrustedOrigin(request);
+    if (originError) {
+      return originError;
+    }
+
     const payload = (await request.json()) as CampaignBody;
     const reviewerIds = Array.from(
       new Set((payload.reviewerIds || []).filter((item): item is string => typeof item === "string" && item.trim().length > 0))

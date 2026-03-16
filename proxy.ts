@@ -1,6 +1,7 @@
-﻿import { NextResponse, type NextRequest } from "next/server";
-import { updateSession } from "@/lib/supabase/middleware";
 import { createServerClient } from "@supabase/ssr";
+import { NextResponse, type NextRequest } from "next/server";
+import { applySecurityHeaders } from "@/lib/security";
+import { updateSession } from "@/lib/supabase/middleware";
 
 export async function proxy(request: NextRequest) {
   const response = await updateSession(request);
@@ -26,17 +27,20 @@ export async function proxy(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user && (request.nextUrl.pathname.startsWith("/dashboard") || request.nextUrl.pathname.startsWith("/admin") || request.nextUrl.pathname.startsWith("/onboarding"))) {
+  if (
+    !user &&
+    (request.nextUrl.pathname.startsWith("/dashboard") ||
+      request.nextUrl.pathname.startsWith("/admin") ||
+      request.nextUrl.pathname.startsWith("/onboarding"))
+  ) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = "/auth";
-    return NextResponse.redirect(redirectUrl);
+    return applySecurityHeaders(NextResponse.redirect(redirectUrl));
   }
 
-  return response;
+  return applySecurityHeaders(response);
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/admin/:path*", "/onboarding/:path*"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js|map)$).*)"],
 };
-
-
