@@ -139,6 +139,12 @@ export const landingCopy = {
     footerSocial: "Redes sociales",
     footerSocialSoon: "Espacio listo para conectar Instagram, TikTok, Facebook, X, YouTube y LinkedIn.",
     footerReserved: "Todos los derechos reservados.",
+    providerInviteBadge: "Directorio oficial",
+    providerInviteTitle: "Join Amazona Review",
+    providerInviteBody:
+      "We have verified reviewers ready to collaborate with brands and providers. Create your account and get free access to discover them from one place.",
+    providerInvitePrimary: "Ok, create account",
+    providerInviteSecondary: "Maybe later",
   },
   en: {
     verifiedCommunity: "Verified community",
@@ -165,6 +171,12 @@ export const landingCopy = {
     footerSocial: "Social media",
     footerSocialSoon: "Space ready to connect Instagram, TikTok, Facebook, X, YouTube, and LinkedIn.",
     footerReserved: "All rights reserved.",
+    providerInviteBadge: "Official directory",
+    providerInviteTitle: "Join Amazona Review",
+    providerInviteBody:
+      "We have verified reviewers ready to collaborate with brands and providers. Create your account and get free access to discover them from one place.",
+    providerInvitePrimary: "Ok, create account",
+    providerInviteSecondary: "Maybe later",
   },
 } as const;
 
@@ -393,6 +405,8 @@ export const providerContactsCopy = {
     contactProviderTitle: "Contactar al proveedor",
     contactProviderBody: "Elige una via de contacto para abrir directamente el perfil o canal del proveedor.",
     contactVia: "Contactar por",
+    whatsappTemplate:
+      "Hola, vi tu contacto en el directorio oficial de Amazona Review y me gustaria colaborar contigo. Si quieres unirte a Amazona Review para conocer resenadores con ID verificado, entra aqui: {inviteUrl}",
   },
   en: {
     sessionError: "Your session could not be validated.",
@@ -407,6 +421,8 @@ export const providerContactsCopy = {
     contactProviderTitle: "Contact provider",
     contactProviderBody: "Choose a contact method to open the provider profile or channel directly.",
     contactVia: "Contact via",
+    whatsappTemplate:
+      "Hi, I found your contact in the official Amazona Review directory and I would love to collaborate with you. If you want to join Amazona Review and access ID-verified reviewers, start here: {inviteUrl}",
   },
 } as const;
 

@@ -1,7 +1,9 @@
 import Image from "next/image";
 import Link from "next/link";
+import { Suspense } from "react";
 import { ShieldCheck, Users } from "lucide-react";
 import { LandingFooter } from "@/components/landing-footer";
+import { ProviderInviteModal } from "@/components/provider-invite-modal";
 import { SiteHeader } from "@/components/site-header";
 import { landingCopy } from "@/lib/i18n";
 
@@ -12,6 +14,9 @@ export default function Home() {
   return (
     <div className="min-h-screen">
       <SiteHeader language={language} />
+      <Suspense fallback={null}>
+        <ProviderInviteModal language={language} />
+      </Suspense>
 
       <section className="w-full border-b border-[#e5e5df] bg-white">
         <Image src="/hero.png" alt="Amazona Review" width={1800} height={1200} className="h-auto w-full object-contain" priority />

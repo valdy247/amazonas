@@ -88,6 +88,28 @@ export function ProviderContactGrid({ contacts, initialContactedIds, language }:
     setActiveTab("contacted");
   }
 
+  function buildWhatsappInviteMessage() {
+    if (typeof window === "undefined") return "";
+    const inviteUrl = `${window.location.origin}/?invite=provider-directory`;
+    return copy.whatsappTemplate.replace("{inviteUrl}", inviteUrl);
+  }
+
+  function buildMethodHref(label: string, href: string) {
+    if (label !== "WhatsApp") {
+      return href;
+    }
+
+    try {
+      const url = new URL(href);
+      const message = buildWhatsappInviteMessage();
+      if (!message) return href;
+      url.searchParams.set("text", message);
+      return url.toString();
+    } catch {
+      return href;
+    }
+  }
+
   function openMethod(contact: ProviderContact, href: string) {
     setError(null);
 
@@ -218,7 +240,7 @@ export function ProviderContactGrid({ contacts, initialContactedIds, language }:
                 <button
                   key={`${selectedContact.id}-${method.label}-${method.href}`}
                   type="button"
-                  onClick={() => openMethod(selectedContact, method.href)}
+                  onClick={() => openMethod(selectedContact, buildMethodHref(method.label, method.href))}
                   disabled={isPending}
                   className="inline-flex items-center justify-between rounded-[1.4rem] border border-[#ebdfd2] bg-[#fcfaf7] px-4 py-4 text-left"
                 >

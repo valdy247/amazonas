@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { AdminProviderCreateForm } from "@/components/admin-provider-create-form";
+import { AdminExportButton } from "@/components/admin-export-button";
 import { AdminProviderManager } from "@/components/admin-provider-manager";
 import { AdminSectionNav } from "@/components/admin-section-nav";
 import { AdminUserManager } from "@/components/admin-user-manager";
@@ -152,6 +153,25 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   const supportResolutionRate = Math.round(((supportResolvedCount || 0) / Math.max((supportResolvedCount || 0) + (supportOpenCount || 0), 1)) * 100);
   const webhookRows = ((webhookLogResult.data as WebhookAuditRow[] | null) || []);
   const webhookFailureCount = webhookRows.filter((row) => row.status_code >= 400).length;
+  const userExportRows = ((members as ProfileRow[] | null) || []).map((member) => ({
+    user_id: member.id,
+    full_name: member.full_name || "",
+    email: member.email || "",
+    role: member.role || "",
+    membership_status: membershipByUser.get(member.id) || "pending_payment",
+    kyc_status: kycByUser.get(member.id)?.status || "pending",
+    kyc_reference_id: kycByUser.get(member.id)?.reference_id || "",
+    verified_full_name: kycByUser.get(member.id)?.verified_full_name || "",
+    kyc_review_note: kycByUser.get(member.id)?.review_note || "",
+  }));
+  const webhookExportRows = webhookRows.map((row) => ({
+    provider: row.provider,
+    event_type: row.event_type || "",
+    status_code: row.status_code,
+    reference_id: row.reference_id || "",
+    response_message: row.response_message || "",
+    created_at: row.created_at,
+  }));
 
   const { data: supportThreadRows } = await supabase
     .from("support_threads")
@@ -177,6 +197,20 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         .in("thread_id", supportThreadIds)
         .order("created_at", { ascending: true })
     : { data: [] };
+  const supportExportRows = ((supportThreadRows as SupportThreadRow[] | null) || []).map((thread) => {
+    const profileForThread = supportProfileMap.get(thread.user_id);
+    return {
+      thread_id: thread.id,
+      user_name: profileForThread?.full_name || "Usuario",
+      user_email: profileForThread?.email || "",
+      subject: thread.subject,
+      category: thread.category,
+      status: thread.status,
+      priority: thread.priority || "normal",
+      assigned_admin: thread.assigned_admin_id ? supportProfileMap.get(thread.assigned_admin_id)?.full_name || "Soporte" : "",
+      last_activity_at: thread.last_activity_at,
+    };
+  });
 
   let contacts: ContactRow[] = [];
   const withMethods = await supabase
@@ -286,9 +320,12 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                   <h2 className="font-bold">Usuarios</h2>
                   <p className="mt-1 text-sm text-[#62626d]">Aqui puedes tomar decisiones manuales sobre membresia, KYC, recuperacion y cambios de correo sin salir del panel.</p>
                 </div>
-                <span className="rounded-full bg-[#fff2eb] px-3 py-2 text-xs font-bold uppercase tracking-[0.18em] text-[#dc4f1f]">
-                  {members?.length || 0} visibles
-                </span>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="rounded-full bg-[#fff2eb] px-3 py-2 text-xs font-bold uppercase tracking-[0.18em] text-[#dc4f1f]">
+                    {members?.length || 0} visibles
+                  </span>
+                  <AdminExportButton filename="admin-users.csv" rows={userExportRows} label="Exportar usuarios" />
+                </div>
               </div>
               <AdminUserManager
                 members={((members as ProfileRow[] | null) || []).map((member) => ({
@@ -327,9 +364,12 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                   <h2 className="font-bold">Metricas</h2>
                   <p className="mt-1 text-sm text-[#62626d]">Una vista operativa de conversion, soporte, mensajeria y salud tecnica.</p>
                 </div>
-                <span className="rounded-full bg-[#fff2eb] px-3 py-2 text-xs font-bold uppercase tracking-[0.18em] text-[#dc4f1f]">
-                  Vista interna
-                </span>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="rounded-full bg-[#fff2eb] px-3 py-2 text-xs font-bold uppercase tracking-[0.18em] text-[#dc4f1f]">
+                    Vista interna
+                  </span>
+                  <AdminExportButton filename="webhook-audit.csv" rows={webhookExportRows} label="Exportar webhooks" />
+                </div>
               </div>
 
               <div className="mt-4 grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
@@ -401,36 +441,47 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
           ) : null}
 
           {activeSection === "support" ? (
-            <SupportCenter
-              currentUserId={user.id}
-              language="es"
-              isAdmin
-              threads={((supportThreadRows as SupportThreadRow[] | null) || []).map((thread) => {
-                const profileForThread = supportProfileMap.get(thread.user_id);
-                return {
-                  id: thread.id,
-                  userId: thread.user_id,
-                  userName: profileForThread?.full_name || "Usuario",
-                  userEmail: profileForThread?.email || "",
-                  subject: thread.subject,
-                  category: thread.category,
-                  status: thread.status,
-                  priority: thread.priority || "normal",
-                  lastActivityAt: thread.last_activity_at,
-                  assignedAdminId: thread.assigned_admin_id || null,
-                  assignedAdminName: thread.assigned_admin_id ? supportProfileMap.get(thread.assigned_admin_id)?.full_name || "Soporte" : null,
-                  messages: ((supportMessageRows as SupportMessageRow[] | null) || [])
-                    .filter((message) => message.thread_id === thread.id)
-                    .map((message) => ({
-                      id: message.id,
-                      senderId: message.sender_id,
-                      senderName: message.sender_id === user.id ? "Soporte" : profileForThread?.full_name || "Usuario",
-                      body: message.body,
-                      createdAt: message.created_at,
-                    })),
-                };
-              })}
-            />
+            <div className="space-y-4">
+              <div className="card p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h2 className="font-bold">Exportacion de soporte</h2>
+                    <p className="mt-1 text-sm text-[#62626d]">Descarga el estado actual de tickets para analisis externo o seguimiento.</p>
+                  </div>
+                  <AdminExportButton filename="support-threads.csv" rows={supportExportRows} label="Exportar soporte" />
+                </div>
+              </div>
+              <SupportCenter
+                currentUserId={user.id}
+                language="es"
+                isAdmin
+                threads={((supportThreadRows as SupportThreadRow[] | null) || []).map((thread) => {
+                  const profileForThread = supportProfileMap.get(thread.user_id);
+                  return {
+                    id: thread.id,
+                    userId: thread.user_id,
+                    userName: profileForThread?.full_name || "Usuario",
+                    userEmail: profileForThread?.email || "",
+                    subject: thread.subject,
+                    category: thread.category,
+                    status: thread.status,
+                    priority: thread.priority || "normal",
+                    lastActivityAt: thread.last_activity_at,
+                    assignedAdminId: thread.assigned_admin_id || null,
+                    assignedAdminName: thread.assigned_admin_id ? supportProfileMap.get(thread.assigned_admin_id)?.full_name || "Soporte" : null,
+                    messages: ((supportMessageRows as SupportMessageRow[] | null) || [])
+                      .filter((message) => message.thread_id === thread.id)
+                      .map((message) => ({
+                        id: message.id,
+                        senderId: message.sender_id,
+                        senderName: message.sender_id === user.id ? "Soporte" : profileForThread?.full_name || "Usuario",
+                        body: message.body,
+                        createdAt: message.created_at,
+                      })),
+                  };
+                })}
+              />
+            </div>
           ) : null}
         </section>
       </main>

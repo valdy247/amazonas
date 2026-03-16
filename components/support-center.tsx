@@ -37,6 +37,9 @@ export function SupportCenter({ currentUserId, language, isAdmin = false, thread
   const copy = supportCopy[language];
   const [items, setItems] = useState(threads);
   const [activeThreadId, setActiveThreadId] = useState<number | null>(threads[0]?.id ?? null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [priorityFilter, setPriorityFilter] = useState("all");
   const [newThreadSubject, setNewThreadSubject] = useState("");
   const [newThreadCategory, setNewThreadCategory] = useState("general");
   const [newThreadMessage, setNewThreadMessage] = useState("");
@@ -45,10 +48,28 @@ export function SupportCenter({ currentUserId, language, isAdmin = false, thread
   const [success, setSuccess] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  const sortedThreads = useMemo(
-    () => [...items].sort((left, right) => new Date(right.lastActivityAt).getTime() - new Date(left.lastActivityAt).getTime()),
-    [items]
-  );
+  const sortedThreads = useMemo(() => {
+    const normalizedQuery = searchQuery.trim().toLowerCase();
+
+    return [...items]
+      .filter((thread) => {
+        if (statusFilter !== "all" && thread.status !== statusFilter) {
+          return false;
+        }
+        if (priorityFilter !== "all" && thread.priority !== priorityFilter) {
+          return false;
+        }
+        if (!normalizedQuery) {
+          return true;
+        }
+        return [thread.subject, thread.userName, thread.userEmail, thread.category]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase()
+          .includes(normalizedQuery);
+      })
+      .sort((left, right) => new Date(right.lastActivityAt).getTime() - new Date(left.lastActivityAt).getTime());
+  }, [items, priorityFilter, searchQuery, statusFilter]);
   const activeThread = sortedThreads.find((thread) => thread.id === activeThreadId) || null;
 
   function prependOrUpdateThread(thread: SupportThread) {
@@ -229,6 +250,31 @@ export function SupportCenter({ currentUserId, language, isAdmin = false, thread
             <button type="button" className="btn-primary mt-3" onClick={createThread} disabled={isPending}>
               {isPending ? copy.creating : copy.createThread}
             </button>
+          </div>
+        ) : null}
+
+        {isAdmin ? (
+          <div className="mt-4 grid gap-2 rounded-[1.3rem] border border-[#efe4d9] bg-[#fffaf6] p-4">
+            <input
+              className="input"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="Buscar por asunto, usuario o correo"
+            />
+            <div className="grid gap-2 sm:grid-cols-2">
+              <select className="input" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+                <option value="all">Todos los estados</option>
+                <option value="open">{getSupportStatusLabel("open", language)}</option>
+                <option value="in_progress">{getSupportStatusLabel("in_progress", language)}</option>
+                <option value="resolved">{getSupportStatusLabel("resolved", language)}</option>
+              </select>
+              <select className="input" value={priorityFilter} onChange={(event) => setPriorityFilter(event.target.value)}>
+                <option value="all">Todas las prioridades</option>
+                <option value="low">{getSupportPriorityLabel("low", language)}</option>
+                <option value="normal">{getSupportPriorityLabel("normal", language)}</option>
+                <option value="high">{getSupportPriorityLabel("high", language)}</option>
+              </select>
+            </div>
           </div>
         ) : null}
 
