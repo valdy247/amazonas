@@ -93,6 +93,8 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
 
   const membershipByUser = new Map((memberships as MembershipRow[] | null)?.map((item) => [item.user_id, item.status]) ?? []);
   const kycByUser = new Map((kycRows as KycRow[] | null)?.map((item) => [item.user_id, item.status]) ?? []);
+  const reviewerCount = (members || []).filter((member) => member.role === "reviewer" || member.role === "tester").length;
+  const providerCount = (members || []).filter((member) => member.role === "provider").length;
 
   let contacts: ContactRow[] = [];
 
@@ -288,16 +290,21 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                 </span>
               </div>
 
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <div className="mt-4 grid gap-3 sm:grid-cols-3">
                 <div className="rounded-[1.4rem] border border-[#eadfd6] bg-[#fffaf7] p-4">
                   <p className="text-xs uppercase tracking-[0.18em] text-[#8f857b]">Proveedores</p>
                   <p className="mt-2 text-3xl font-bold text-[#131316]">{contacts.length}</p>
                   <p className="mt-1 text-sm text-[#62626d]">Contactos cargados en el sistema.</p>
                 </div>
                 <div className="rounded-[1.4rem] border border-[#eadfd6] bg-[#fffaf7] p-4">
-                  <p className="text-xs uppercase tracking-[0.18em] text-[#8f857b]">Usuarios</p>
-                  <p className="mt-2 text-3xl font-bold text-[#131316]">{members?.length || 0}</p>
-                  <p className="mt-1 text-sm text-[#62626d]">Ultimos perfiles visibles para gestion.</p>
+                  <p className="text-xs uppercase tracking-[0.18em] text-[#8f857b]">Reseñadores</p>
+                  <p className="mt-2 text-3xl font-bold text-[#131316]">{reviewerCount}</p>
+                  <p className="mt-1 text-sm text-[#62626d]">Perfiles visibles de reseñadores en la lista actual.</p>
+                </div>
+                <div className="rounded-[1.4rem] border border-[#eadfd6] bg-[#fffaf7] p-4">
+                  <p className="text-xs uppercase tracking-[0.18em] text-[#8f857b]">Providers</p>
+                  <p className="mt-2 text-3xl font-bold text-[#131316]">{providerCount}</p>
+                  <p className="mt-1 text-sm text-[#62626d]">Perfiles visibles de providers en la lista actual.</p>
                 </div>
               </div>
             </div>
