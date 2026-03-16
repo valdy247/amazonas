@@ -60,7 +60,7 @@ export function RoleSelector() {
           onClick={() => setRole("reviewer")}
           className={`rounded-2xl border p-4 text-left ${role === "reviewer" ? "border-[#ff6b35] bg-[#fff3ec]" : "border-[#e5e5df]"}`}
         >
-          <p className="font-semibold">Soy Reviewer</p>
+          <p className="font-semibold">Soy reseñador</p>
           <p className="text-sm text-[#62626d]">Quiero probar productos y acceder a contactos verificados.</p>
         </button>
         <button
@@ -69,7 +69,7 @@ export function RoleSelector() {
           className={`rounded-2xl border p-4 text-left ${role === "provider" ? "border-[#ff6b35] bg-[#fff3ec]" : "border-[#e5e5df]"}`}
         >
           <p className="font-semibold">Soy Proveedor</p>
-          <p className="text-sm text-[#62626d]">Quiero enviar productos a reviewers verificados.</p>
+          <p className="text-sm text-[#62626d]">Quiero enviar productos a reseñadores verificados.</p>
         </button>
       </div>
 

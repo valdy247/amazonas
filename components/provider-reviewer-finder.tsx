@@ -270,8 +270,8 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-sm font-semibold text-[#dc4f1f]">Discovery Studio</p>
-            <h2 className="mt-2 text-3xl font-bold">Encuentra reviewers alineados con tus productos</h2>
-            <p className="mt-2 max-w-2xl text-sm text-[#62626d]">Filtra por pais o categoria para descubrir reviewers que encajen con tu marca.</p>
+            <h2 className="mt-2 text-3xl font-bold">Encuentra reseñadores alineados con tus productos</h2>
+            <p className="mt-2 max-w-2xl text-sm text-[#62626d]">Filtra por pais o categoria para descubrir reseñadores que encajen con tu marca.</p>
           </div>
           <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-[#dc4f1f] shadow-sm">
             <Sparkles className="h-5 w-5" />
@@ -343,7 +343,7 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-sm font-semibold text-[#dc4f1f]">Recomendados para ti</p>
-              <h3 className="mt-1 text-xl font-bold">Reviewers con mejor encaje</h3>
+              <h3 className="mt-1 text-xl font-bold">Reseñadores con mejor encaje</h3>
             </div>
             <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-[#fff3ec] text-[#dc4f1f]">
               <Star className="h-5 w-5" />
@@ -379,7 +379,7 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
       ) : null}
 
       <div className="flex items-center justify-between gap-3 text-sm text-[#62626d]">
-        <span>{filteredReviewers.length} reviewers encontrados</span>
+        <span>{filteredReviewers.length} reseñadores encontrados</span>
         {(selectedCountry || selectedInterest) ? (
           <button
             type="button"
@@ -456,7 +456,7 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
                       <div>
                         <p className="text-sm font-semibold text-[#131316]">Contacto</p>
                         <p className="mt-1 text-sm text-[#62626d]">
-                          Primero elige por donde quieres contactar a este reviewer segun lo que haya autorizado en su perfil.
+                          Primero elige por donde quieres contactar a este reseñador segun lo que haya autorizado en su perfil.
                         </p>
                       </div>
                       <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-white text-[#dc4f1f] shadow-sm">

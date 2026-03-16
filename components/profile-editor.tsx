@@ -192,7 +192,7 @@ export function ProfileEditor({ email, initialValues }: ProfileEditorProps) {
         <p className="mt-2 text-sm text-[#62626d]">
           {values.role === "reviewer"
             ? "Cuéntanos que te interesa reseñar y donde aportas más valor."
-            : "Define que tipo de productos ofreces. Usaremos estas mismas etiquetas como categorías de producto para encontrar reviewers afines."}
+            : "Define que tipo de productos ofreces. Usaremos estas mismas etiquetas como categorias de producto para encontrar reseñadores afines."}
         </p>
         <div className="mt-4 grid gap-3">
           <select className="input" value={values.country} onChange={(event) => updateValue("country", event.target.value)}>
@@ -245,7 +245,7 @@ export function ProfileEditor({ email, initialValues }: ProfileEditorProps) {
             placeholder={
               values.role === "reviewer"
                 ? "Describe que tipo de productos te gusta probar y donde aportas mas valor."
-                : "Describe que tipo de productos ofreces, categorias principales y el tipo de reviewer que mejor encaja contigo."
+                : "Describe que tipo de productos ofreces, categorias principales y el tipo de reseñador que mejor encaja contigo."
             }
           />
         </div>
@@ -257,7 +257,7 @@ export function ProfileEditor({ email, initialValues }: ProfileEditorProps) {
           <p className="mt-2 text-sm text-[#62626d]">
             {values.role === "reviewer"
               ? "Define si los providers pueden encontrarte y si deseas recibir contacto directo fuera de la plataforma."
-              : "Define si tu perfil aparece para reviewers y que vias directas de contacto quieres compartir."}
+              : "Define si tu perfil aparece para reseñadores y que vias directas de contacto quieres compartir."}
           </p>
 
           {values.role === "reviewer" ? (
@@ -281,7 +281,7 @@ export function ProfileEditor({ email, initialValues }: ProfileEditorProps) {
           <div className="mt-4 grid gap-3">
             <label className="flex items-start gap-3 rounded-2xl border border-[#e5e5df] p-4 text-sm">
               <input type="checkbox" checked={values.publicProfile} onChange={(event) => updateValue("publicProfile", event.target.checked)} className="mt-1" />
-              <span>{values.role === "reviewer" ? "Mostrar mi perfil en el buscador de providers." : "Mostrar mi perfil en el directorio de proveedores para reviewers."}</span>
+              <span>{values.role === "reviewer" ? "Mostrar mi perfil en el buscador de proveedores." : "Mostrar mi perfil en el directorio de proveedores para reseñadores."}</span>
             </label>
             <label className="flex items-start gap-3 rounded-2xl border border-[#e5e5df] p-4 text-sm">
               <input type="checkbox" checked={values.allowsDirectContact} onChange={(event) => updateValue("allowsDirectContact", event.target.checked)} className="mt-1" />

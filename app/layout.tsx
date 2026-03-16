@@ -14,7 +14,7 @@ const spaceGrotesk = Space_Grotesk({
 
 export const metadata: Metadata = {
   title: "Amazona Review",
-  description: "Comunidad verificada para reviewers y proveedores",
+  description: "Comunidad verificada para reseñadores y proveedores",
 };
 
 export default function RootLayout({

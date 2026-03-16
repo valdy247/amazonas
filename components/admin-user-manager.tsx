@@ -24,7 +24,7 @@ function getRoleMeta(role: string | null) {
       return { label: "Provider", className: "bg-[#efe7ff] text-[#6f4ad1]" };
     case "reviewer":
     case "tester":
-      return { label: "Resenador", className: "bg-[#e8f7f0] text-[#177a52]" };
+      return { label: "Reseñador", className: "bg-[#e8f7f0] text-[#177a52]" };
     default:
       return { label: "Pendiente", className: "bg-[#f3efe9] text-[#62564a]" };
   }

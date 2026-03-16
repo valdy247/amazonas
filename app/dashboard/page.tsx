@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { BadgeCheck, Compass, LockKeyhole, Sparkles, WalletCards } from "lucide-react";
+import { LockKeyhole, Sparkles, WalletCards } from "lucide-react";
 import { SiteHeader } from "@/components/site-header";
 import { createClient } from "@/lib/supabase/server";
 import { hasAdminAccess } from "@/lib/admin";
@@ -535,27 +535,6 @@ export default async function DashboardPage({
     }
   }
 
-  const reviewerSteps = [
-    {
-      title: "Acceso",
-      description: membershipStatus === "active" ? "Tu acceso ya esta activo." : "Completa tu pago con Square para seguir.",
-      done: membershipStatus === "active",
-      icon: WalletCards,
-    },
-    {
-      title: "Verificacion de ID",
-      description: kycStatus === "approved" ? "Tu verificacion de identidad ya esta aprobada." : "Completa tu verificacion de ID para desbloquear el panel final.",
-      done: kycStatus === "approved",
-      icon: BadgeCheck,
-    },
-    {
-      title: "Contactos",
-      description: canSeeContacts ? "Ya puedes abrir los contactos disponibles." : "Se habilita cuando acceso y verificacion de ID esten listos.",
-      done: canSeeContacts,
-      icon: Compass,
-    },
-  ];
-
   const unreadConversationCount = collaborationThreads.filter((thread) => {
     const lastIncomingMessageId = getLastIncomingMessageId(thread.messages, user.id);
     const lastSeenMessageId = getLastSeenMessageIdForRole(thread.requestData, isProvider ? "provider" : "reviewer");
@@ -632,36 +611,6 @@ export default async function DashboardPage({
 
         {currentSection === "home" && !isProvider ? (
           <>
-            <section className="grid gap-3 sm:grid-cols-3">
-              {reviewerSteps.map((step) => {
-                const Icon = step.icon;
-
-                return (
-                  <article
-                    key={step.title}
-                    className={`rounded-[1.6rem] border p-4 ${
-                      step.done ? "border-[#ffd7c8] bg-[linear-gradient(180deg,#fff6f1_0%,#fffdf9_100%)]" : "border-[#e8e1d8] bg-white"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <span
-                        className={`inline-flex h-11 w-11 items-center justify-center rounded-2xl ${
-                          step.done ? "bg-[#ff6b35] text-white" : "bg-[#f6f1ea] text-[#131316]"
-                        }`}
-                      >
-                        <Icon className="h-5 w-5" />
-                      </span>
-                      <span className={`text-xs font-bold uppercase tracking-[0.18em] ${step.done ? "text-[#dc4f1f]" : "text-[#8f857b]"}`}>
-                        {step.done ? "Listo" : "Pendiente"}
-                      </span>
-                    </div>
-                    <h2 className="mt-4 text-lg font-bold">{step.title}</h2>
-                    <p className="mt-2 text-sm text-[#62626d]">{step.description}</p>
-                  </article>
-                );
-              })}
-            </section>
-
             {showWelcomeActivation ? (
               <section className="overflow-hidden rounded-[1.9rem] border border-[#f2d2c0] bg-[linear-gradient(135deg,#fff3eb_0%,#fffaf6_48%,#ffffff_100%)] p-5 shadow-[0_24px_60px_rgba(220,79,31,0.08)]">
                 <div className="flex items-start justify-between gap-4">
@@ -738,7 +687,7 @@ export default async function DashboardPage({
                     <LockKeyhole className="h-5 w-5" />
                   </span>
                   <div>
-                    <h2 className="font-bold">Verificacion de ID</h2>
+                  <h2 className="font-bold">Verificación de ID</h2>
                     <p className="text-sm text-[#62626d]">Paso 2 del recorrido</p>
                   </div>
                 </div>
@@ -819,13 +768,13 @@ export default async function DashboardPage({
               title="Conversaciones activas"
               description={
                 isProvider
-                  ? "Selecciona categoria, agrega el nombre del producto y habla con el reviewer desde un solo lugar."
+                  ? "Selecciona categoria, agrega el nombre del producto y habla con el reseñador desde un solo lugar."
                   : "Habla con proveedores desde aqui y comparte imagenes cuando lo necesites."
               }
               emptyTitle="Todavia no tienes conversaciones activas"
               emptyDescription={
                 isProvider
-                  ? "Contacta a un reviewer desde la pagina y la conversacion aparecera aqui al instante."
+                  ? "Contacta a un reseñador desde la pagina y la conversacion aparecera aqui al instante."
                   : "Cuando un proveedor te escriba dentro de la plataforma, la conversacion aparecera aqui."
               }
               threads={collaborationThreads}
