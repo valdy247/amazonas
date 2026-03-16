@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
 
 type Section = {
   id: string;
@@ -14,72 +13,30 @@ type AdminSectionNavProps = {
 };
 
 export function AdminSectionNav({ sections, activeSection }: AdminSectionNavProps) {
-  const [open, setOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    function handlePointerDown(event: MouseEvent | TouchEvent) {
-      if (!containerRef.current) return;
-      if (containerRef.current.contains(event.target as Node)) return;
-      setOpen(false);
-    }
-
-    if (!open) return;
-
-    document.addEventListener("mousedown", handlePointerDown);
-    document.addEventListener("touchstart", handlePointerDown);
-
-    return () => {
-      document.removeEventListener("mousedown", handlePointerDown);
-      document.removeEventListener("touchstart", handlePointerDown);
-    };
-  }, [open]);
-
   return (
-    <>
-      <div ref={containerRef} className="relative sm:hidden">
-        <button
-          type="button"
-          onClick={() => setOpen((current) => !current)}
-          className="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/15 bg-white/10 text-xl text-white"
-          aria-expanded={open}
-          aria-label="Abrir menu admin"
-        >
-          ≡
-        </button>
-        {open ? (
-          <div className="absolute right-0 top-14 z-20 min-w-56 rounded-[1.2rem] border border-white/12 bg-[#1e1713] p-2 shadow-2xl">
-            {sections.map((section) => (
+    <div className="w-full">
+      <div className="overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="inline-flex min-w-full items-end gap-2 rounded-[1.8rem] border border-white/10 bg-white/8 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
+          {sections.map((section) => {
+            const active = activeSection === section.id;
+
+            return (
               <Link
                 key={section.id}
                 href={`/admin?section=${section.id}`}
-                onClick={() => setOpen(false)}
-                className={`block rounded-[0.95rem] px-3 py-3 text-sm font-semibold ${
-                  activeSection === section.id ? "bg-[#ff6b35] text-white" : "text-white/78"
+                className={`relative rounded-[1.25rem] px-4 py-3 text-sm font-semibold transition ${
+                  active
+                    ? "bg-[#fff7f2] text-[#dc4f1f] shadow-[0_16px_32px_rgba(255,107,53,0.18)]"
+                    : "text-white/78 hover:bg-white/8 hover:text-white"
                 }`}
               >
-                {section.label}
+                <span className="block whitespace-nowrap">{section.label}</span>
+                {active ? <span className="absolute inset-x-4 -bottom-1 h-1 rounded-full bg-[#ff6b35]" /> : null}
               </Link>
-            ))}
-          </div>
-        ) : null}
+            );
+          })}
+        </div>
       </div>
-
-      <div className="mt-5 hidden flex-wrap gap-2 sm:flex">
-        {sections.map((section) => (
-          <Link
-            key={section.id}
-            href={`/admin?section=${section.id}`}
-            className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-              activeSection === section.id
-                ? "bg-[#ff6b35] text-white"
-                : "border border-white/12 bg-white/8 text-white/75"
-            }`}
-          >
-            {section.label}
-          </Link>
-        ))}
-      </div>
-    </>
+    </div>
   );
 }
