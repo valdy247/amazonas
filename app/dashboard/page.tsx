@@ -12,7 +12,7 @@ import { normalizeUserRole } from "@/lib/onboarding";
 import { getReviewerContactMethods, mergeProfileData, type ReviewerAvailability } from "@/lib/profile-data";
 import { normalizeContactRequestData } from "@/lib/contact-requests";
 import { buildContactMethodsFromFields } from "@/lib/provider-contact";
-import { normalizeLanguage, type AppLanguage } from "@/lib/i18n";
+import { dashboardCopy, normalizeLanguage, type AppLanguage } from "@/lib/i18n";
 
 type ProviderContact = {
   id: string;
@@ -245,6 +245,7 @@ export default async function DashboardPage({
     currentUserLanguage === "en"
       ? ["Hi, I am a reviewer and I would love to collaborate with you.", "Hi, what kind of products do you offer?"]
       : ["Hola, soy resenadora y me gustaria colaborar con usted.", "Hola, que tipo de productos ofreces?"];
+  const copy = dashboardCopy[currentUserLanguage];
 
   const { data: membership } = await supabase.from("memberships").select("status").eq("user_id", user.id).single();
   const { data: kyc } = await supabase.from("kyc_checks").select("status, review_note").eq("user_id", user.id).single();
@@ -638,10 +639,10 @@ export default async function DashboardPage({
   }).length;
   const hasUnreadMessages = unreadConversationCount > 0;
   const menuItems = [
-    { href: "/dashboard", label: "Inicio" },
-    !isProvider ? { href: "/dashboard?section=contacts", label: "Contactos de proveedores", locked: !canSeeContacts } : null,
-    { href: "/profile", label: "Editar perfil" },
-    isAdmin ? { href: "/admin", label: "Panel admin" } : null,
+    { href: "/dashboard", label: copy.home },
+    !isProvider ? { href: "/dashboard?section=contacts", label: copy.providerContacts, locked: !canSeeContacts } : null,
+    { href: "/profile", label: currentUserLanguage === "en" ? "Edit profile" : "Editar perfil" },
+    isAdmin ? { href: "/admin", label: currentUserLanguage === "en" ? "Admin panel" : "Panel admin" } : null,
   ].filter(Boolean) as Array<{ href: string; label: string; locked?: boolean }>;
   const providerRequestStats = {
     active: sentReviewerRequests.length,
@@ -656,6 +657,7 @@ export default async function DashboardPage({
         menuItems={menuItems}
         messageHref="/dashboard?section=messages"
         hasUnreadMessages={hasUnreadMessages}
+        language={currentUserLanguage}
         unreadThreads={collaborationThreads.map((thread) => ({
           threadId: thread.requestId,
           lastIncomingMessageId: getLastIncomingMessageId(thread.messages, user.id),
@@ -667,7 +669,7 @@ export default async function DashboardPage({
           <section className="overflow-hidden rounded-[1.8rem] border border-[#ffc4a8] bg-[linear-gradient(135deg,#ffb28b_0%,#ff8356_38%,#ff6b35_100%)] p-5 text-white shadow-[0_26px_80px_rgba(220,95,45,0.24)]">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h1 className="mt-2 text-3xl font-bold">Hola, {firstName}</h1>
+                <h1 className="mt-2 text-3xl font-bold">{copy.greeting}, {firstName}</h1>
               </div>
               <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-white/18 shadow-[0_12px_28px_rgba(255,255,255,0.16)]">
                 <Sparkles className="h-5 w-5" />
@@ -682,9 +684,9 @@ export default async function DashboardPage({
             <ProviderReviewerFinder reviewers={reviewerDirectory} sentRequests={sentReviewerRequests} providerInterests={userInterests} />
             <section className="grid gap-3 sm:grid-cols-3">
               {[
-                { label: "Chats abiertos", value: providerRequestStats.active, href: "/dashboard?section=messages" },
-                { label: "Mensajes nuevos", value: providerRequestStats.accepted, href: "/dashboard?section=messages" },
-                { label: "Conversaciones", value: providerRequestStats.conversations, href: "/dashboard?section=messages" },
+                { label: copy.providerOpenChats, value: providerRequestStats.active, href: "/dashboard?section=messages" },
+                { label: copy.providerNewMessages, value: providerRequestStats.accepted, href: "/dashboard?section=messages" },
+                { label: copy.providerConversations, value: providerRequestStats.conversations, href: "/dashboard?section=messages" },
               ].map((item) => (
                 <Link key={item.label} href={item.href} className="rounded-[1.6rem] border border-[#eadfd6] bg-white p-4 shadow-[0_18px_36px_rgba(22,18,14,0.04)] transition hover:border-[#ffcfbe] hover:bg-[#fffaf6]">
                   <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8f857b]">{item.label}</p>
@@ -701,11 +703,9 @@ export default async function DashboardPage({
               <section className="overflow-hidden rounded-[1.9rem] border border-[#f2d2c0] bg-[linear-gradient(135deg,#fff3eb_0%,#fffaf6_48%,#ffffff_100%)] p-5 shadow-[0_24px_60px_rgba(220,79,31,0.08)]">
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#dc4f1f]">Bienvenido</p>
-                    <h2 className="mt-2 text-2xl font-bold text-[#131316]">Ya eres parte de la familia Amazona Review</h2>
-                    <p className="mt-3 text-sm text-[#62626d]">
-                      Felicidades por activar tu acceso. Desde ahora compartiremos contigo proveedores confiables y tu perfil quedara visible para que proveedores compatibles puedan encontrarte y contactarte.
-                    </p>
+                    <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#dc4f1f]">{copy.welcomeBadge}</p>
+                    <h2 className="mt-2 text-2xl font-bold text-[#131316]">{copy.welcomeTitle}</h2>
+                    <p className="mt-3 text-sm text-[#62626d]">{copy.welcomeBody}</p>
                   </div>
                   <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-[#ff6b35] text-white shadow-[0_18px_36px_rgba(255,107,53,0.22)]">
                     <Sparkles className="h-5 w-5" />
@@ -714,22 +714,16 @@ export default async function DashboardPage({
 
                 <div className="mt-5 grid gap-3">
                   <article className="rounded-[1.4rem] border border-white/70 bg-white/88 p-4">
-                    <p className="text-sm font-semibold text-[#131316]">Proveedores confiables</p>
-                    <p className="mt-1 text-sm text-[#62626d]">
-                      Estaremos agregando proveedores nuevos constantemente y podras ver con claridad cuando un proveedor este verificado.
-                    </p>
+                    <p className="text-sm font-semibold text-[#131316]">{copy.trustedProvidersTitle}</p>
+                    <p className="mt-1 text-sm text-[#62626d]">{copy.trustedProvidersBody}</p>
                   </article>
                   <article className="rounded-[1.4rem] border border-white/70 bg-white/88 p-4">
-                    <p className="text-sm font-semibold text-[#131316]">Tu perfil ya esta visible</p>
-                    <p className="mt-1 text-sm text-[#62626d]">
-                      Tu perfil verificado ayudara a que los proveedores confien mas rapido en ti y puedan avanzar contigo sin tanta friccion en la colaboracion.
-                    </p>
+                    <p className="text-sm font-semibold text-[#131316]">{copy.visibleProfileTitle}</p>
+                    <p className="mt-1 text-sm text-[#62626d]">{copy.visibleProfileBody}</p>
                   </article>
                   <article className="rounded-[1.4rem] border border-white/70 bg-white/88 p-4">
-                    <p className="text-sm font-semibold text-[#131316]">Contacto mas seguro</p>
-                    <p className="mt-1 text-sm text-[#62626d]">
-                      Puedes hablar con proveedores desde la pagina sin compartir tus datos personales y decidir con calma como quieres que te contacten.
-                    </p>
+                    <p className="text-sm font-semibold text-[#131316]">{copy.safeContactTitle}</p>
+                    <p className="mt-1 text-sm text-[#62626d]">{copy.safeContactBody}</p>
                   </article>
                 </div>
               </section>
@@ -742,30 +736,28 @@ export default async function DashboardPage({
                     <WalletCards className="h-5 w-5" />
                   </span>
                   <div>
-                    <h2 className="font-bold">Activar membresia</h2>
-                    <p className="text-sm text-[#62626d]">Paso 1 del recorrido</p>
+                    <h2 className="font-bold">{copy.activateMembershipTitle}</h2>
+                    <p className="text-sm text-[#62626d]">{copy.stepOne}</p>
                   </div>
                 </div>
                 {PAYMENT_TEST_MODE ? (
                   <>
-                    <p className="mt-4 text-sm text-[#62626d]">
-                      Square esta deshabilitado durante pruebas. Puedes marcar manualmente tu acceso para seguir validando el flujo.
-                    </p>
+                    <p className="mt-4 text-sm text-[#62626d]">{copy.squareTestingBody}</p>
                     <TestingAccessControls stage="payment" />
                   </>
                 ) : (
                   <>
-                    <p className="mt-1 text-sm text-[#62626d]">Usa Square para pagar tu acceso. Cuando Square confirme el pago, tu membresia se activara automaticamente.</p>
+                    <p className="mt-1 text-sm text-[#62626d]">{copy.squareBody}</p>
                     {squareStatus === "processing" ? (
                       <p className="mt-3 rounded-2xl border border-[#f6d1c0] bg-[#fff4ed] px-4 py-3 text-sm font-semibold text-[#c64b1e]">
-                        Regresaste desde Square. Estamos validando tu pago y activaremos tu membresia en cuanto llegue el webhook.
+                        {copy.squareProcessing}
                       </p>
                     ) : null}
                     {squareError ? (
                       <p className="mt-3 rounded-2xl border border-[#f2d7d7] bg-[#fff7f7] px-4 py-3 text-sm font-semibold text-red-600">{squareError}</p>
                     ) : null}
                     <a href="/api/square/checkout" className="btn-primary mt-3">
-                      Pagar con Square
+                      {copy.payWithSquare}
                     </a>
                   </>
                 )}
@@ -779,32 +771,30 @@ export default async function DashboardPage({
                     <LockKeyhole className="h-5 w-5" />
                   </span>
                   <div>
-                    <h2 className="font-bold">Verificacion de ID</h2>
-                    <p className="text-sm text-[#62626d]">Paso 2 del recorrido</p>
+                    <h2 className="font-bold">{copy.idVerificationTitle}</h2>
+                    <p className="text-sm text-[#62626d]">{copy.stepTwo}</p>
                   </div>
                 </div>
                 {KYC_TEST_MODE ? (
                   <>
-                    <p className="mt-4 text-sm text-[#62626d]">
-                      La verificacion de ID real tambien esta pausada en pruebas. Puedes aprobarla o reiniciarla manualmente para validar el recorrido.
-                    </p>
+                    <p className="mt-4 text-sm text-[#62626d]">{copy.kycTestingBody}</p>
                     <TestingAccessControls stage="kyc" />
                   </>
                 ) : (
                   <>
                     <p className="mt-1 text-sm text-[#62626d]">
                       {isManualNameReview
-                        ? "Detectamos una diferencia entre el nombre de tu perfil y el nombre validado con tu documento. Nuestro equipo va a revisar tu informacion con cuidado y te informara en breve."
-                        : "Tu membresia ya esta activa. Ahora completa tu verificacion de identidad con Veriff para desbloquear contactos y dejar tu perfil listo para colaborar."}
+                        ? copy.nameReviewBody
+                        : copy.veriffBody}
                     </p>
                     {veriffStatus === "processing" ? (
                       <p className="mt-3 rounded-2xl border border-[#d7ead9] bg-[#f4fff4] px-4 py-3 text-sm font-semibold text-[#1f7a4d]">
-                        Regresaste desde Veriff. Estamos validando tu verificacion y activaremos el acceso completo en cuanto llegue la confirmacion.
+                        {copy.veriffProcessing}
                       </p>
                     ) : null}
                     {isManualNameReview ? (
                       <p className="mt-3 rounded-2xl border border-[#f7dbc9] bg-[#fff5ee] px-4 py-3 text-sm font-semibold text-[#c15a2a]">
-                        Gracias por completar tu verificacion. Como algunos datos no coinciden del todo, nuestro equipo hara una revision manual y te avisara muy pronto.
+                        {copy.manualReviewNotice}
                       </p>
                     ) : null}
                     {veriffError ? (
@@ -812,7 +802,7 @@ export default async function DashboardPage({
                     ) : null}
                     {!isManualNameReview ? (
                       <a href="/api/veriff/session" className="btn-primary mt-3">
-                        Verificar con Veriff
+                        {copy.verifyWithVeriff}
                       </a>
                     ) : null}
                   </>
@@ -822,7 +812,7 @@ export default async function DashboardPage({
 
             <div className="flex justify-center pt-2">
               <Link href="/dashboard?section=contacts" className="btn-primary">
-                Explorar proveedores
+                {copy.exploreProviders}
               </Link>
             </div>
           </>
@@ -833,11 +823,11 @@ export default async function DashboardPage({
             <section className="rounded-[1.8rem] border border-[#e6ddd1] bg-white p-5 shadow-[0_18px_36px_rgba(22,18,14,0.04)]">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <h2 className="text-xl font-bold">Contactos de proveedores</h2>
-                  <p className="mt-1 text-sm text-[#62626d]">Toca un proveedor para elegir la via de contacto disponible.</p>
+                  <h2 className="text-xl font-bold">{copy.contactsTitle}</h2>
+                  <p className="mt-1 text-sm text-[#62626d]">{copy.contactsBody}</p>
                 </div>
                 <span className="inline-flex rounded-full bg-[#fff3ec] px-3 py-2 text-xs font-bold uppercase tracking-[0.18em] text-[#dc4f1f]">
-                  Acceso abierto
+                  {copy.accessOpen}
                 </span>
               </div>
               <ProviderContactGrid contacts={contacts} initialContactedIds={contactedIds} />
@@ -846,11 +836,9 @@ export default async function DashboardPage({
             <section className="overflow-hidden rounded-[1.9rem] border border-[#f1d6c8] bg-[linear-gradient(135deg,#fff6f0_0%,#fffdf9_100%)] p-5 shadow-[0_18px_36px_rgba(22,18,14,0.04)]">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#dc4f1f]">Acceso bloqueado</p>
-                  <h2 className="mt-2 text-2xl font-bold text-[#131316]">Debes activar tu acceso antes de ver contactos</h2>
-                  <p className="mt-3 text-sm text-[#62626d]">
-                    Completa el pago con Square y tu verificacion de ID con Veriff para desbloquear los contactos de proveedores confiables.
-                  </p>
+                  <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#dc4f1f]">{copy.accessBlocked}</p>
+                  <h2 className="mt-2 text-2xl font-bold text-[#131316]">{copy.blockedTitle}</h2>
+                  <p className="mt-3 text-sm text-[#62626d]">{copy.blockedBody}</p>
                 </div>
                 <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-[#ff6b35] text-white">
                   <LockKeyhole className="h-5 w-5" />
@@ -858,16 +846,16 @@ export default async function DashboardPage({
               </div>
               <div className="mt-5 grid gap-3 sm:grid-cols-2">
                 <article className="rounded-[1.4rem] border border-white/70 bg-white/90 p-4">
-                  <p className="text-sm font-semibold text-[#131316]">1. Pago activo</p>
-                  <p className="mt-1 text-sm text-[#62626d]">Estado actual: {membershipStatus}</p>
+                  <p className="text-sm font-semibold text-[#131316]">{copy.paymentActive}</p>
+                  <p className="mt-1 text-sm text-[#62626d]">{copy.currentStatus}: {membershipStatus}</p>
                 </article>
                 <article className="rounded-[1.4rem] border border-white/70 bg-white/90 p-4">
-                  <p className="text-sm font-semibold text-[#131316]">2. Verificacion de ID</p>
-                  <p className="mt-1 text-sm text-[#62626d]">Estado actual: {kycStatus}</p>
+                  <p className="text-sm font-semibold text-[#131316]">{copy.idStatus}</p>
+                  <p className="mt-1 text-sm text-[#62626d]">{copy.currentStatus}: {kycStatus}</p>
                 </article>
               </div>
               <Link href="/dashboard" className="btn-primary mt-5 inline-flex">
-                Volver al inicio
+                {copy.backHome}
               </Link>
             </section>
           )
@@ -880,13 +868,13 @@ export default async function DashboardPage({
               currentUserId={user.id}
               currentUserRole={isProvider ? "provider" : "reviewer"}
               currentUserLanguage={currentUserLanguage}
-              title="Conversaciones activas"
+              title={copy.activeConversations}
               description={
                 isProvider
                   ? "Selecciona categoria, agrega el nombre del producto y habla con el reseñador desde un solo lugar."
                   : "Habla con proveedores desde aqui y comparte imagenes cuando lo necesites."
               }
-              emptyTitle="Todavia no tienes conversaciones activas"
+              emptyTitle={copy.emptyConversationsTitle}
               emptyDescription={
                 isProvider
                   ? "Contacta a un reseñador desde la pagina y la conversacion aparecera aqui al instante."

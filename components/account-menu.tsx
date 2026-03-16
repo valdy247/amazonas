@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { User } from "@supabase/supabase-js";
 import { LockKeyhole, Menu, MessageCircleMore, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { normalizeLanguage, navigationCopy, type AppLanguage } from "@/lib/i18n";
 
 type AccountMenuItem = {
   href: string;
@@ -18,9 +19,10 @@ type AccountMenuProps = {
   messageHref?: string;
   hasUnreadMessages?: boolean;
   unreadThreads?: Array<{ threadId: number; lastIncomingMessageId: number; lastSeenMessageId: number }>;
+  language?: AppLanguage;
 };
 
-export function AccountMenu({ user, items, messageHref, hasUnreadMessages = false, unreadThreads = [] }: AccountMenuProps) {
+export function AccountMenu({ user, items, messageHref, hasUnreadMessages = false, unreadThreads = [], language }: AccountMenuProps) {
   const [supabase] = useState(() => createClient());
   const [isOpen, setIsOpen] = useState(false);
   const [seenOverrides, setSeenOverrides] = useState<Record<number, number>>({});
@@ -33,16 +35,18 @@ export function AccountMenu({ user, items, messageHref, hasUnreadMessages = fals
   );
   const seenMap = useMemo<Record<number, number>>(() => ({ ...baseSeenMap, ...seenOverrides }), [baseSeenMap, seenOverrides]);
   const threadIds = useMemo(() => unreadThreads.map((thread) => thread.threadId), [unreadThreads]);
+  const currentLanguage = normalizeLanguage(language);
+  const nav = navigationCopy[currentLanguage];
   const resolvedItems =
     items ||
     (user
       ? [
-          { href: "/dashboard", label: "Ir al panel" },
-          { href: "/profile", label: "Editar perfil" },
+          { href: "/dashboard", label: nav.goToDashboard },
+          { href: "/profile", label: nav.editProfile },
         ]
       : [
-          { href: "/auth?mode=signup", label: "Crear cuenta" },
-          { href: "/auth?mode=signin", label: "Iniciar sesion" },
+          { href: "/auth?mode=signup", label: nav.createAccount },
+          { href: "/auth?mode=signin", label: nav.signIn },
         ]);
   const resolvedHasUnreadMessages = useMemo(() => {
     if (!user) {
@@ -148,7 +152,7 @@ export function AccountMenu({ user, items, messageHref, hasUnreadMessages = fals
       {user && messageHref ? (
         <Link
           href={messageHref}
-          aria-label="Abrir mensajes"
+          aria-label={nav.openMessages}
           className="relative inline-flex h-12 w-12 items-center justify-center rounded-full border border-[#e5e5df] bg-white text-[#131316] shadow-sm transition hover:bg-[#fff3ec]"
         >
           <MessageCircleMore className="h-5 w-5" />
@@ -159,7 +163,7 @@ export function AccountMenu({ user, items, messageHref, hasUnreadMessages = fals
       <button
         type="button"
         aria-expanded={isOpen}
-        aria-label={isOpen ? "Cerrar menu" : "Abrir menu"}
+        aria-label={isOpen ? nav.closeMenu : nav.openMenu}
         onClick={() => setIsOpen((current) => !current)}
         className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-[#e5e5df] bg-white text-[#131316] shadow-sm transition hover:bg-[#fff3ec]"
       >
@@ -184,7 +188,7 @@ export function AccountMenu({ user, items, messageHref, hasUnreadMessages = fals
               ))}
               <form action="/auth/signout" method="post">
                 <button className="mt-1 w-full rounded-xl px-3 py-3 text-left text-sm hover:bg-[#fff3ec]" type="submit">
-                  Cerrar sesion
+                  {nav.signOut}
                 </button>
               </form>
             </>

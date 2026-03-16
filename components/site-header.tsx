@@ -2,6 +2,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { AccountMenu } from "@/components/account-menu";
 import { hasAdminAccess } from "@/lib/admin";
+import { navigationCopy, normalizeLanguage, type AppLanguage } from "@/lib/i18n";
 
 type SiteHeaderProps = {
   menuItems?: Array<{
@@ -12,25 +13,28 @@ type SiteHeaderProps = {
   messageHref?: string;
   hasUnreadMessages?: boolean;
   unreadThreads?: Array<{ threadId: number; lastIncomingMessageId: number; lastSeenMessageId: number }>;
+  language?: AppLanguage;
 };
 
-export async function SiteHeader({ menuItems, messageHref, hasUnreadMessages = false, unreadThreads = [] }: SiteHeaderProps = {}) {
+export async function SiteHeader({ menuItems, messageHref, hasUnreadMessages = false, unreadThreads = [], language }: SiteHeaderProps = {}) {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   const { data: profile } = user ? await supabase.from("profiles").select("role, email").eq("id", user.id).single() : { data: null };
   const isAdmin = hasAdminAccess(profile?.role, profile?.email || user?.email);
+  const currentLanguage = normalizeLanguage(language);
+  const nav = navigationCopy[currentLanguage];
   const defaultMenuItems = user
     ? [
-        { href: "/dashboard", label: "Ir al panel" },
-        { href: "/profile", label: "Editar perfil" },
+        { href: "/dashboard", label: nav.goToDashboard },
+        { href: "/profile", label: nav.editProfile },
       ]
     : undefined;
   const baseMenuItems = menuItems || defaultMenuItems;
   const resolvedMenuItems = baseMenuItems
     ? isAdmin && !baseMenuItems.some((item) => item.href === "/admin")
-      ? [...baseMenuItems, { href: "/admin", label: "Panel admin" }]
+      ? [...baseMenuItems, { href: "/admin", label: nav.adminPanel }]
       : baseMenuItems
     : undefined;
 
@@ -40,7 +44,14 @@ export async function SiteHeader({ menuItems, messageHref, hasUnreadMessages = f
         <Link href="/" className="text-base font-extrabold tracking-tight">
           Amazona Review
         </Link>
-        <AccountMenu user={user} items={resolvedMenuItems} messageHref={messageHref} hasUnreadMessages={hasUnreadMessages} unreadThreads={unreadThreads} />
+        <AccountMenu
+          user={user}
+          items={resolvedMenuItems}
+          messageHref={messageHref}
+          hasUnreadMessages={hasUnreadMessages}
+          unreadThreads={unreadThreads}
+          language={currentLanguage}
+        />
       </div>
     </header>
   );
