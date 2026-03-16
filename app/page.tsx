@@ -42,8 +42,7 @@ export default function Home() {
         <ProviderInviteModal language={language} />
       </Suspense>
 
-      <main className="container-x py-6 sm:py-10">
-        <section className="verifyzon-hero relative overflow-hidden rounded-[2.4rem] border border-[#2f2d46] px-5 py-8 shadow-[0_30px_90px_rgba(3,6,18,0.45)] sm:px-8 sm:py-10">
+      <section className="verifyzon-hero relative overflow-hidden border-b border-[#1c1e2d] px-5 py-8 shadow-[0_30px_90px_rgba(3,6,18,0.24)] sm:px-8 sm:py-12">
           <div className="pointer-events-none absolute inset-0">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,#1b2552_0%,rgba(17,19,34,0.96)_34%,#090a13_100%)]" />
             <div className="absolute left-1/2 top-10 h-52 w-52 -translate-x-1/2 rounded-full bg-[#34d7ff]/16 blur-3xl" />
@@ -58,12 +57,12 @@ export default function Home() {
             ))}
           </div>
 
-          <div className="relative mx-auto max-w-4xl text-center">
-            <p className="mt-5 text-sm font-semibold uppercase tracking-[0.24em] text-[#9fc9ff]">
+          <div className="container-x relative mx-auto max-w-5xl py-4 text-center sm:py-8">
+            <p className="text-sm font-semibold uppercase tracking-[0.24em] text-[#9fc9ff]">
               Verified reviewer network for safer brand collaborations
             </p>
 
-            <h1 className="mt-6 flex items-center justify-center gap-x-1 whitespace-nowrap text-[1.88rem] font-extrabold leading-none sm:text-[3.45rem]">
+            <h1 className="mt-7 flex items-center justify-center gap-x-1 whitespace-nowrap text-[1.88rem] font-extrabold leading-none sm:text-[3.45rem]">
               {neonLetters.map((letter, index) => (
                 <span
                   key={`${letter}-${index}`}
@@ -88,8 +87,9 @@ export default function Home() {
               </Link>
             </div>
           </div>
-        </section>
+      </section>
 
+      <main className="container-x py-6 sm:py-10">
         <section className="mt-8 grid gap-4 lg:grid-cols-[1fr_1fr]">
           <article className="rounded-[1.8rem] border border-[#eadfd6] bg-white p-5 shadow-[0_18px_36px_rgba(22,18,14,0.04)]">
             <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#dc4f1f]">For reviewers</p>
