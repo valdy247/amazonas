@@ -1,8 +1,10 @@
 "use client";
 
 import { useDeferredValue, useMemo, useState } from "react";
+import { ChevronDown, Globe2 } from "lucide-react";
 import { deleteProviderContact, updateProviderContact } from "@/app/admin/actions";
 import { getContactFieldValues } from "@/lib/provider-contact";
+import type { WhatsappPrefixOption } from "@/lib/whatsapp-prefix-options";
 
 type ContactRow = {
   id: number;
@@ -14,12 +16,6 @@ type ContactRow = {
   is_active: boolean;
   is_verified: boolean;
   contact_methods?: string | null;
-};
-
-type WhatsappPrefixOption = {
-  flag: string;
-  label: string;
-  value: string;
 };
 
 type AdminProviderManagerProps = {
@@ -130,20 +126,33 @@ export function AdminProviderManager({ contacts, whatsappPrefixOptions }: AdminP
                     </div>
                     <input className="input" name="email" defaultValue={contact.email || ""} placeholder="Correo del proveedor (opcional)" type="email" />
                     <div className="rounded-[1.2rem] border border-[#eadfd6] bg-[#fcfaf7] p-3">
-                      <p className="text-sm font-semibold text-[#131316]">WhatsApp</p>
-                      <div className="mt-3 grid grid-cols-[minmax(0,152px)_1fr] gap-2">
-                        <select className="input bg-white" name="whatsapp_prefix" defaultValue={selectedPrefixValue}>
-                          {whatsappPrefixOptions.map((option) => (
-                            <option key={`${contact.id}-${option.label}-${option.value}`} value={option.value}>
-                              {option.flag} {option.label} {option.value.split(":").slice(-1)[0]}
-                            </option>
-                          ))}
-                          {!whatsappPrefixOptions.some((option) => option.value === selectedPrefixValue) ? (
-                            <option value={selectedPrefixValue}>{whatsappPrefix}</option>
-                          ) : null}
-                        </select>
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <p className="text-sm font-semibold text-[#131316]">WhatsApp</p>
+                        <span className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#dc4f1f] shadow-[0_10px_24px_rgba(220,79,31,0.08)]">
+                          <Globe2 className="h-3.5 w-3.5" />
+                          Mundial
+                        </span>
+                      </div>
+                      <div className="mt-3 grid gap-2 sm:grid-cols-[minmax(0,220px)_1fr]">
+                        <div className="relative">
+                          <select
+                            className="input h-14 w-full appearance-none bg-white pl-4 pr-11 text-sm font-semibold text-[#131316] shadow-[0_12px_24px_rgba(18,18,23,0.05)]"
+                            name="whatsapp_prefix"
+                            defaultValue={selectedPrefixValue}
+                          >
+                            {whatsappPrefixOptions.map((option) => (
+                              <option key={`${contact.id}-${option.label}-${option.value}`} value={option.value}>
+                                {option.flag} {option.label} {option.value.split(":").slice(-1)[0]}
+                              </option>
+                            ))}
+                            {!whatsappPrefixOptions.some((option) => option.value === selectedPrefixValue) ? (
+                              <option value={selectedPrefixValue}>{whatsappPrefix}</option>
+                            ) : null}
+                          </select>
+                          <ChevronDown className="pointer-events-none absolute top-1/2 right-4 h-4 w-4 -translate-y-1/2 text-[#8f857b]" />
+                        </div>
                         <input
-                          className="input"
+                          className="input h-14"
                           name="whatsapp_number"
                           defaultValue={whatsappNumber}
                           placeholder="786703994"

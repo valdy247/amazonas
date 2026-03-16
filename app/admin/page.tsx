@@ -7,6 +7,7 @@ import { SupportCenter } from "@/components/support-center";
 import { SiteHeader } from "@/components/site-header";
 import { createClient } from "@/lib/supabase/server";
 import { hasAdminAccess } from "@/lib/admin";
+import { WHATSAPP_PREFIX_OPTIONS } from "@/lib/whatsapp-prefix-options";
 import { createAdminUser } from "./actions";
 
 type ProfileRow = {
@@ -59,15 +60,6 @@ type SupportMessageRow = {
   body: string;
   created_at: string;
 };
-
-const WHATSAPP_PREFIX_OPTIONS = [
-  { flag: "US", label: "USA", value: "us:+1" },
-  { flag: "ES", label: "Espana", value: "+34" },
-  { flag: "CU", label: "Cuba", value: "+53" },
-  { flag: "MX", label: "Mexico", value: "+52" },
-  { flag: "CO", label: "Colombia", value: "+57" },
-  { flag: "DO", label: "R. Dominicana", value: "do:+1" },
-] as const;
 
 const ADMIN_SECTIONS = [
   { id: "providers", label: "Proveedores" },
