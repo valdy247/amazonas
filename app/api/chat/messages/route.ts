@@ -76,12 +76,26 @@ export async function POST(request: Request) {
       .select("id, preferred_language")
       .in("id", [user.id, receiverId]);
 
-    const languageByUser = new Map(
-      (participants || []).map((item) => [String(item.id), normalizeLanguage(item.preferred_language)])
-    );
+    const languageByUser = new Map<string, AppLanguage>();
 
-    const sourceLanguage = languageByUser.get(user.id) || "es";
-    const targetLanguage = languageByUser.get(receiverId) || "es";
+    for (const participant of participants || []) {
+      languageByUser.set(String(participant.id), normalizeLanguage(participant.preferred_language));
+    }
+
+    async function resolveLanguageForUser(userId: string) {
+      const { data: authUserResult, error: authUserError } = await admin.auth.admin.getUserById(userId);
+      if (!authUserError) {
+        const rawPreferredLanguage = authUserResult.user?.user_metadata?.preferred_language;
+        if (typeof rawPreferredLanguage === "string") {
+          return normalizeLanguage(rawPreferredLanguage);
+        }
+      }
+
+      return languageByUser.get(userId) || ("es" as AppLanguage);
+    }
+
+    const sourceLanguage = await resolveLanguageForUser(user.id);
+    const targetLanguage = await resolveLanguageForUser(receiverId);
     const translations: Partial<Record<AppLanguage, string>> = {};
 
     if (originalBody) {
