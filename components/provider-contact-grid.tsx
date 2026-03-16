@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import { ArrowUpRight, CircleX, MessageCircleMore } from "lucide-react";
 import { parseContactMethods } from "@/lib/provider-contact";
 import { createClient } from "@/lib/supabase/client";
+import { normalizeLanguage, providerContactsCopy, type AppLanguage } from "@/lib/i18n";
 
 type ProviderContact = {
   id: string;
@@ -21,9 +22,11 @@ type ProviderContact = {
 type ProviderContactGridProps = {
   contacts: ProviderContact[];
   initialContactedIds: string[];
+  language: AppLanguage;
 };
 
-export function ProviderContactGrid({ contacts, initialContactedIds }: ProviderContactGridProps) {
+export function ProviderContactGrid({ contacts, initialContactedIds, language }: ProviderContactGridProps) {
+  const copy = providerContactsCopy[normalizeLanguage(language)];
   const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"pending" | "contacted">("pending");
   const [error, setError] = useState<string | null>(null);
@@ -97,7 +100,7 @@ export function ProviderContactGrid({ contacts, initialContactedIds }: ProviderC
         } = await supabase.auth.getUser();
 
         if (userError || !user) {
-          setError("No se pudo validar tu sesion.");
+          setError(copy.sessionError);
           return;
         }
 
@@ -135,7 +138,7 @@ export function ProviderContactGrid({ contacts, initialContactedIds }: ProviderC
             activeTab === "pending" ? "bg-white text-[#131316] shadow-sm" : "text-[#7c7064]"
           }`}
         >
-          Por contactar ({pendingContacts.length})
+          {copy.pending} ({pendingContacts.length})
         </button>
         <button
           type="button"
@@ -144,7 +147,7 @@ export function ProviderContactGrid({ contacts, initialContactedIds }: ProviderC
             activeTab === "contacted" ? "bg-white text-[#131316] shadow-sm" : "text-[#7c7064]"
           }`}
         >
-          Contactados ({contactedContacts.length})
+          {copy.contacted} ({contactedContacts.length})
         </button>
       </div>
 
@@ -154,7 +157,7 @@ export function ProviderContactGrid({ contacts, initialContactedIds }: ProviderC
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="font-semibold">{contact.title}</p>
-                <p className="text-xs text-[#62626d]">{contact.network || "Red no definida"}</p>
+                <p className="text-xs text-[#62626d]">{contact.network || copy.undefinedNetwork}</p>
               </div>
               <div className="flex flex-wrap justify-end gap-2">
                 {contact.source_label ? (
@@ -164,7 +167,7 @@ export function ProviderContactGrid({ contacts, initialContactedIds }: ProviderC
                 ) : null}
                 {contact.is_verified ? (
                   <span className="rounded-full bg-[#fff3ec] px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-[#dc4f1f]">
-                    Verificado
+                    {copy.verified}
                   </span>
                 ) : null}
               </div>
@@ -175,7 +178,7 @@ export function ProviderContactGrid({ contacts, initialContactedIds }: ProviderC
               onClick={() => setSelectedContactId(contact.id)}
               className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-[#dc4f1f]"
             >
-              {activeTab === "pending" ? "Contactar proveedor" : "Volver a contactar"}
+              {activeTab === "pending" ? copy.contactProvider : copy.contactAgain}
               <ArrowUpRight className="h-4 w-4" />
             </button>
           </article>
@@ -185,8 +188,8 @@ export function ProviderContactGrid({ contacts, initialContactedIds }: ProviderC
       {!visibleContacts.length ? (
         <div className="mt-3 rounded-[1.5rem] border border-dashed border-[#e6ddd1] bg-[#fffdf9] p-5 text-sm text-[#62626d]">
           {activeTab === "pending"
-            ? "Todavia no hay proveedores pendientes por contactar."
-            : "Aun no has abierto ningun contacto. Cuando abras uno aparecera aqui automaticamente."}
+            ? copy.noPending
+            : copy.noContacted}
         </div>
       ) : null}
 
@@ -197,11 +200,9 @@ export function ProviderContactGrid({ contacts, initialContactedIds }: ProviderC
           <div className="mx-auto mt-16 w-full max-w-md rounded-[1.8rem] border border-[#e7ddd2] bg-white p-5 shadow-[0_26px_80px_rgba(17,17,17,0.18)]">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-sm font-semibold text-[#dc4f1f]">Contactar al proveedor</p>
+                <p className="text-sm font-semibold text-[#dc4f1f]">{copy.contactProviderTitle}</p>
                 <h3 className="mt-2 text-2xl font-bold">{selectedContact.title}</h3>
-                <p className="mt-2 text-sm text-[#62626d]">
-                  Elige una via de contacto para abrir directamente el perfil o canal del proveedor.
-                </p>
+                <p className="mt-2 text-sm text-[#62626d]">{copy.contactProviderBody}</p>
               </div>
               <button
                 type="button"
@@ -226,7 +227,7 @@ export function ProviderContactGrid({ contacts, initialContactedIds }: ProviderC
                       <MessageCircleMore className="h-5 w-5" />
                     </span>
                     <span>
-                      <span className="block text-sm text-[#62626d]">Contactar por</span>
+                      <span className="block text-sm text-[#62626d]">{copy.contactVia}</span>
                       <span className="block font-semibold">{method.label}</span>
                     </span>
                   </span>

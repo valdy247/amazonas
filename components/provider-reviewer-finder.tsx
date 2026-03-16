@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { EXPERIENCE_LABELS } from "@/lib/onboarding";
 import { AVAILABILITY_OPTIONS, type ReviewerAvailability } from "@/lib/profile-data";
 import { getRequestStatusLabel } from "@/lib/contact-requests";
+import { normalizeLanguage, providerFinderCopy, type AppLanguage } from "@/lib/i18n";
 
 type ReviewerDirectoryItem = {
   id: string;
@@ -39,6 +40,7 @@ type ProviderReviewerFinderProps = {
   reviewers: ReviewerDirectoryItem[];
   sentRequests: SentRequest[];
   providerInterests: string[];
+  language: AppLanguage;
 };
 
 function toHref(value: string) {
@@ -75,9 +77,10 @@ function mergeProfileSnapshotCountry(profileData: unknown, metadata: Record<stri
   return "";
 }
 
-export function ProviderReviewerFinder({ reviewers, sentRequests, providerInterests }: ProviderReviewerFinderProps) {
+export function ProviderReviewerFinder({ reviewers, sentRequests, providerInterests, language }: ProviderReviewerFinderProps) {
   const router = useRouter();
   const supabase = createClient();
+  const copy = providerFinderCopy[normalizeLanguage(language)];
   const reviewerRefs = useRef<Record<string, HTMLElement | null>>({});
   const [selectedInterest, setSelectedInterest] = useState("");
   const [selectedCountry, setSelectedCountry] = useState("");
@@ -175,7 +178,7 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
       const { data: userResult, error: userError } = await supabase.auth.getUser();
 
       if (userError || !userResult.user) {
-        setError("No se pudo validar tu sesion.");
+        setError(copy.sessionError);
         setPendingAction(null);
         return;
       }

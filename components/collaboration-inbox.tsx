@@ -395,7 +395,7 @@ export function CollaborationInbox({
     }
 
     if (!file.type.startsWith("image/")) {
-      setError("Solo puedes adjuntar imagenes.");
+      setError(copy.onlyImages);
       return;
     }
 
@@ -420,7 +420,7 @@ export function CollaborationInbox({
     });
 
     if (uploadError) {
-      throw new Error("No se pudo subir la imagen. Verifica el bucket request-message-media en Supabase.");
+      throw new Error(copy.uploadImageError);
     }
 
     const { data } = supabase.storage.from("request-message-media").getPublicUrl(filePath);
@@ -466,8 +466,8 @@ export function CollaborationInbox({
     const providerIntro =
       shouldAttachProviderIntro
         ? [
-            metaDraft?.category?.trim() ? `Categoria: ${metaDraft.category.trim()}` : null,
-            metaDraft?.productName?.trim() ? `Producto: ${metaDraft.productName.trim()}` : null,
+            metaDraft?.category?.trim() ? `${copy.categoryLabel}: ${metaDraft.category.trim()}` : null,
+            metaDraft?.productName?.trim() ? `${copy.productLabel}: ${metaDraft.productName.trim()}` : null,
           ]
             .filter(Boolean)
             .join("\n")
@@ -475,7 +475,7 @@ export function CollaborationInbox({
     const finalBody = [providerIntro, draft].filter(Boolean).join(providerIntro && draft ? "\n\n" : "");
 
     if (!finalBody && !mediaDraft) {
-      setError("Escribe un mensaje o adjunta una imagen antes de enviarlo.");
+      setError(copy.writeOrAttach);
       return;
     }
 
@@ -529,7 +529,7 @@ export function CollaborationInbox({
         };
 
         if (!response.ok || !payload.data) {
-          setError(payload.error || "No se pudo enviar el mensaje.");
+          setError(payload.error || copy.sendMessageError);
           setPendingId(null);
           return;
         }
@@ -585,7 +585,7 @@ export function CollaborationInbox({
         clearMediaDraft(requestId);
         setPendingId(null);
       } catch (caughtError) {
-        setError(caughtError instanceof Error ? caughtError.message : "No se pudo enviar el mensaje.");
+        setError(caughtError instanceof Error ? caughtError.message : copy.sendMessageError);
         setPendingId(null);
       }
     });
@@ -655,7 +655,7 @@ export function CollaborationInbox({
                     type="button"
                     onClick={() => setMenuThreadId((current) => (current === thread.requestId ? null : thread.requestId))}
                     className="inline-flex h-10 w-10 items-center justify-center rounded-full text-[#8f857b] transition hover:bg-[#fff0e8] hover:text-[#131316]"
-                    aria-label="Opciones del chat"
+                    aria-label={copy.chatOptions}
                   >
                     <EllipsisVertical className="h-5 w-5" />
                   </button>
@@ -668,7 +668,7 @@ export function CollaborationInbox({
                         className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm text-[#131316] hover:bg-[#fff3ec]"
                       >
                         <Star className={`h-4 w-4 ${isFavorite ? "fill-[#ffb54c] text-[#ffb54c]" : "text-[#8f857b]"}`} />
-                        <span>{isFavorite ? "Quitar favorito" : "Marcar favorito"}</span>
+                        <span>{isFavorite ? copy.removeFavorite : copy.markFavorite}</span>
                       </button>
                       <button
                         type="button"
@@ -676,7 +676,7 @@ export function CollaborationInbox({
                         className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm text-[#131316] hover:bg-[#fff3ec]"
                       >
                         <CheckCheck className="h-4 w-4 text-[#8f857b]" />
-                        <span>Marcar como leido</span>
+                        <span>{copy.markRead}</span>
                       </button>
                       <button
                         type="button"
@@ -684,7 +684,7 @@ export function CollaborationInbox({
                         className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm text-[#131316] hover:bg-[#fff3ec]"
                       >
                         <Trash2 className="h-4 w-4 text-[#d45b3d]" />
-                        <span>Eliminar chat</span>
+                        <span>{copy.deleteChat}</span>
                       </button>
                     </div>
                   ) : null}
@@ -706,7 +706,7 @@ export function CollaborationInbox({
                 </button>
                 <div>
                   <p className="font-semibold text-[#131316]">{activeThread.counterpartName}</p>
-                  <p className="text-xs text-[#8f857b]">{activeThread.counterpartCountry || "Sin pais"}</p>
+                  <p className="text-xs text-[#8f857b]">{activeThread.counterpartCountry || copy.noCountry}</p>
                 </div>
               </div>
               <button type="button" onClick={closeChat} className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#f7f1ea] text-[#131316]">
@@ -731,7 +731,7 @@ export function CollaborationInbox({
                           {message.imageUrl ? (
                             <div className="overflow-hidden rounded-[1rem]">
                               {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img src={message.imageUrl} alt="Imagen enviada en la conversacion" className="mb-3 max-h-72 w-full rounded-[1rem] object-cover" />
+                              <img src={message.imageUrl} alt={copy.sentImageAlt} className="mb-3 max-h-72 w-full rounded-[1rem] object-cover" />
                             </div>
                           ) : null}
                           {renderedMessage.translatedBody && !isMine ? (
@@ -783,8 +783,8 @@ export function CollaborationInbox({
             <div className="border-t border-[#eadfd6] bg-white px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
               {currentUserRole === "provider" && !providerHasSentMessage ? (
                 <div className="mb-3 rounded-[1.3rem] border border-[#efe4d9] bg-[#fff8f3] p-3">
-                  <p className="text-sm font-semibold text-[#131316]">Prepara tu mensaje</p>
-                  <p className="mt-1 text-sm text-[#7b6e63]">Selecciona la categoria y anade el producto. Si quieres, luego adjunta una foto y escribe tu mensaje.</p>
+                  <p className="text-sm font-semibold text-[#131316]">{copy.prepareMessage}</p>
+                  <p className="mt-1 text-sm text-[#7b6e63]">{copy.prepareMessageBody}</p>
                   <div className="mt-3 flex flex-wrap gap-2">
                     {categorySuggestions.map((category) => (
                       <button
@@ -805,7 +805,7 @@ export function CollaborationInbox({
                     className="input mt-3"
                     value={metaDrafts[activeThread.requestId]?.productName || ""}
                     onChange={(event) => updateMetaDraft(activeThread.requestId, { productName: event.target.value })}
-                    placeholder="Nombre del producto o servicio"
+                    placeholder={copy.productPlaceholder}
                   />
                 </div>
               ) : null}
@@ -829,14 +829,14 @@ export function CollaborationInbox({
                 <div className="mb-3 flex items-center justify-between rounded-[1.2rem] border border-[#e8ddd2] bg-[#fffaf6] px-4 py-3">
                   <div className="flex items-center gap-3">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={mediaDrafts[activeThread.requestId]?.previewUrl} alt="Vista previa" className="h-12 w-12 rounded-xl object-cover" />
+                    <img src={mediaDrafts[activeThread.requestId]?.previewUrl} alt={copy.imagePreview} className="h-12 w-12 rounded-xl object-cover" />
                     <div>
-                      <p className="text-sm font-semibold text-[#131316]">Imagen lista para enviar</p>
+                      <p className="text-sm font-semibold text-[#131316]">{copy.imageReady}</p>
                       <p className="text-xs text-[#8f857b]">{mediaDrafts[activeThread.requestId]?.file.name}</p>
                     </div>
                   </div>
                   <button type="button" className="text-sm font-semibold text-[#dc4f1f]" onClick={() => clearMediaDraft(activeThread.requestId)}>
-                    Quitar
+                    {copy.remove}
                   </button>
                 </div>
               ) : null}
