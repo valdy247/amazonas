@@ -48,11 +48,15 @@ export function AuthForm() {
     const lastName = String(formData.get("last_name") || "").trim();
     const phone = String(formData.get("phone") || "").trim();
     const fullName = `${firstName} ${lastName}`.trim();
+    const identityConfirmed = String(formData.get("identity_confirmation") || "") === "on";
 
     try {
       if (mode === "signup") {
         if (!firstName || !lastName) return setError("Debes ingresar nombre y apellidos."), void setLoading(false);
         if (!phoneRegex.test(phone)) return setError("Numero de telefono invalido."), void setLoading(false);
+        if (!identityConfirmed) {
+          return setError("Debes confirmar que tu nombre coincide con tu documento oficial."), void setLoading(false);
+        }
         if (password.length < 8) return setError("La contrasena debe tener al menos 8 caracteres."), void setLoading(false);
         if (password !== confirmPassword) return setError("Las contrasenas no coinciden."), void setLoading(false);
 
@@ -136,9 +140,23 @@ export function AuthForm() {
 
       {mode === "signup" ? (
         <div className="grid gap-3">
+          <div className="rounded-[1.4rem] border border-[#f2d2c0] bg-[linear-gradient(180deg,#fff6f1_0%,#fffdfa_100%)] px-4 py-4 text-sm text-[#62564a]">
+            <p className="font-semibold text-[#131316]">Revisa bien tu informacion antes de continuar</p>
+            <p className="mt-2">
+              Tu identidad sera validada mas adelante con un documento oficial. Es importante que escribas tu nombre y apellidos tal como aparecen en tu documento para evitar retrasos en la verificacion.
+            </p>
+          </div>
           <input className="input" name="first_name" placeholder="Nombre" required />
           <input className="input" name="last_name" placeholder="Apellidos" required />
           <input className="input" name="phone" placeholder="Telefono" required />
+          <label className="rounded-[1.2rem] border border-[#eadfd6] bg-[#fcfaf7] px-4 py-3 text-sm text-[#62564a]">
+            <span className="flex items-start gap-3">
+              <input className="mt-1" type="checkbox" name="identity_confirmation" required />
+              <span>
+                Confirmo que mi nombre y apellidos estan escritos correctamente y coinciden con mi documento oficial.
+              </span>
+            </span>
+          </label>
         </div>
       ) : null}
 
