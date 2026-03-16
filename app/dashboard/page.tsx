@@ -89,7 +89,7 @@ type ProviderSnapshot = {
 };
 
 const PAYMENT_TEST_MODE = false;
-const KYC_TEST_MODE = true;
+const KYC_TEST_MODE = false;
 
 function normalizeComparable(value: string | null | undefined) {
   return (value || "").trim().toLowerCase();
@@ -202,6 +202,8 @@ export default async function DashboardPage({
   const canSeeContacts = !isProvider && membershipStatus === "active" && kycStatus === "approved";
   const squareStatus = typeof resolvedSearchParams.square === "string" ? resolvedSearchParams.square : null;
   const squareError = typeof resolvedSearchParams.square_error === "string" ? resolvedSearchParams.square_error : null;
+  const veriffStatus = typeof resolvedSearchParams.veriff === "string" ? resolvedSearchParams.veriff : null;
+  const veriffError = typeof resolvedSearchParams.veriff_error === "string" ? resolvedSearchParams.veriff_error : null;
   const requestedThreadId =
     typeof resolvedSearchParams.thread === "string" && Number.isFinite(Number(resolvedSearchParams.thread))
       ? Number(resolvedSearchParams.thread)
@@ -693,7 +695,7 @@ export default async function DashboardPage({
                     <LockKeyhole className="h-5 w-5" />
                   </span>
                   <div>
-                  <h2 className="font-bold">Verificación de ID</h2>
+                    <h2 className="font-bold">Verificacion de ID</h2>
                     <p className="text-sm text-[#62626d]">Paso 2 del recorrido</p>
                   </div>
                 </div>
@@ -705,9 +707,22 @@ export default async function DashboardPage({
                     <TestingAccessControls stage="kyc" />
                   </>
                 ) : (
-                  <p className="mt-1 text-sm text-[#62626d]">
-                    Tu membresia esta activa. Ahora toca tu verificacion de identidad. El admin te contactara para completar el proceso.
-                  </p>
+                  <>
+                    <p className="mt-1 text-sm text-[#62626d]">
+                      Tu membresia ya esta activa. Ahora completa tu verificacion de identidad con Veriff para desbloquear contactos y dejar tu perfil listo para colaborar.
+                    </p>
+                    {veriffStatus === "processing" ? (
+                      <p className="mt-3 rounded-2xl border border-[#d7ead9] bg-[#f4fff4] px-4 py-3 text-sm font-semibold text-[#1f7a4d]">
+                        Regresaste desde Veriff. Estamos validando tu verificacion y activaremos el acceso completo en cuanto llegue la confirmacion.
+                      </p>
+                    ) : null}
+                    {veriffError ? (
+                      <p className="mt-3 rounded-2xl border border-[#f2d7d7] bg-[#fff7f7] px-4 py-3 text-sm font-semibold text-red-600">{veriffError}</p>
+                    ) : null}
+                    <a href="/api/veriff/session" className="btn-primary mt-3">
+                      Verificar con Veriff
+                    </a>
+                  </>
                 )}
               </section>
             ) : null}
@@ -741,7 +756,7 @@ export default async function DashboardPage({
                   <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#dc4f1f]">Acceso bloqueado</p>
                   <h2 className="mt-2 text-2xl font-bold text-[#131316]">Debes activar tu acceso antes de ver contactos</h2>
                   <p className="mt-3 text-sm text-[#62626d]">
-                    Completa el pago con Square y tu verificacion de ID para desbloquear los contactos de proveedores confiables.
+                    Completa el pago con Square y tu verificacion de ID con Veriff para desbloquear los contactos de proveedores confiables.
                   </p>
                 </div>
                 <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-[#ff6b35] text-white">
