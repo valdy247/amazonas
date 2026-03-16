@@ -629,11 +629,15 @@ export default async function DashboardPage({
                 <div className="mt-5 grid gap-3">
                   <article className="rounded-[1.4rem] border border-white/70 bg-white/88 p-4">
                     <p className="text-sm font-semibold text-[#131316]">Proveedores confiables</p>
-                    <p className="mt-1 text-sm text-[#62626d]">Te mostraremos oportunidades y contactos seleccionados para que avances con mas confianza.</p>
+                    <p className="mt-1 text-sm text-[#62626d]">
+                      Estaremos agregando proveedores nuevos constantemente y podras ver con claridad cuando un proveedor este verificado.
+                    </p>
                   </article>
                   <article className="rounded-[1.4rem] border border-white/70 bg-white/88 p-4">
                     <p className="text-sm font-semibold text-[#131316]">Tu perfil ya esta visible</p>
-                    <p className="mt-1 text-sm text-[#62626d]">Los proveedores podran encontrarte segun tus categorias, pais y disponibilidad para colaborar.</p>
+                    <p className="mt-1 text-sm text-[#62626d]">
+                      Tu perfil verificado ayudara a que los proveedores confien mas rapido en ti y puedan avanzar contigo sin tanta friccion en la colaboracion.
+                    </p>
                   </article>
                   <article className="rounded-[1.4rem] border border-white/70 bg-white/88 p-4">
                     <p className="text-sm font-semibold text-[#131316]">Contacto mas seguro</p>
