@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, ChevronLeft, ChevronRight, Compass, MapPin, Sparkles, Stars } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { COUNTRY_OPTIONS, EXPERIENCE_LABELS, INTEREST_OPTIONS, type ExperienceLevel, type UserRole } from "@/lib/onboarding";
+import { COUNTRY_OPTIONS, EXPERIENCE_LABELS, getInterestLabel, getInterestOptions, INTEREST_OPTIONS, type ExperienceLevel, type UserRole } from "@/lib/onboarding";
 import { buildProfileData } from "@/lib/profile-data";
 import { normalizeLanguage, onboardingCopy, type AppLanguage } from "@/lib/i18n";
 
@@ -69,6 +69,7 @@ export function ProfileWizard({ initialValues, email, language }: ProfileWizardP
   const progressPercent = Math.round(((step + 1) / steps.length) * 100);
   const selectedCountryLabel = values.country || copy.noCountrySelected;
   const roleCopy = values.role === "reviewer" ? copy.reviewerRoleCopy : copy.providerRoleCopy;
+  const interestOptions = useMemo(() => getInterestOptions(language), [language]);
 
   function updateValue<K extends keyof WizardValues>(key: K, value: WizardValues[K]) {
     setValues((current) => ({ ...current, [key]: value }));
@@ -430,14 +431,14 @@ export function ProfileWizard({ initialValues, email, language }: ProfileWizardP
                       {values.interests.length === INTEREST_OPTIONS.length ? <Check className="h-4 w-4" /> : null}
                     </span>
                   </button>
-                  {INTEREST_OPTIONS.map((option) => {
-                    const active = values.interests.includes(option);
+                  {interestOptions.map((option) => {
+                    const active = values.interests.includes(option.value);
 
                     return (
                       <button
-                        key={option}
+                        key={option.value}
                         type="button"
-                        onClick={() => toggleInterest(option)}
+                        onClick={() => toggleInterest(option.value)}
                         className={`rounded-[1.25rem] border px-4 py-3 text-left text-sm font-semibold transition ${
                           active
                             ? "border-[#ff6b35] bg-[linear-gradient(135deg,#ff6b35_0%,#ff8b5e_100%)] text-white shadow-[0_14px_26px_rgba(255,107,53,0.22)]"
@@ -445,7 +446,7 @@ export function ProfileWizard({ initialValues, email, language }: ProfileWizardP
                         }`}
                       >
                         <span className="flex items-center justify-between gap-2">
-                          <span>{option}</span>
+                          <span>{option.label}</span>
                           {active ? <Check className="h-4 w-4" /> : null}
                         </span>
                       </button>
@@ -482,7 +483,7 @@ export function ProfileWizard({ initialValues, email, language }: ProfileWizardP
                 <div className="mt-2 flex flex-wrap gap-2">
                   {values.interests.map((interest) => (
                     <span key={interest} className="rounded-full bg-white px-3 py-1 text-sm font-semibold text-[#dc4f1f]">
-                      {interest}
+                      {getInterestLabel(interest, language)}
                     </span>
                   ))}
                 </div>

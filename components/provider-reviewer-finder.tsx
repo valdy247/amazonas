@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { NotebookTabs, Sparkles, Star, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { EXPERIENCE_LABELS } from "@/lib/onboarding";
+import { EXPERIENCE_LABELS, getInterestLabel, getInterestOptions, normalizeInterestKey } from "@/lib/onboarding";
 import { AVAILABILITY_OPTIONS, type ReviewerAvailability } from "@/lib/profile-data";
 import { getRequestStatusLabel } from "@/lib/contact-requests";
 import { normalizeLanguage, providerFinderCopy, type AppLanguage } from "@/lib/i18n";
@@ -106,6 +106,7 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
     }))
   );
   const [isPending, startTransition] = useTransition();
+  const interestOptions = useMemo(() => getInterestOptions(language), [language]);
 
   const availableCountries = useMemo(
     () => Array.from(new Set(reviewers.map((reviewer) => reviewer.country.trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b)),
@@ -143,7 +144,7 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
   const filteredReviewers = useMemo(
     () =>
       reviewers.filter((reviewer) => {
-        if (selectedInterest && !reviewer.interests.some((interest) => normalizeFilterValue(interest) === normalizeFilterValue(selectedInterest))) {
+        if (selectedInterest && !reviewer.interests.some((interest) => normalizeInterestKey(interest) === normalizeInterestKey(selectedInterest))) {
           return false;
         }
 
@@ -323,16 +324,16 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
                 >
                   {copy.allCategories}
                 </button>
-                {availableInterests.map((interest) => (
+                {interestOptions.filter((option) => availableInterests.includes(option.value)).map((interest) => (
                   <button
-                    key={interest}
+                    key={interest.value}
                     type="button"
-                    onClick={() => setSelectedInterest(interest)}
+                    onClick={() => setSelectedInterest(interest.value)}
                     className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-                      selectedInterest === interest ? "bg-[#ff6b35] text-white" : "border border-[#eadfd6] bg-white text-[#62564a]"
+                      selectedInterest === interest.value ? "bg-[#ff6b35] text-white" : "border border-[#eadfd6] bg-white text-[#62564a]"
                     }`}
                   >
-                    {interest}
+                    {interest.label}
                   </button>
                 ))}
               </div>
@@ -372,7 +373,7 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
                 <div className="mt-3 flex flex-wrap gap-2">
                   {reviewer.interests.slice(0, 3).map((interest) => (
                     <span key={`recommended-${reviewer.id}-${interest}`} className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-[#62564a]">
-                      {interest}
+                      {getInterestLabel(interest, language)}
                     </span>
                   ))}
                 </div>
@@ -434,7 +435,7 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
                   <div className="mt-3 flex flex-wrap gap-2">
                     {reviewer.interests.slice(0, 4).map((interest) => (
                       <span key={interest} className="rounded-full border border-[#ece3d9] bg-[#fcfaf7] px-3 py-1 text-xs font-semibold text-[#62564a]">
-                        {interest}
+                        {getInterestLabel(interest, language)}
                       </span>
                     ))}
                   </div>

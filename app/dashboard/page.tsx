@@ -8,7 +8,7 @@ import { ProviderReviewerFinder } from "@/components/provider-reviewer-finder";
 import { CollaborationInbox } from "@/components/collaboration-inbox";
 import { TestingAccessControls } from "@/components/testing-access-controls";
 import { ProviderContactGrid } from "@/components/provider-contact-grid";
-import { normalizeUserRole } from "@/lib/onboarding";
+import { getInterestLabel, normalizeInterestKeys, normalizeUserRole } from "@/lib/onboarding";
 import { getReviewerContactMethods, mergeProfileData, type ReviewerAvailability } from "@/lib/profile-data";
 import { normalizeContactRequestData } from "@/lib/contact-requests";
 import { buildContactMethodsFromFields } from "@/lib/provider-contact";
@@ -213,9 +213,7 @@ export default async function DashboardPage({
   const role = normalizeUserRole(profile.role);
   const firstName = String(profile.full_name || "miembro").trim().split(/\s+/)[0] || "miembro";
   const metadata = (user.user_metadata || {}) as Record<string, unknown>;
-  const userMetadataInterests = Array.isArray(metadata.interests)
-    ? metadata.interests.filter((item): item is string => typeof item === "string")
-    : [];
+  const userMetadataInterests = normalizeInterestKeys(metadata.interests);
   const profileData = mergeProfileData((profile as ProfileRow | null)?.profile_data, {
     country: typeof metadata.country === "string" ? metadata.country : "",
     experienceLevel: typeof metadata.experience_level === "string" ? metadata.experience_level : "new",
@@ -233,7 +231,7 @@ export default async function DashboardPage({
     await supabase.from("profiles").update({ profile_data: profileData }).eq("id", user.id);
   }
 
-  const userInterests = profileData.interests;
+  const userInterests = normalizeInterestKeys(profileData.interests);
   const profileNote = profileData.note;
   const country = profileData.country || null;
   const testingMembershipStatus = typeof metadata.testing_payment_state === "string" ? metadata.testing_payment_state : null;
@@ -476,7 +474,8 @@ export default async function DashboardPage({
     reviewerDirectory = (reviewerRows as ProfileRow[])
       .map((row) => {
         const reviewerData = mergeProfileData(row.profile_data);
-        const overlap = reviewerData.interests.filter((interest) => userInterests.includes(interest)).length;
+        const reviewerInterests = normalizeInterestKeys(reviewerData.interests);
+        const overlap = reviewerInterests.filter((interest) => userInterests.includes(interest)).length;
         const categoryWeight = userInterests.length ? (overlap / userInterests.length) * 70 : 35;
         const countryWeight =
           normalizeComparable(reviewerData.country) && normalizeComparable(reviewerData.country) === normalizeComparable(country) ? 20 : 0;
@@ -489,7 +488,7 @@ export default async function DashboardPage({
           firstName: String(row.full_name || "reviewer").trim().split(/\s+/)[0] || "reviewer",
           country: reviewerData.country,
           experienceLevel: reviewerData.experienceLevel,
-          interests: reviewerData.interests,
+          interests: reviewerInterests.map((interest) => getInterestLabel(interest, currentUserLanguage)),
           note: reviewerData.note,
           availability: reviewerData.availability,
           allowsDirectContact: reviewerData.allowsDirectContact,
@@ -613,7 +612,9 @@ export default async function DashboardPage({
           counterpartId: request.provider_id,
           counterpartName: providerMap.get(request.provider_id)?.fullName || snapshot?.fullName || "Proveedor",
           counterpartCountry: providerMap.get(request.provider_id)?.profileData.country || snapshot?.country || "",
-          counterpartInterests: providerMap.get(request.provider_id)?.profileData.interests || snapshot?.interests || [],
+          counterpartInterests: normalizeInterestKeys(providerMap.get(request.provider_id)?.profileData.interests || snapshot?.interests || []).map((interest) =>
+            getInterestLabel(interest, currentUserLanguage)
+          ),
           requestData: request.request_data && typeof request.request_data === "object" ? (request.request_data as Record<string, unknown>) : null,
           requestMeta: normalizeContactRequestData(request.request_data),
           messages: (messagesByRequest.get(request.id) || []).map((message) => ({

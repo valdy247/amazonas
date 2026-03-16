@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { COUNTRY_OPTIONS, EXPERIENCE_LABELS, INTEREST_OPTIONS, type ExperienceLevel, type UserRole } from "@/lib/onboarding";
+import { COUNTRY_OPTIONS, EXPERIENCE_LABELS, getInterestOptions, type ExperienceLevel, type UserRole } from "@/lib/onboarding";
 import { AVAILABILITY_OPTIONS, type ReviewerAvailability } from "@/lib/profile-data";
 import { LANGUAGE_OPTIONS, normalizeLanguage, profileCopy, type AppLanguage } from "@/lib/i18n";
 
@@ -38,6 +38,7 @@ export function ProfileEditor({ email, initialValues }: ProfileEditorProps) {
   const [saved, setSaved] = useState<string | null>(null);
   const [values, setValues] = useState(initialValues);
   const copy = profileCopy[values.preferredLanguage];
+  const interestOptions = getInterestOptions(values.preferredLanguage);
 
   function updateValue<K extends keyof typeof values>(key: K, value: (typeof values)[K]) {
     setValues((current) => ({ ...current, [key]: value }));
@@ -261,19 +262,19 @@ export function ProfileEditor({ email, initialValues }: ProfileEditorProps) {
           </div>
 
           <div className="flex flex-wrap gap-2">
-            {INTEREST_OPTIONS.map((option) => {
-              const active = values.interests.includes(option);
+            {interestOptions.map((option) => {
+              const active = values.interests.includes(option.value);
 
               return (
                 <button
-                  key={option}
+                  key={option.value}
                   type="button"
-                  onClick={() => toggleInterest(option)}
+                  onClick={() => toggleInterest(option.value)}
                   className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${
                     active ? "border-[#ff6b35] bg-[#ff6b35] text-white" : "border-[#e5e5df] bg-white text-[#131316]"
                   }`}
                 >
-                  {option}
+                  {option.label}
                 </button>
               );
             })}

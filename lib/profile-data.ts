@@ -1,4 +1,4 @@
-import type { ExperienceLevel } from "@/lib/onboarding";
+import { normalizeInterestKeys, type ExperienceLevel } from "@/lib/onboarding";
 
 export type ReviewerAvailability = "open" | "selective" | "busy";
 
@@ -45,7 +45,7 @@ function safeString(value: unknown) {
 }
 
 function safeStringArray(value: unknown) {
-  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+  return normalizeInterestKeys(value);
 }
 
 export function normalizeProfileData(value: unknown): ProfileData {
