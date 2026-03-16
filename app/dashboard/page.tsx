@@ -7,6 +7,7 @@ import { hasAdminAccess } from "@/lib/admin";
 import { ProviderReviewerFinder } from "@/components/provider-reviewer-finder";
 import { ProviderCampaignStudio } from "@/components/provider-campaign-studio";
 import { CollaborationInbox } from "@/components/collaboration-inbox";
+import { SupportCenter } from "@/components/support-center";
 import { TestingAccessControls } from "@/components/testing-access-controls";
 import { ProviderContactGrid } from "@/components/provider-contact-grid";
 import { getInterestLabel, normalizeInterestKeys, normalizeUserRole } from "@/lib/onboarding";
@@ -63,6 +64,24 @@ type MessageRow = {
   created_at: string;
   image_url?: string | null;
   image_path?: string | null;
+};
+
+type SupportThreadRow = {
+  id: number;
+  user_id: string;
+  category: string;
+  subject: string;
+  status: string;
+  last_activity_at: string;
+  assigned_admin_id?: string | null;
+};
+
+type SupportMessageRow = {
+  id: number;
+  thread_id: number;
+  sender_id: string;
+  body: string;
+  created_at: string;
 };
 
 type ConversationThread = {
@@ -266,10 +285,10 @@ export default async function DashboardPage({
       : null;
   const requestedSection = typeof resolvedSearchParams.section === "string" ? resolvedSearchParams.section : "home";
   const currentSection = isProvider
-    ? requestedSection === "messages" || requestedSection === "reviewers"
+    ? requestedSection === "messages" || requestedSection === "reviewers" || requestedSection === "support"
       ? requestedSection
       : "home"
-    : requestedSection === "messages" || requestedSection === "contacts"
+    : requestedSection === "messages" || requestedSection === "contacts" || requestedSection === "support"
       ? requestedSection
       : "home";
   const showWelcomeActivation = !isProvider && canSeeContacts;
@@ -303,6 +322,24 @@ export default async function DashboardPage({
     updated_at?: string;
   }> = [];
   let collaborationThreads: ConversationThread[] = [];
+  let supportThreads: Array<{
+    id: number;
+    userId: string;
+    userName: string;
+    userEmail: string;
+    subject: string;
+    category: string;
+    status: string;
+    lastActivityAt: string;
+    assignedAdminId?: string | null;
+    messages: Array<{
+      id: number;
+      senderId: string;
+      senderName: string;
+      body: string;
+      createdAt: string;
+    }>;
+  }> = [];
   let allRegisteredProviderProfiles: ProfileRow[] = [];
   let providerAliasByManualId = new Map<number, string>();
   let providerAliasByRegisteredId = new Map<string, string>();
@@ -570,6 +607,42 @@ export default async function DashboardPage({
     }
   }
 
+  const { data: supportThreadRows } = await supabase
+    .from("support_threads")
+    .select("id, user_id, category, subject, status, last_activity_at, assigned_admin_id")
+    .eq("user_id", user.id)
+    .order("last_activity_at", { ascending: false });
+
+  if ((supportThreadRows || []).length) {
+    const supportIds = (supportThreadRows as SupportThreadRow[]).map((row) => row.id);
+    const { data: supportMessageRows } = await supabase
+      .from("support_messages")
+      .select("id, thread_id, sender_id, body, created_at")
+      .in("thread_id", supportIds)
+      .order("created_at", { ascending: true });
+
+    supportThreads = (supportThreadRows as SupportThreadRow[]).map((thread) => ({
+      id: thread.id,
+      userId: thread.user_id,
+      userName: firstName,
+      userEmail: profile?.email || user.email || "",
+      subject: thread.subject,
+      category: thread.category,
+      status: thread.status,
+      lastActivityAt: thread.last_activity_at,
+      assignedAdminId: thread.assigned_admin_id || null,
+      messages: ((supportMessageRows || []) as SupportMessageRow[])
+        .filter((message) => message.thread_id === thread.id)
+        .map((message) => ({
+          id: message.id,
+          senderId: message.sender_id,
+          senderName: message.sender_id === user.id ? firstName : currentUserLanguage === "en" ? "Support" : "Soporte",
+          body: message.body,
+          createdAt: message.created_at,
+        })),
+    }));
+  }
+
   if (!isProvider) {
     const { data: requestRows } = await supabase
       .from("reviewer_contact_requests")
@@ -646,6 +719,7 @@ export default async function DashboardPage({
     { href: "/dashboard", label: copy.home },
     isProvider ? { href: "/dashboard?section=reviewers", label: currentUserLanguage === "en" ? "Find reviewers" : "Buscar resenadores" } : null,
     !isProvider ? { href: "/dashboard?section=contacts", label: copy.providerContacts, locked: !canSeeContacts } : null,
+    { href: "/dashboard?section=support", label: currentUserLanguage === "en" ? "Support" : "Soporte" },
     { href: "/profile", label: currentUserLanguage === "en" ? "Edit profile" : "Editar perfil" },
     isAdmin ? { href: "/admin", label: currentUserLanguage === "en" ? "Admin panel" : "Panel admin" } : null,
   ].filter(Boolean) as Array<{ href: string; label: string; locked?: boolean }>;
@@ -907,6 +981,10 @@ export default async function DashboardPage({
               }
             />
           </>
+        ) : null}
+
+        {currentSection === "support" ? (
+          <SupportCenter currentUserId={user.id} language={currentUserLanguage} threads={supportThreads} />
         ) : null}
       </main>
     </div>

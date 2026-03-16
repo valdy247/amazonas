@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { hasAdminAccess } from "@/lib/admin";
 import { mergeProfileData } from "@/lib/profile-data";
+import { createAdminClient } from "@/lib/supabase/admin";
 import {
   buildContactMethodsFromFields,
   getComparableContactMethods,
@@ -38,6 +39,21 @@ async function assertAdmin() {
 
 function normalizeEmail(value?: string | null) {
   return String(value || "").trim().toLowerCase();
+}
+
+async function logAdminAction(input: {
+  supabase: Awaited<ReturnType<typeof createClient>>;
+  adminId: string;
+  action: string;
+  targetUserId?: string | null;
+  metadata?: Record<string, unknown>;
+}) {
+  await input.supabase.from("admin_audit_logs").insert({
+    admin_id: input.adminId,
+    action: input.action,
+    target_user_id: input.targetUserId || null,
+    metadata: input.metadata || {},
+  });
 }
 
 async function assertUniqueProviderContact({
@@ -358,7 +374,7 @@ export async function deleteProviderContact(formData: FormData) {
 }
 
 export async function updateMemberStatus(formData: FormData) {
-  const { supabase } = await assertAdmin();
+  const { supabase, adminId } = await assertAdmin();
   const userId = String(formData.get("user_id") || "");
   const membershipStatus = String(formData.get("membership_status") || "pending_payment");
   const kycStatus = String(formData.get("kyc_status") || "pending");
@@ -379,12 +395,20 @@ export async function updateMemberStatus(formData: FormData) {
     reviewed_at: new Date().toISOString(),
   });
 
+  await logAdminAction({
+    supabase,
+    adminId,
+    action: "update_member_status",
+    targetUserId: userId,
+    metadata: { membershipStatus, kycStatus },
+  });
+
   revalidatePath("/admin");
   revalidatePath("/dashboard");
 }
 
 export async function createAdminUser(formData: FormData) {
-  const { supabase } = await assertAdmin();
+  const { supabase, adminId } = await assertAdmin();
 
   const targetEmail = String(formData.get("email") || "").toLowerCase();
 
@@ -400,5 +424,77 @@ export async function createAdminUser(formData: FormData) {
 
   await supabase.from("profiles").update({ role: "admin" }).eq("id", userProfile.id);
 
+  await logAdminAction({
+    supabase,
+    adminId,
+    action: "create_admin_user",
+    targetUserId: userProfile.id,
+    metadata: { email: targetEmail },
+  });
+
   revalidatePath("/admin");
+}
+
+export async function sendPasswordRecoveryForUser(formData: FormData) {
+  const { supabase, adminId } = await assertAdmin();
+  const userId = String(formData.get("user_id") || "").trim();
+  const email = normalizeEmail(String(formData.get("email") || ""));
+
+  if (!userId || !email) {
+    throw new Error("Usuario invalido.");
+  }
+
+  const admin = createAdminClient();
+  const redirectTo = `${process.env.NEXT_PUBLIC_SITE_URL || "https://amazonas-steel.vercel.app"}/auth`;
+  const { error } = await admin.auth.resetPasswordForEmail(email, { redirectTo });
+
+  if (error) {
+    throw new Error(error.message || "No se pudo enviar la recuperacion.");
+  }
+
+  await logAdminAction({
+    supabase,
+    adminId,
+    action: "send_password_recovery",
+    targetUserId: userId,
+    metadata: { email },
+  });
+
+  revalidatePath("/admin");
+}
+
+export async function updateUserEmail(formData: FormData) {
+  const { supabase, adminId } = await assertAdmin();
+  const userId = String(formData.get("user_id") || "").trim();
+  const newEmail = normalizeEmail(String(formData.get("new_email") || ""));
+
+  if (!userId || !newEmail) {
+    throw new Error("Email invalido.");
+  }
+
+  const admin = createAdminClient();
+  const { error } = await admin.auth.admin.updateUserById(userId, {
+    email: newEmail,
+    email_confirm: true,
+  });
+
+  if (error) {
+    throw new Error(error.message || "No se pudo actualizar el email.");
+  }
+
+  const { error: profileError } = await supabase.from("profiles").update({ email: newEmail }).eq("id", userId);
+  if (profileError) {
+    throw new Error(profileError.message || "No se pudo sincronizar el perfil.");
+  }
+
+  await logAdminAction({
+    supabase,
+    adminId,
+    action: "update_user_email",
+    targetUserId: userId,
+    metadata: { newEmail },
+  });
+
+  revalidatePath("/admin");
+  revalidatePath("/dashboard");
 }

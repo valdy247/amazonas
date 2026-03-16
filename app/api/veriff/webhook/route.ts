@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { logWebhookAudit } from "@/lib/webhook-audit";
 import { mapVeriffDecisionStatus, parseVeriffDecisionPayload, verifyVeriffWebhookSignature } from "@/lib/veriff";
 
 type VeriffWebhookPayload = ReturnType<typeof parseVeriffDecisionPayload>;
@@ -189,6 +190,13 @@ export async function POST(request: NextRequest) {
     });
 
     if (!isValid) {
+      await logWebhookAudit({
+        provider: "veriff",
+        eventType: "signature",
+        statusCode: 401,
+        payload: body,
+        responseMessage: "Invalid Veriff signature.",
+      });
       return NextResponse.json({ ok: false, message: "Invalid Veriff signature." }, { status: 401 });
     }
 
@@ -199,10 +207,25 @@ export async function POST(request: NextRequest) {
     const verifiedFullName = getVerifiedFullName(payload);
 
     if (!decisionStatus) {
+      await logWebhookAudit({
+        provider: "veriff",
+        eventType: "event",
+        statusCode: 200,
+        referenceId: verificationId,
+        payload,
+        responseMessage: "Event webhook received without final decision.",
+      });
       return NextResponse.json({ ok: true, ignored: true, message: "Event webhook received without final decision." });
     }
 
     if (!verificationId || !userId) {
+      await logWebhookAudit({
+        provider: "veriff",
+        eventType: decisionStatus,
+        statusCode: 400,
+        payload,
+        responseMessage: "Webhook does not include a valid Veriff session or user.",
+      });
       return NextResponse.json({ ok: false, message: "Webhook does not include a valid Veriff session or user." }, { status: 400 });
     }
 
@@ -232,6 +255,14 @@ export async function POST(request: NextRequest) {
       existingKyc?.reference_id &&
       existingKyc.reference_id !== verificationId
     ) {
+      await logWebhookAudit({
+        provider: "veriff",
+        eventType: decisionStatus,
+        statusCode: 200,
+        referenceId: verificationId,
+        payload,
+        responseMessage: "Ignored an older Veriff decision because a newer one was already processed.",
+      });
       return NextResponse.json({
         ok: true,
         ignored: true,
@@ -254,12 +285,34 @@ export async function POST(request: NextRequest) {
     const { error } = await admin.from("kyc_checks").update(updatePayload).eq("user_id", userId);
 
     if (error) {
+      await logWebhookAudit({
+        provider: "veriff",
+        eventType: decisionStatus,
+        statusCode: 500,
+        referenceId: verificationId,
+        payload,
+        responseMessage: error.message,
+      });
       return NextResponse.json({ ok: false, message: error.message }, { status: 500 });
     }
 
+    await logWebhookAudit({
+      provider: "veriff",
+      eventType: decisionStatus,
+      statusCode: 200,
+      referenceId: verificationId,
+      payload,
+      responseMessage: status,
+    });
     return NextResponse.json({ ok: true, status });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Veriff webhook failed.";
+    await logWebhookAudit({
+      provider: "veriff",
+      statusCode: 500,
+      payload: body,
+      responseMessage: message,
+    });
     return NextResponse.json({ ok: false, message }, { status: 500 });
   }
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useDeferredValue, useMemo, useState } from "react";
-import { updateMemberStatus } from "@/app/admin/actions";
+import { sendPasswordRecoveryForUser, updateMemberStatus, updateUserEmail } from "@/app/admin/actions";
 
 type MemberRow = {
   id: string;
@@ -160,6 +160,27 @@ export function AdminUserManager({ members }: AdminUserManagerProps) {
                       Actualizar
                     </button>
                   </form>
+
+                  <div className="mt-4 grid gap-3 rounded-[1.1rem] border border-[#efe5db] bg-[#fffaf6] p-3 sm:grid-cols-2">
+                    <form action={sendPasswordRecoveryForUser} className="flex flex-col gap-2">
+                      <input type="hidden" name="user_id" value={member.id} />
+                      <input type="hidden" name="email" value={member.email || ""} />
+                      <p className="text-sm font-semibold text-[#131316]">Recuperacion</p>
+                      <p className="text-xs text-[#62626d]">Envia un correo para que el usuario cambie su contrasena.</p>
+                      <button className="btn-secondary" type="submit" disabled={!member.email}>
+                        Enviar recuperacion
+                      </button>
+                    </form>
+
+                    <form action={updateUserEmail} className="flex flex-col gap-2">
+                      <input type="hidden" name="user_id" value={member.id} />
+                      <p className="text-sm font-semibold text-[#131316]">Cambiar email</p>
+                      <input className="input" name="new_email" placeholder="nuevo@correo.com" defaultValue={member.email || ""} />
+                      <button className="btn-secondary" type="submit">
+                        Cambiar email
+                      </button>
+                    </form>
+                  </div>
                 </div>
               ) : null}
             </article>

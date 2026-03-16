@@ -3,6 +3,7 @@ import { AdminProviderCreateForm } from "@/components/admin-provider-create-form
 import { AdminProviderManager } from "@/components/admin-provider-manager";
 import { AdminSectionNav } from "@/components/admin-section-nav";
 import { AdminUserManager } from "@/components/admin-user-manager";
+import { SupportCenter } from "@/components/support-center";
 import { SiteHeader } from "@/components/site-header";
 import { createClient } from "@/lib/supabase/server";
 import { hasAdminAccess } from "@/lib/admin";
@@ -41,6 +42,24 @@ type ContactRow = {
   contact_methods?: string | null;
 };
 
+type SupportThreadRow = {
+  id: number;
+  user_id: string;
+  category: string;
+  subject: string;
+  status: string;
+  last_activity_at: string;
+  assigned_admin_id?: string | null;
+};
+
+type SupportMessageRow = {
+  id: number;
+  thread_id: number;
+  sender_id: string;
+  body: string;
+  created_at: string;
+};
+
 const WHATSAPP_PREFIX_OPTIONS = [
   { flag: "US", label: "USA", value: "us:+1" },
   { flag: "ES", label: "Espana", value: "+34" },
@@ -56,7 +75,10 @@ const ADMIN_SECTIONS = [
   { id: "options", label: "Opciones" },
 ] as const;
 
-const ADMIN_EXTRA_SECTIONS = [{ id: "metrics", label: "Metricas" }] as const;
+const ADMIN_EXTRA_SECTIONS = [
+  { id: "metrics", label: "Metricas" },
+  { id: "support", label: "Soporte" },
+] as const;
 
 type AdminPageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
@@ -104,6 +126,35 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   const kycByUser = new Map((kycRows as KycRow[] | null)?.map((item) => [item.user_id, item]) ?? []);
   const reviewerCount = (members || []).filter((member) => member.role === "reviewer" || member.role === "tester").length;
   const providerCount = (members || []).filter((member) => member.role === "provider").length;
+  const [{ count: activeMembersCount }, { count: approvedKycCount }, { count: chatThreadsCount }, messageThreadsResult, { count: supportOpenCount }, webhookLogResult] =
+    await Promise.all([
+      supabase.from("memberships").select("*", { count: "exact", head: true }).eq("status", "active"),
+      supabase.from("kyc_checks").select("*", { count: "exact", head: true }).eq("status", "approved"),
+      supabase.from("reviewer_contact_requests").select("*", { count: "exact", head: true }),
+      supabase.from("request_messages").select("request_id"),
+      supabase.from("support_threads").select("*", { count: "exact", head: true }).in("status", ["open", "in_progress"]),
+      supabase.from("webhook_audit_logs").select("provider, status_code").order("created_at", { ascending: false }).limit(40),
+    ]);
+  const chatsStartedCount = new Set(((messageThreadsResult.data as Array<{ request_id: number }> | null) || []).map((item) => item.request_id)).size;
+
+  const { data: supportThreadRows } = await supabase
+    .from("support_threads")
+    .select("id, user_id, category, subject, status, last_activity_at, assigned_admin_id")
+    .order("last_activity_at", { ascending: false })
+    .limit(40);
+  const supportUserIds = Array.from(new Set(((supportThreadRows as SupportThreadRow[] | null) || []).map((row) => row.user_id)));
+  const { data: supportProfiles } = supportUserIds.length
+    ? await supabase.from("profiles").select("id, full_name, email").in("id", supportUserIds)
+    : { data: [] };
+  const supportProfileMap = new Map((supportProfiles || []).map((profile: { id: string; full_name: string | null; email: string | null }) => [profile.id, profile]));
+  const supportThreadIds = ((supportThreadRows as SupportThreadRow[] | null) || []).map((row) => row.id);
+  const { data: supportMessageRows } = supportThreadIds.length
+    ? await supabase
+        .from("support_messages")
+        .select("id, thread_id, sender_id, body, created_at")
+        .in("thread_id", supportThreadIds)
+        .order("created_at", { ascending: true })
+    : { data: [] };
 
   let contacts: ContactRow[] = [];
 
@@ -162,6 +213,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         menuItems={[
           { href: "/dashboard", label: "Inicio" },
           { href: "/admin?section=metrics", label: "Metricas" },
+          { href: "/admin?section=support", label: "Soporte" },
           { href: "/profile", label: "Editar perfil" },
         ]}
       />
@@ -261,7 +313,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                 </span>
               </div>
 
-              <div className="mt-4 grid gap-3 sm:grid-cols-3">
+              <div className="mt-4 grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
                 <div className="rounded-[1.4rem] border border-[#eadfd6] bg-[#fffaf7] p-4">
                   <p className="text-xs uppercase tracking-[0.18em] text-[#8f857b]">Proveedores</p>
                   <p className="mt-2 text-3xl font-bold text-[#131316]">{contacts.length}</p>
@@ -277,8 +329,78 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                   <p className="mt-2 text-3xl font-bold text-[#131316]">{providerCount}</p>
                   <p className="mt-1 text-sm text-[#62626d]">Perfiles visibles de providers en la lista actual.</p>
                 </div>
+                <div className="rounded-[1.4rem] border border-[#eadfd6] bg-[#fffaf7] p-4">
+                  <p className="text-xs uppercase tracking-[0.18em] text-[#8f857b]">Membresias activas</p>
+                  <p className="mt-2 text-3xl font-bold text-[#131316]">{activeMembersCount || 0}</p>
+                  <p className="mt-1 text-sm text-[#62626d]">Usuarios con acceso completo por pago.</p>
+                </div>
+                <div className="rounded-[1.4rem] border border-[#eadfd6] bg-[#fffaf7] p-4">
+                  <p className="text-xs uppercase tracking-[0.18em] text-[#8f857b]">KYC aprobados</p>
+                  <p className="mt-2 text-3xl font-bold text-[#131316]">{approvedKycCount || 0}</p>
+                  <p className="mt-1 text-sm text-[#62626d]">Identidades validadas correctamente.</p>
+                </div>
+                <div className="rounded-[1.4rem] border border-[#eadfd6] bg-[#fffaf7] p-4">
+                  <p className="text-xs uppercase tracking-[0.18em] text-[#8f857b]">Hilos iniciados</p>
+                  <p className="mt-2 text-3xl font-bold text-[#131316]">{chatThreadsCount || 0}</p>
+                  <p className="mt-1 text-sm text-[#62626d]">Contactos entre providers y reseñadores.</p>
+                </div>
+                <div className="rounded-[1.4rem] border border-[#eadfd6] bg-[#fffaf7] p-4">
+                  <p className="text-xs uppercase tracking-[0.18em] text-[#8f857b]">Chats activos</p>
+                  <p className="mt-2 text-3xl font-bold text-[#131316]">{chatsStartedCount}</p>
+                  <p className="mt-1 text-sm text-[#62626d]">Conversaciones con al menos un mensaje.</p>
+                </div>
+                <div className="rounded-[1.4rem] border border-[#eadfd6] bg-[#fffaf7] p-4">
+                  <p className="text-xs uppercase tracking-[0.18em] text-[#8f857b]">Soporte abierto</p>
+                  <p className="mt-2 text-3xl font-bold text-[#131316]">{supportOpenCount || 0}</p>
+                  <p className="mt-1 text-sm text-[#62626d]">Casos que siguen pendientes o en proceso.</p>
+                </div>
+              </div>
+
+              <div className="mt-5 rounded-[1.4rem] border border-[#eadfd6] bg-[#fffaf7] p-4">
+                <h3 className="font-bold text-[#131316]">Webhook health</h3>
+                <div className="mt-3 grid gap-2">
+                  {((webhookLogResult.data as Array<{ provider: string; status_code: number }> | null) || []).slice(0, 8).map((row, index) => (
+                    <div key={`${row.provider}-${index}`} className="flex items-center justify-between rounded-[1rem] bg-white px-3 py-2 text-sm">
+                      <span className="font-semibold text-[#131316]">{row.provider}</span>
+                      <span className={`rounded-full px-3 py-1 text-xs font-semibold ${row.status_code >= 400 ? "bg-[#fff1f1] text-[#c24d3a]" : "bg-[#eef9f0] text-[#177a52]"}`}>
+                        {row.status_code}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
+          ) : null}
+
+          {activeSection === "support" ? (
+            <SupportCenter
+              currentUserId={user.id}
+              language="es"
+              isAdmin
+              threads={((supportThreadRows as SupportThreadRow[] | null) || []).map((thread) => {
+                const profileForThread = supportProfileMap.get(thread.user_id);
+                return {
+                  id: thread.id,
+                  userId: thread.user_id,
+                  userName: profileForThread?.full_name || "Usuario",
+                  userEmail: profileForThread?.email || "",
+                  subject: thread.subject,
+                  category: thread.category,
+                  status: thread.status,
+                  lastActivityAt: thread.last_activity_at,
+                  assignedAdminId: thread.assigned_admin_id || null,
+                  messages: ((supportMessageRows as SupportMessageRow[] | null) || [])
+                    .filter((message) => message.thread_id === thread.id)
+                    .map((message) => ({
+                      id: message.id,
+                      senderId: message.sender_id,
+                      senderName: message.sender_id === user.id ? "Soporte" : profileForThread?.full_name || "Usuario",
+                      body: message.body,
+                      createdAt: message.created_at,
+                    })),
+                };
+              })}
+            />
           ) : null}
         </section>
       </main>

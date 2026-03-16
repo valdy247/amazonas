@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { logWebhookAudit } from "@/lib/webhook-audit";
 import { getSquarePaymentStatusFromOrder, getSquareWebhookNotificationUrl, verifySquareWebhookSignature } from "@/lib/square";
 
 type SquarePaymentObject = {
@@ -55,6 +56,13 @@ export async function POST(request: NextRequest) {
     });
 
     if (!isValid) {
+      await logWebhookAudit({
+        provider: "square",
+        eventType: "signature",
+        statusCode: 401,
+        payload: body,
+        responseMessage: "Invalid Square signature.",
+      });
       return NextResponse.json({ ok: false, message: "Invalid Square signature." }, { status: 401 });
     }
 
@@ -90,6 +98,14 @@ export async function POST(request: NextRequest) {
       }
 
       if (!membershipUserId) {
+        await logWebhookAudit({
+          provider: "square",
+          eventType: event.type,
+          statusCode: 404,
+          referenceId: orderId,
+          payload: event,
+          responseMessage: "No membership matched this Square payment.",
+        });
         return NextResponse.json({ ok: false, message: "No membership matched this Square payment." }, { status: 404 });
       }
 
@@ -101,9 +117,25 @@ export async function POST(request: NextRequest) {
       });
 
       if (membershipError) {
+        await logWebhookAudit({
+          provider: "square",
+          eventType: event.type,
+          statusCode: 500,
+          referenceId: orderId,
+          payload: event,
+          responseMessage: membershipError.message,
+        });
         return NextResponse.json({ ok: false, message: membershipError.message }, { status: 500 });
       }
 
+      await logWebhookAudit({
+        provider: "square",
+        eventType: event.type,
+        statusCode: 200,
+        referenceId: orderId,
+        payload: event,
+        responseMessage: "Membership activated from completed payment.",
+      });
       return NextResponse.json({ ok: true });
     }
 
@@ -111,6 +143,13 @@ export async function POST(request: NextRequest) {
       const orderId = order?.id || order?.order_id || null;
 
       if (!orderId) {
+        await logWebhookAudit({
+          provider: "square",
+          eventType: event.type,
+          statusCode: 200,
+          payload: event,
+          responseMessage: "Ignored order.updated without order id.",
+        });
         return NextResponse.json({ ok: true, ignored: true, source: "order.updated-without-id" });
       }
 
@@ -120,6 +159,14 @@ export async function POST(request: NextRequest) {
       });
 
       if (!payment || payment.status !== "COMPLETED") {
+        await logWebhookAudit({
+          provider: "square",
+          eventType: event.type,
+          statusCode: 200,
+          referenceId: orderId,
+          payload: event,
+          responseMessage: "Ignored order.updated because payment is not completed.",
+        });
         return NextResponse.json({ ok: true, ignored: true, source: "order.updated-payment-not-completed" });
       }
 
@@ -130,6 +177,14 @@ export async function POST(request: NextRequest) {
         .maybeSingle();
 
       if (!membershipRow?.user_id) {
+        await logWebhookAudit({
+          provider: "square",
+          eventType: event.type,
+          statusCode: 404,
+          referenceId: orderId,
+          payload: event,
+          responseMessage: "No membership matched this Square order.",
+        });
         return NextResponse.json({ ok: false, message: "No membership matched this Square order." }, { status: 404 });
       }
 
@@ -141,15 +196,44 @@ export async function POST(request: NextRequest) {
       });
 
       if (membershipError) {
+        await logWebhookAudit({
+          provider: "square",
+          eventType: event.type,
+          statusCode: 500,
+          referenceId: orderId,
+          payload: event,
+          responseMessage: membershipError.message,
+        });
         return NextResponse.json({ ok: false, message: membershipError.message }, { status: 500 });
       }
 
+      await logWebhookAudit({
+        provider: "square",
+        eventType: event.type,
+        statusCode: 200,
+        referenceId: orderId,
+        payload: event,
+        responseMessage: "Membership activated from order.updated.",
+      });
       return NextResponse.json({ ok: true, source: "order.updated" });
     }
 
+    await logWebhookAudit({
+      provider: "square",
+      eventType: event.type,
+      statusCode: 200,
+      payload: event,
+      responseMessage: "Ignored Square event.",
+    });
     return NextResponse.json({ ok: true, ignored: true });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Square webhook failed.";
+    await logWebhookAudit({
+      provider: "square",
+      statusCode: 500,
+      payload: body,
+      responseMessage: message,
+    });
     return NextResponse.json({ ok: false, message }, { status: 500 });
   }
 }
