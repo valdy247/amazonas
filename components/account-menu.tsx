@@ -148,7 +148,16 @@ export function AccountMenu({ user, items, messageHref, hasUnreadMessages = fals
 
   const playIncomingMessageSound = useMemo(
     () => () => {
-      const context = audioContextRef.current;
+      let context = audioContextRef.current;
+      if (!context && typeof window !== "undefined") {
+        const ContextConstructor =
+          window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+        if (ContextConstructor) {
+          context = new ContextConstructor();
+          audioContextRef.current = context;
+        }
+      }
+
       if (!context) {
         return;
       }
@@ -172,6 +181,23 @@ export function AccountMenu({ user, items, messageHref, hasUnreadMessages = fals
     },
     []
   );
+
+  useEffect(() => {
+    if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) {
+      return;
+    }
+
+    function handleServiceWorkerMessage(event: MessageEvent<{ type?: string }>) {
+      if (event.data?.type === "push-message") {
+        playIncomingMessageSound();
+      }
+    }
+
+    navigator.serviceWorker.addEventListener("message", handleServiceWorkerMessage);
+    return () => {
+      navigator.serviceWorker.removeEventListener("message", handleServiceWorkerMessage);
+    };
+  }, [playIncomingMessageSound]);
 
   useEffect(() => {
     if (!userId || !threadIds.length) {

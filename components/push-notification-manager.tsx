@@ -21,6 +21,7 @@ export function PushNotificationManager({ userId, language }: PushNotificationMa
   const [isVisible, setIsVisible] = useState(false);
   const [isBusy, setIsBusy] = useState(false);
   const [supported, setSupported] = useState(false);
+  const [unsupported, setUnsupported] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -35,6 +36,7 @@ export function PushNotificationManager({ userId, language }: PushNotificationMa
 
     setSupported(isSupported);
     if (!isSupported) {
+      setUnsupported(true);
       return;
     }
 
@@ -121,27 +123,31 @@ export function PushNotificationManager({ userId, language }: PushNotificationMa
     setIsVisible(false);
   }
 
-  if (!supported || !isVisible || Notification.permission === "granted" || Notification.permission === "denied") {
+  if ((!supported && !unsupported) || !isVisible || Notification.permission === "granted" || Notification.permission === "denied") {
     return null;
   }
 
   return (
-    <div className="fixed inset-x-0 bottom-4 z-50 px-4">
-      <div className="mx-auto max-w-[430px] rounded-[1.5rem] border border-[#eadfd6] bg-white p-4 shadow-[0_20px_50px_rgba(22,18,14,0.16)]">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-[#17120d]/28 px-4 pb-6 backdrop-blur-[2px] sm:items-center sm:pb-0">
+      <div className="w-full max-w-[430px] rounded-[1.65rem] border border-[#eadfd6] bg-white p-5 shadow-[0_28px_70px_rgba(22,18,14,0.18)]">
         <div className="flex items-start gap-3">
-          <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-[#fff3ec] text-[#dc4f1f]">
+          <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-[#fff3ec] text-[#dc4f1f]">
             <BellRing className="h-5 w-5" />
           </span>
           <div className="min-w-0 flex-1">
-            <p className="text-base font-semibold text-[#131316]">{copy.title}</p>
-            <p className="mt-1 text-sm text-[#62626d]">{copy.body}</p>
+            <p className="text-lg font-semibold text-[#131316]">{copy.title}</p>
+            <p className="mt-1 text-sm text-[#62626d]">
+              {unsupported ? copy.unsupported : copy.body}
+            </p>
           </div>
         </div>
 
         <div className="mt-4 flex flex-wrap gap-2">
-          <button type="button" className="btn-primary" onClick={() => void enablePush()} disabled={isBusy}>
-            {isBusy ? copy.enabling : copy.allow}
-          </button>
+          {!unsupported ? (
+            <button type="button" className="btn-primary" onClick={() => void enablePush()} disabled={isBusy}>
+              {isBusy ? copy.enabling : copy.allow}
+            </button>
+          ) : null}
           <button type="button" className="btn-secondary" onClick={dismissPrompt} disabled={isBusy}>
             {copy.notNow}
           </button>

@@ -695,6 +695,7 @@ export const pushPromptCopy = {
   es: {
     title: "Activa notificaciones de mensajes",
     body: "Recibe avisos push cuando te escriban, incluso si no tienes la conversacion abierta.",
+    unsupported: "Este navegador o dispositivo no admite notificaciones push web completas en este momento.",
     allow: "Permitir notificaciones",
     notNow: "Ahora no",
     enabling: "Activando...",
@@ -702,6 +703,7 @@ export const pushPromptCopy = {
   en: {
     title: "Turn on message notifications",
     body: "Get push alerts when someone writes to you, even if the conversation is not open.",
+    unsupported: "This browser or device does not support full web push notifications right now.",
     allow: "Allow notifications",
     notNow: "Not now",
     enabling: "Enabling...",
