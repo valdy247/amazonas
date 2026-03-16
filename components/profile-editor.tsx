@@ -58,17 +58,17 @@ export function ProfileEditor({ email, initialValues }: ProfileEditorProps) {
     setSaved(null);
 
     if (!phoneRegex.test(values.phone.trim())) {
-      setError("Ingresa un telefono valido.");
+      setError(copy.invalidPhone);
       return;
     }
 
     if (!values.country) {
-      setError("Selecciona tu pais principal.");
+      setError(copy.selectCountry);
       return;
     }
 
     if (values.interests.length < 3) {
-      setError("Selecciona al menos 3 intereses.");
+      setError(copy.selectInterests);
       return;
     }
 
@@ -78,7 +78,7 @@ export function ProfileEditor({ email, initialValues }: ProfileEditorProps) {
         .filter(Boolean).length;
 
       if (!directContactCount) {
-        setError("Si activas contacto directo, agrega al menos una via de contacto.");
+        setError(copy.directContactRequired);
         return;
       }
     }
@@ -92,7 +92,7 @@ export function ProfileEditor({ email, initialValues }: ProfileEditorProps) {
     } = await supabase.auth.getUser();
 
     if (userError || !user) {
-      setError("No se pudo validar tu sesion.");
+      setError(copy.sessionError);
       setLoading(false);
       return;
     }
@@ -149,7 +149,7 @@ export function ProfileEditor({ email, initialValues }: ProfileEditorProps) {
       return;
     }
 
-    setSaved("Perfil actualizado.");
+    setSaved(copy.updated);
     setLoading(false);
     router.refresh();
   }
@@ -157,38 +157,38 @@ export function ProfileEditor({ email, initialValues }: ProfileEditorProps) {
   return (
     <form onSubmit={handleSubmit} className="mx-auto max-w-2xl space-y-4">
       <section className="card p-5">
-        <p className="text-sm font-semibold text-[#dc4f1f]">Editar perfil</p>
-        <h1 className="mt-2 text-3xl font-bold">Ajusta tu informacion</h1>
-        <p className="mt-2 text-sm text-[#62626d]">Puedes mejorar tu perfil sin rehacer el onboarding.</p>
+        <p className="text-sm font-semibold text-[#dc4f1f]">{copy.editProfile}</p>
+        <h1 className="mt-2 text-3xl font-bold">{copy.adjustInfo}</h1>
+        <p className="mt-2 text-sm text-[#62626d]">{copy.improveProfile}</p>
 
         <div className="mt-4 flex flex-wrap gap-3">
           <div className="rounded-full border border-[#e5e5df] bg-white px-4 py-2 text-sm text-[#62626d]">
-            {email || "Sin correo disponible"}
+            {email || copy.noEmail}
           </div>
         </div>
       </section>
 
       <section className="card p-5">
-        <h2 className="text-xl font-bold">Datos base</h2>
-        <p className="mt-2 text-sm text-[#62626d]">El nombre no se puede modificar aqui. Solo puedes actualizar tu telefono.</p>
+        <h2 className="text-xl font-bold">{copy.basicData}</h2>
+        <p className="mt-2 text-sm text-[#62626d]">{copy.nameLocked}</p>
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <input
             className="input cursor-not-allowed bg-[#f3efe9] text-[#7d7368] opacity-90"
             value={values.firstName}
-            placeholder="Nombre"
+            placeholder={copy.firstName}
             readOnly
             disabled
           />
           <input
             className="input cursor-not-allowed bg-[#f3efe9] text-[#7d7368] opacity-90"
             value={values.lastName}
-            placeholder="Apellidos"
+            placeholder={copy.lastName}
             readOnly
             disabled
           />
         </div>
         <div className="mt-3">
-          <input className="input" value={values.phone} onChange={(event) => updateValue("phone", event.target.value)} placeholder="Telefono" />
+          <input className="input" value={values.phone} onChange={(event) => updateValue("phone", event.target.value)} placeholder={copy.phone} />
         </div>
         <div className="mt-4 rounded-[1.5rem] border border-[#eadfd6] bg-[linear-gradient(180deg,#fffdfa_0%,#fcfaf7_100%)] p-4">
           <div className="flex items-start justify-between gap-3">
@@ -205,7 +205,7 @@ export function ProfileEditor({ email, initialValues }: ProfileEditorProps) {
               const active = values.preferredLanguage === option.value;
               const helper =
                 option.value === "es"
-                  ? "Veras la plataforma y los mensajes traducidos primero en espanol."
+                  ? copy.spanishHelper
                   : "You will see the platform and translated messages in English first.";
 
               return (
@@ -229,15 +229,15 @@ export function ProfileEditor({ email, initialValues }: ProfileEditorProps) {
       </section>
 
       <section className="card p-5">
-        <h2 className="text-xl font-bold">Enfoque</h2>
+        <h2 className="text-xl font-bold">{copy.focus}</h2>
         <p className="mt-2 text-sm text-[#62626d]">
           {values.role === "reviewer"
-            ? "Cuéntanos que te interesa reseñar y donde aportas más valor."
-            : "Define que tipo de productos ofreces. Usaremos estas mismas etiquetas como categorias de producto para encontrar reseñadores afines."}
+            ? copy.reviewerFocus
+            : copy.providerFocus}
         </p>
         <div className="mt-4 grid gap-3">
           <select className="input" value={values.country} onChange={(event) => updateValue("country", event.target.value)}>
-            <option value="">Selecciona tu pais</option>
+            <option value="">{copy.selectCountryOption}</option>
             {COUNTRY_OPTIONS.map((country) => (
               <option key={country} value={country}>
                 {country}
@@ -285,8 +285,8 @@ export function ProfileEditor({ email, initialValues }: ProfileEditorProps) {
             onChange={(event) => updateValue("note", event.target.value)}
             placeholder={
               values.role === "reviewer"
-                ? "Describe que tipo de productos te gusta probar y donde aportas mas valor."
-                : "Describe que tipo de productos ofreces, categorias principales y el tipo de reseñador que mejor encaja contigo."
+                ? copy.reviewerNote
+                : copy.providerNote
             }
           />
         </div>
@@ -294,11 +294,11 @@ export function ProfileEditor({ email, initialValues }: ProfileEditorProps) {
 
       {values.role === "reviewer" || values.role === "provider" ? (
         <section className="card p-5">
-          <h2 className="text-xl font-bold">{values.role === "reviewer" ? "Disponibilidad y contacto" : "Visibilidad y contacto"}</h2>
+          <h2 className="text-xl font-bold">{values.role === "reviewer" ? copy.availabilityContact : copy.visibilityContact}</h2>
           <p className="mt-2 text-sm text-[#62626d]">
             {values.role === "reviewer"
-              ? "Define si los providers pueden encontrarte y si deseas recibir contacto directo fuera de la plataforma."
-              : "Define si tu perfil aparece para reseñadores y que vias directas de contacto quieres compartir."}
+              ? copy.reviewerContactHelp
+              : copy.providerContactHelp}
           </p>
 
           {values.role === "reviewer" ? (
@@ -322,18 +322,18 @@ export function ProfileEditor({ email, initialValues }: ProfileEditorProps) {
           <div className="mt-4 grid gap-3">
             <label className="flex items-start gap-3 rounded-2xl border border-[#e5e5df] p-4 text-sm">
               <input type="checkbox" checked={values.publicProfile} onChange={(event) => updateValue("publicProfile", event.target.checked)} className="mt-1" />
-              <span>{values.role === "reviewer" ? "Mostrar mi perfil en el buscador de proveedores." : "Mostrar mi perfil en el directorio de proveedores para reseñadores."}</span>
+              <span>{values.role === "reviewer" ? copy.showProfileReviewer : copy.showProfileProvider}</span>
             </label>
             <label className="flex items-start gap-3 rounded-2xl border border-[#e5e5df] p-4 text-sm">
               <input type="checkbox" checked={values.allowsDirectContact} onChange={(event) => updateValue("allowsDirectContact", event.target.checked)} className="mt-1" />
-              <span>Permitir contacto directo por WhatsApp, Instagram o Messenger.</span>
+              <span>{copy.allowDirectContact}</span>
             </label>
           </div>
 
           <div className="mt-4 grid gap-3">
-            <input className="input" value={values.contactWhatsapp} onChange={(event) => updateValue("contactWhatsapp", event.target.value)} placeholder="WhatsApp. Ej: +1786703994" />
-            <input className="input" value={values.contactInstagram} onChange={(event) => updateValue("contactInstagram", event.target.value)} placeholder="Instagram. Ej: instagram.com/usuario" />
-            <input className="input" value={values.contactMessenger} onChange={(event) => updateValue("contactMessenger", event.target.value)} placeholder="Messenger. Ej: m.me/usuario" />
+            <input className="input" value={values.contactWhatsapp} onChange={(event) => updateValue("contactWhatsapp", event.target.value)} placeholder={copy.whatsappPlaceholder} />
+            <input className="input" value={values.contactInstagram} onChange={(event) => updateValue("contactInstagram", event.target.value)} placeholder={copy.instagramPlaceholder} />
+            <input className="input" value={values.contactMessenger} onChange={(event) => updateValue("contactMessenger", event.target.value)} placeholder={copy.messengerPlaceholder} />
           </div>
         </section>
       ) : null}
@@ -343,10 +343,10 @@ export function ProfileEditor({ email, initialValues }: ProfileEditorProps) {
 
       <div className="sticky bottom-0 space-y-3 rounded-[1.6rem] border border-[#e5e5df] bg-white/95 p-3 backdrop-blur">
         <button type="submit" disabled={loading} className="btn-primary h-12 w-full">
-          {loading ? "Guardando..." : "Guardar cambios"}
+          {loading ? copy.saving : copy.saveChanges}
         </button>
         <Link href="/dashboard" className="btn-secondary h-12 w-full">
-          Ir al panel
+          {copy.goDashboard}
         </Link>
       </div>
     </form>

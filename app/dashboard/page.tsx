@@ -874,17 +874,9 @@ export default async function DashboardPage({
               currentUserRole={isProvider ? "provider" : "reviewer"}
               currentUserLanguage={currentUserLanguage}
               title={copy.activeConversations}
-              description={
-                isProvider
-                  ? "Selecciona categoria, agrega el nombre del producto y habla con el reseñador desde un solo lugar."
-                  : "Habla con proveedores desde aqui y comparte imagenes cuando lo necesites."
-              }
+              description={isProvider ? copy.providerMessagesDescription : copy.reviewerMessagesDescription}
               emptyTitle={copy.emptyConversationsTitle}
-              emptyDescription={
-                isProvider
-                  ? "Contacta a un reseñador desde la pagina y la conversacion aparecera aqui al instante."
-                  : "Cuando un proveedor te escriba dentro de la plataforma, la conversacion aparecera aqui."
-              }
+              emptyDescription={isProvider ? copy.providerEmptyConversationsBody : copy.reviewerEmptyConversationsBody}
               threads={collaborationThreads}
               initialThreadId={requestedThreadId}
               categorySuggestions={isProvider ? userInterests : []}

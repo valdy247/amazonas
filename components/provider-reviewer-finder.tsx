@@ -273,8 +273,8 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-sm font-semibold text-[#dc4f1f]">Discovery Studio</p>
-            <h2 className="mt-2 text-3xl font-bold">Encuentra reseñadores alineados con tus productos</h2>
-            <p className="mt-2 max-w-2xl text-sm text-[#62626d]">Filtra por pais o categoria para descubrir reseñadores que encajen con tu marca.</p>
+            <h2 className="mt-2 text-3xl font-bold">{copy.title}</h2>
+            <p className="mt-2 max-w-2xl text-sm text-[#62626d]">{copy.body}</p>
           </div>
           <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-[#dc4f1f] shadow-sm">
             <Sparkles className="h-5 w-5" />
@@ -284,7 +284,7 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
         <div className="mt-5 rounded-[1.6rem] border border-white/80 bg-white/80 p-4 backdrop-blur">
           <div className="grid gap-4">
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8f857b]">Filtrar por pais</p>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8f857b]">{copy.filterCountry}</p>
               <div className="mt-2 flex flex-wrap gap-2">
                 <button
                   type="button"
@@ -293,7 +293,7 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
                     !selectedCountry ? "bg-[#ff6b35] text-white" : "border border-[#eadfd6] bg-white text-[#62564a]"
                   }`}
                 >
-                  Todos
+                  {copy.allCountries}
                 </button>
                 {availableCountries.map((country) => (
                   <button
@@ -311,7 +311,7 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
             </div>
 
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8f857b]">Filtrar por categoria</p>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8f857b]">{copy.filterCategory}</p>
               <div className="mt-2 flex flex-wrap gap-2">
                 <button
                   type="button"
@@ -320,7 +320,7 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
                     !selectedInterest ? "bg-[#ff6b35] text-white" : "border border-[#eadfd6] bg-white text-[#62564a]"
                   }`}
                 >
-                  Todas
+                  {copy.allCategories}
                 </button>
                 {availableInterests.map((interest) => (
                   <button
@@ -345,8 +345,8 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
         <section className="rounded-[1.8rem] border border-[#eadfd6] bg-white p-5 shadow-[0_18px_36px_rgba(22,18,14,0.04)]">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-sm font-semibold text-[#dc4f1f]">Recomendados para ti</p>
-              <h3 className="mt-1 text-xl font-bold">Reseñadores con mejor encaje</h3>
+              <p className="text-sm font-semibold text-[#dc4f1f]">{copy.recommendedBadge}</p>
+              <h3 className="mt-1 text-xl font-bold">{copy.recommendedTitle}</h3>
             </div>
             <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-[#fff3ec] text-[#dc4f1f]">
               <Star className="h-5 w-5" />
@@ -363,9 +363,9 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="font-bold">{reviewer.fullName}</p>
-                    <p className="mt-1 text-sm text-[#62626d]">{reviewer.country || "Sin pais"} · {EXPERIENCE_LABELS[reviewer.experienceLevel]}</p>
+                    <p className="mt-1 text-sm text-[#62626d]">{reviewer.country || copy.noCountry} · {EXPERIENCE_LABELS[reviewer.experienceLevel]}</p>
                   </div>
-                  <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-[#dc4f1f]">{reviewer.matchPercent}% compatible</span>
+                  <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-[#dc4f1f]">{reviewer.matchPercent}% {copy.compatible}</span>
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {reviewer.interests.slice(0, 3).map((interest) => (
@@ -374,7 +374,7 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
                     </span>
                   ))}
                 </div>
-                <span className="mt-4 inline-flex rounded-full bg-[#ff6b35] px-4 py-2 text-sm font-semibold text-white">Contactar</span>
+                <span className="mt-4 inline-flex rounded-full bg-[#ff6b35] px-4 py-2 text-sm font-semibold text-white">{copy.contact}</span>
               </button>
             ))}
           </div>
@@ -382,7 +382,7 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
       ) : null}
 
       <div className="flex items-center justify-between gap-3 text-sm text-[#62626d]">
-        <span>{filteredReviewers.length} reseñadores encontrados</span>
+        <span>{filteredReviewers.length} {copy.reviewersFound}</span>
         {(selectedCountry || selectedInterest) ? (
           <button
             type="button"
@@ -392,7 +392,7 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
               setSelectedInterest("");
             }}
           >
-            Limpiar filtros
+            {copy.clearFilters}
           </button>
         ) : null}
       </div>
@@ -419,7 +419,7 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
                   <div className="flex flex-wrap items-center gap-2">
                     <h3 className="text-lg font-bold">{reviewer.fullName}</h3>
                     {reviewer.isVerified ? (
-                      <span className="rounded-full bg-[#eef9f0] px-3 py-1 text-xs font-semibold text-[#1f7a4d]">Verificado</span>
+                      <span className="rounded-full bg-[#eef9f0] px-3 py-1 text-xs font-semibold text-[#1f7a4d]">{copy.verified}</span>
                     ) : null}
                     {currentRequest ? (
                       <span className="rounded-full bg-[#fff3ec] px-3 py-1 text-xs font-semibold text-[#dc4f1f]">
@@ -437,7 +437,7 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
                 </div>
 
                 <div className="text-right">
-                  <p className="text-xs uppercase tracking-[0.18em] text-[#8f857b]">Compatibilidad</p>
+                    <p className="text-xs uppercase tracking-[0.18em] text-[#8f857b]">{language === "en" ? "Match" : "Compatibilidad"}</p>
                   <p className="mt-1 text-2xl font-bold text-[#131316]">{reviewer.matchPercent}%</p>
                   <div className="mt-2 h-2.5 w-24 overflow-hidden rounded-full bg-[#f1e3d8]">
                     <div className="h-full rounded-full bg-[linear-gradient(90deg,#ff8a5b_0%,#ff6b35_100%)]" style={{ width: `${reviewer.matchPercent}%` }} />
@@ -449,7 +449,7 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
                 <div className="border-t border-[#eee3d8] px-4 py-4">
                   <div className="mb-4 rounded-[1.2rem] border border-[#efe4d9] bg-[#fffaf6] px-4 py-3">
                     <p className="text-sm text-[#62626d]">
-                      {reviewer.country || "Sin pais"} · {EXPERIENCE_LABELS[reviewer.experienceLevel]} · {AVAILABILITY_OPTIONS.find((item) => item.value === reviewer.availability)?.label}
+                      {reviewer.country || copy.noCountry} · {EXPERIENCE_LABELS[reviewer.experienceLevel]} · {AVAILABILITY_OPTIONS.find((item) => item.value === reviewer.availability)?.label}
                     </p>
                   </div>
                   {reviewer.note ? <p className="text-sm text-[#62626d]">{reviewer.note}</p> : <div className="h-2" />}
@@ -457,9 +457,11 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
                   <div className="mt-4 rounded-[1.35rem] border border-[#eadfd6] bg-[linear-gradient(180deg,#fcfaf7_0%,#fff5ef_100%)] p-4">
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <p className="text-sm font-semibold text-[#131316]">Contacto</p>
+                        <p className="text-sm font-semibold text-[#131316]">{language === "en" ? "Contact" : "Contacto"}</p>
                         <p className="mt-1 text-sm text-[#62626d]">
-                          Primero elige por donde quieres contactar a este reseñador segun lo que haya autorizado en su perfil.
+                          {language === "en"
+                            ? "First choose how you want to contact this reviewer based on what they allowed in their profile."
+                            : "Primero elige por donde quieres contactar a este reseñador segun lo que haya autorizado en su perfil."}
                         </p>
                       </div>
                       <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-white text-[#dc4f1f] shadow-sm">
@@ -469,7 +471,7 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
 
                     <div className="mt-4 flex flex-wrap gap-2">
                       <button type="button" className="btn-primary" onClick={() => openContactOptions(reviewer.id)}>
-                        Contactar
+                        {copy.contact}
                       </button>
                     </div>
                   </div>
