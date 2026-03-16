@@ -94,8 +94,6 @@ export function WhatsappCountrySelect({
         </button>
 
       </div>
-      <p className="mt-2 px-1 text-[11px] text-[#8f857b]">Puedes buscar por pais o prefijo, por ejemplo 245 o +245.</p>
-
       {isOpen ? (
         <div className="absolute z-30 mt-2 w-[min(420px,calc(100vw-2rem))] overflow-hidden rounded-[1.3rem] border border-[#eadfd6] bg-white shadow-[0_22px_60px_rgba(18,18,23,0.16)]">
           <div className="border-b border-[#f1e6dc] bg-[linear-gradient(180deg,#fff8f3_0%,#ffffff_100%)] p-3">
