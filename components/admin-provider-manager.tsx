@@ -7,6 +7,7 @@ import { getContactFieldValues } from "@/lib/provider-contact";
 type ContactRow = {
   id: number;
   title: string;
+  email?: string | null;
   network: string | null;
   url: string;
   notes?: string | null;
@@ -42,6 +43,7 @@ export function AdminProviderManager({ contacts, whatsappPrefixOptions }: AdminP
       const methods = getContactFieldValues(contact.contact_methods, contact.url, contact.network);
       const haystack = [
         contact.title,
+        contact.email,
         contact.network,
         contact.url,
         contact.notes,
@@ -124,6 +126,7 @@ export function AdminProviderManager({ contacts, whatsappPrefixOptions }: AdminP
                   <form action={updateProviderContact} className="grid gap-2">
                     <input type="hidden" name="contact_id" value={contact.id} />
                     <input className="input" name="title" defaultValue={contact.title} placeholder="Nombre del proveedor" />
+                    <input className="input" name="email" defaultValue={contact.email || ""} placeholder="Correo del proveedor (opcional)" type="email" />
                     <div className="rounded-[1.2rem] border border-[#eadfd6] bg-[#fcfaf7] p-3">
                       <p className="text-sm font-semibold text-[#131316]">WhatsApp</p>
                       <div className="mt-3 grid grid-cols-[minmax(0,152px)_1fr] gap-2">

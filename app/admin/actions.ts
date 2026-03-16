@@ -1,9 +1,21 @@
-﻿"use server";
+"use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
 import { hasAdminAccess } from "@/lib/admin";
-import { buildContactMethodsFromFields, getComparableContactMethods, getPrimaryContactUrl, normalizeContactValue, normalizeWhatsappPrefix } from "@/lib/provider-contact";
+import { mergeProfileData } from "@/lib/profile-data";
+import {
+  buildContactMethodsFromFields,
+  getComparableContactMethods,
+  getPrimaryContactUrl,
+  normalizeContactValue,
+  normalizeWhatsappPrefix,
+} from "@/lib/provider-contact";
+import { createClient } from "@/lib/supabase/server";
+
+export type ProviderCreateFormState = {
+  status: "idle" | "success" | "error";
+  message: string;
+};
 
 async function assertAdmin() {
   const supabase = await createClient();
@@ -24,57 +36,88 @@ async function assertAdmin() {
   return { supabase, adminId: user.id };
 }
 
+function normalizeEmail(value?: string | null) {
+  return String(value || "").trim().toLowerCase();
+}
+
 async function assertUniqueProviderContact({
   supabase,
   contactId,
   whatsapp,
+  email,
   instagram,
   messenger,
 }: {
   supabase: Awaited<ReturnType<typeof createClient>>;
   contactId?: number;
   whatsapp?: string;
+  email?: string;
   instagram?: string;
   messenger?: string;
 }) {
-  const requestedMethods = [whatsapp, instagram, messenger]
-    .map((value) => normalizeContactValue(value))
-    .filter(Boolean);
+  const requestedMethods = [whatsapp, instagram, messenger].map((value) => normalizeContactValue(value)).filter(Boolean);
+  const normalizedEmail = normalizeEmail(email);
 
-  if (!requestedMethods.length) {
+  if (!requestedMethods.length && !normalizedEmail) {
     return;
   }
 
-  const withMethods = await supabase
-    .from("provider_contacts")
-    .select("id, contact_methods, url, network");
+  const withMethods = await supabase.from("provider_contacts").select("id, title, email, contact_methods, url, network");
 
   const existingContacts = withMethods.error
     ? (
-        await supabase
-          .from("provider_contacts")
-          .select("id, url, network")
-      ).data?.map((contact) => ({ ...contact, contact_methods: null })) || []
+        await supabase.from("provider_contacts").select("id, title, url, network")
+      ).data?.map((contact) => ({ ...contact, email: null, contact_methods: null })) || []
     : withMethods.data || [];
 
-  const duplicate = existingContacts.find((contact) => {
+  const duplicateManual = existingContacts.find((contact) => {
     if (contactId && Number(contact.id) === contactId) {
       return false;
+    }
+
+    if (normalizedEmail && normalizeEmail("email" in contact ? contact.email : "") === normalizedEmail) {
+      return true;
     }
 
     const comparable = getComparableContactMethods(contact.contact_methods, contact.url, contact.network);
     return requestedMethods.some((method) => comparable.includes(method));
   });
 
-  if (duplicate) {
-    throw new Error("Ya existe un proveedor con ese numero o enlace de contacto.");
+  if (duplicateManual) {
+    throw new Error(`Ya este proveedor existe. Revisa telefono, email o enlaces de contacto de ${duplicateManual.title || "ese registro"}.`);
+  }
+
+  const { data: existingProfiles } = await supabase
+    .from("profiles")
+    .select("id, full_name, email, phone, role, profile_data")
+    .eq("role", "provider");
+
+  const duplicateRegistered = (existingProfiles || []).find((profile) => {
+    const profileData = mergeProfileData(profile.profile_data);
+    const comparable = [
+      normalizeContactValue(profile.phone),
+      normalizeContactValue(profileData.contact.whatsapp),
+      normalizeContactValue(profileData.contact.instagram),
+      normalizeContactValue(profileData.contact.messenger),
+    ].filter(Boolean);
+
+    if (normalizedEmail && normalizeEmail(profile.email) === normalizedEmail) {
+      return true;
+    }
+
+    return requestedMethods.some((method) => comparable.includes(method));
+  });
+
+  if (duplicateRegistered) {
+    throw new Error(`Ya este proveedor existe. Coincide con el provider registrado ${duplicateRegistered.full_name || duplicateRegistered.email || ""}.`);
   }
 }
 
-export async function createProviderContact(formData: FormData) {
+async function performCreateProviderContact(formData: FormData) {
   const { supabase, adminId } = await assertAdmin();
 
   const title = String(formData.get("title") || "").trim();
+  const email = normalizeEmail(String(formData.get("email") || ""));
   const whatsappPrefix = normalizeWhatsappPrefix(String(formData.get("whatsapp_prefix") || ""));
   const whatsappNumber = String(formData.get("whatsapp_number") || "").trim();
   const whatsapp = `${whatsappPrefix}${whatsappNumber}`.trim();
@@ -85,11 +128,6 @@ export async function createProviderContact(formData: FormData) {
   const contactMethods = buildContactMethodsFromFields({ whatsapp, instagram, messenger });
   const methodCount = [whatsapp, instagram, messenger].filter(Boolean).length;
 
-  // Evita romper la UI en testing: completa valores faltantes.
-  const safeTitle = title || "Proveedor sin nombre";
-  const safeUrl = getPrimaryContactUrl(contactMethods) || "#";
-  const primaryNetwork = whatsapp ? "WhatsApp" : instagram ? "Instagram" : messenger ? "Messenger" : "";
-
   if (!methodCount) {
     throw new Error("Debes agregar al menos un metodo de contacto.");
   }
@@ -97,11 +135,26 @@ export async function createProviderContact(formData: FormData) {
   await assertUniqueProviderContact({
     supabase,
     whatsapp,
+    email,
     instagram,
     messenger,
   });
 
+  const safeTitle = title || "Proveedor sin nombre";
+  const safeUrl = getPrimaryContactUrl(contactMethods) || "#";
+  const primaryNetwork = whatsapp ? "WhatsApp" : instagram ? "Instagram" : messenger ? "Messenger" : "";
+
   const payloads = [
+    {
+      title: safeTitle,
+      email: email || null,
+      network: primaryNetwork,
+      url: safeUrl,
+      contact_methods: contactMethods || null,
+      notes,
+      is_verified: isVerified,
+      created_by: adminId,
+    },
     {
       title: safeTitle,
       network: primaryNetwork,
@@ -156,11 +209,34 @@ export async function createProviderContact(formData: FormData) {
   throw new Error(lastError || "No se pudo crear el contacto del proveedor.");
 }
 
+export async function createProviderContact(formData: FormData) {
+  await performCreateProviderContact(formData);
+}
+
+export async function createProviderContactAction(
+  _previousState: ProviderCreateFormState,
+  formData: FormData
+): Promise<ProviderCreateFormState> {
+  try {
+    await performCreateProviderContact(formData);
+    return {
+      status: "success",
+      message: "Proveedor agregado correctamente.",
+    };
+  } catch (error) {
+    return {
+      status: "error",
+      message: error instanceof Error ? error.message : "No se pudo crear el proveedor.",
+    };
+  }
+}
+
 export async function updateProviderContact(formData: FormData) {
   const { supabase, adminId } = await assertAdmin();
 
   const contactId = Number(formData.get("contact_id") || 0);
   const title = String(formData.get("title") || "").trim();
+  const email = normalizeEmail(String(formData.get("email") || ""));
   const whatsappPrefix = normalizeWhatsappPrefix(String(formData.get("whatsapp_prefix") || ""));
   const whatsappNumber = String(formData.get("whatsapp_number") || "").trim();
   const whatsapp = `${whatsappPrefix}${whatsappNumber}`.trim();
@@ -184,6 +260,7 @@ export async function updateProviderContact(formData: FormData) {
     supabase,
     contactId,
     whatsapp,
+    email,
     instagram,
     messenger,
   });
@@ -193,6 +270,17 @@ export async function updateProviderContact(formData: FormData) {
   const primaryNetwork = whatsapp ? "WhatsApp" : instagram ? "Instagram" : messenger ? "Messenger" : "";
 
   const payloads = [
+    {
+      title: safeTitle,
+      email: email || null,
+      network: primaryNetwork,
+      url: safeUrl,
+      contact_methods: contactMethods || null,
+      notes,
+      is_verified: isVerified,
+      is_active: isActive,
+      created_by: adminId,
+    },
     {
       title: safeTitle,
       network: primaryNetwork,
@@ -279,21 +367,17 @@ export async function updateMemberStatus(formData: FormData) {
     throw new Error("Usuario inválido");
   }
 
-  await supabase
-    .from("memberships")
-    .upsert({
-      user_id: userId,
-      status: membershipStatus,
-      paid_at: membershipStatus === "active" ? new Date().toISOString() : null,
-    });
+  await supabase.from("memberships").upsert({
+    user_id: userId,
+    status: membershipStatus,
+    paid_at: membershipStatus === "active" ? new Date().toISOString() : null,
+  });
 
-  await supabase
-    .from("kyc_checks")
-    .upsert({
-      user_id: userId,
-      status: kycStatus,
-      reviewed_at: new Date().toISOString(),
-    });
+  await supabase.from("kyc_checks").upsert({
+    user_id: userId,
+    status: kycStatus,
+    reviewed_at: new Date().toISOString(),
+  });
 
   revalidatePath("/admin");
   revalidatePath("/dashboard");
@@ -308,11 +392,7 @@ export async function createAdminUser(formData: FormData) {
     throw new Error("Correo requerido");
   }
 
-  const { data: userProfile } = await supabase
-    .from("profiles")
-    .select("id")
-    .eq("email", targetEmail)
-    .single();
+  const { data: userProfile } = await supabase.from("profiles").select("id").eq("email", targetEmail).single();
 
   if (!userProfile) {
     throw new Error("Ese correo no existe en profiles. Debe registrarse primero.");
@@ -322,5 +402,3 @@ export async function createAdminUser(formData: FormData) {
 
   revalidatePath("/admin");
 }
-
-

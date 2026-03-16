@@ -1,11 +1,12 @@
 import { redirect } from "next/navigation";
+import { AdminProviderCreateForm } from "@/components/admin-provider-create-form";
 import { AdminProviderManager } from "@/components/admin-provider-manager";
 import { AdminSectionNav } from "@/components/admin-section-nav";
 import { AdminUserManager } from "@/components/admin-user-manager";
 import { SiteHeader } from "@/components/site-header";
 import { createClient } from "@/lib/supabase/server";
 import { hasAdminAccess } from "@/lib/admin";
-import { createAdminUser, createProviderContact } from "./actions";
+import { createAdminUser } from "./actions";
 
 type ProfileRow = {
   id: string;
@@ -27,6 +28,7 @@ type KycRow = {
 type ContactRow = {
   id: number;
   title: string;
+  email?: string | null;
   network: string | null;
   url: string;
   notes?: string | null;
@@ -100,7 +102,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
 
   const withMethods = await supabase
     .from("provider_contacts")
-    .select("id, title, network, url, notes, is_active, is_verified, contact_methods")
+    .select("id, title, email, network, url, notes, is_active, is_verified, contact_methods")
     .order("created_at", { ascending: false });
 
   if (withMethods.error) {
@@ -123,6 +125,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
 
         contacts = (fallback.data || []).map((contact) => ({
           ...contact,
+          email: null,
           notes: null,
           is_verified: false,
           contact_methods: null,
@@ -130,6 +133,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       } else {
         contacts = (withNotes.data || []).map((contact) => ({
           ...contact,
+          email: null,
           is_verified: false,
           contact_methods: null,
         })) as ContactRow[];
@@ -137,6 +141,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     } else {
       contacts = (withVerification.data || []).map((contact) => ({
         ...contact,
+        email: null,
         contact_methods: null,
       })) as ContactRow[];
     }
@@ -174,52 +179,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
           {activeSection === "providers" ? (
             <>
               <div className="card p-4">
-                <details>
-                  <summary className="flex cursor-pointer list-none items-center justify-between gap-3">
-                    <div>
-                      <h2 className="font-bold">Agregar proveedor</h2>
-                      <p className="mt-1 text-sm text-[#62626d]">Toca para desplegar el formulario de alta.</p>
-                    </div>
-                    <span className="rounded-full bg-[#fff2eb] px-3 py-2 text-xs font-bold uppercase tracking-[0.18em] text-[#dc4f1f]">
-                      Nuevo
-                    </span>
-                  </summary>
-
-                  <form action={createProviderContact} noValidate className="mt-4 grid gap-2">
-                    <input className="input" name="title" placeholder="Nombre del proveedor" spellCheck={false} autoCorrect="off" autoCapitalize="off" />
-                    <div className="rounded-[1.35rem] border border-[#eadfd6] bg-[#fcfaf7] p-3">
-                      <p className="text-sm font-semibold text-[#131316]">WhatsApp</p>
-                      <p className="mt-1 text-xs text-[#62626d]">Selecciona el prefijo internacional y escribe el numero sin espacios.</p>
-                      <div className="mt-3 grid grid-cols-[minmax(0,152px)_1fr] gap-2">
-                        <select className="input bg-white" name="whatsapp_prefix" defaultValue="us:+1">
-                          {WHATSAPP_PREFIX_OPTIONS.map((option) => (
-                            <option key={`${option.label}-${option.value}`} value={option.value}>
-                              {option.flag} {option.label} {option.value.split(":").slice(-1)[0]}
-                            </option>
-                          ))}
-                        </select>
-                        <input
-                          className="input"
-                          name="whatsapp_number"
-                          placeholder="786703994"
-                          inputMode="numeric"
-                          spellCheck={false}
-                          autoCorrect="off"
-                          autoCapitalize="off"
-                        />
-                      </div>
-                    </div>
-                    <input className="input" name="instagram" placeholder="Instagram. Ej: instagram.com/usuario o https://instagram.com/usuario" spellCheck={false} autoCorrect="off" autoCapitalize="off" />
-                    <input className="input" name="messenger" placeholder="Messenger. Ej: m.me/usuario o https://m.me/usuario" spellCheck={false} autoCorrect="off" autoCapitalize="off" />
-                    <textarea className="input min-h-24" name="notes" placeholder="Notas" spellCheck={false} autoCorrect="off" autoCapitalize="off" />
-                    <p className="text-xs text-[#62626d]">Debes completar al menos uno: WhatsApp, Instagram o Messenger.</p>
-                    <label className="flex items-center gap-2 text-sm text-[#62626d]">
-                      <input type="checkbox" name="is_verified" />
-                      <span>Marcar como verificado</span>
-                    </label>
-                    <button className="btn-primary" type="submit">Guardar contacto</button>
-                  </form>
-                </details>
+                <AdminProviderCreateForm whatsappPrefixOptions={WHATSAPP_PREFIX_OPTIONS} />
               </div>
 
               <div className="card p-4">
