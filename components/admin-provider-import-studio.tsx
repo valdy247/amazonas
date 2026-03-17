@@ -243,8 +243,12 @@ function resolveManualCrops(
     return sortedAnchors;
   }
 
-  const [firstAnchor, secondAnchor] = sortedAnchors;
-  const spacing = Math.max(secondAnchor.y - firstAnchor.y, normalizedHeight * 0.72);
+  const [firstAnchor] = sortedAnchors;
+  const secondAnchor: ManualCropBox = {
+    ...sortedAnchors[1],
+    y: Math.max(0, Math.min(1 - normalizedHeight, firstAnchor.y + normalizedHeight)),
+  };
+  const spacing = normalizedHeight;
   const generated: ManualCropBox[] = [firstAnchor, secondAnchor];
 
   for (let index = 2; index < cropCount; index += 1) {
