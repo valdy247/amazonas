@@ -290,14 +290,14 @@ export function AccountMenu({ user, items, messageHref, hasUnreadMessages = fals
       </button>
 
       {isOpen ? (
-        <div className="absolute right-0 top-[calc(100%+0.9rem)] z-20 w-72 rounded-[1.4rem] border border-[#e5e5df] bg-white p-2 shadow-[0_18px_36px_rgba(22,18,14,0.08)]">
+        <div className="absolute right-0 top-[calc(100%+0.9rem)] z-20 w-72 rounded-[1.4rem] border border-[#e5e5df] bg-white p-2 text-[#131316] shadow-[0_18px_36px_rgba(22,18,14,0.08)]">
           {user ? (
             <>
               <p className="px-3 py-2 text-xs text-[#62626d]">{user.email}</p>
               {resolvedItems.map((item) => (
                 <Link
                   key={`${item.href}-${item.label}`}
-                  className="flex min-h-11 items-center justify-between gap-3 rounded-xl px-3 py-3 text-sm hover:bg-[#fff3ec]"
+                  className="flex min-h-11 items-center justify-between gap-3 rounded-xl px-3 py-3 text-sm text-[#131316] hover:bg-[#fff3ec]"
                   href={item.href}
                   onClick={() => setIsOpen(false)}
                 >
@@ -306,7 +306,7 @@ export function AccountMenu({ user, items, messageHref, hasUnreadMessages = fals
                 </Link>
               ))}
               <form action="/auth/signout" method="post">
-                <button className="mt-1 w-full rounded-xl px-3 py-3 text-left text-sm hover:bg-[#fff3ec]" type="submit">
+                <button className="mt-1 w-full rounded-xl px-3 py-3 text-left text-sm text-[#131316] hover:bg-[#fff3ec]" type="submit">
                   {nav.signOut}
                 </button>
               </form>
@@ -316,7 +316,7 @@ export function AccountMenu({ user, items, messageHref, hasUnreadMessages = fals
               {resolvedItems.map((item) => (
                 <Link
                   key={`${item.href}-${item.label}`}
-                  className="block rounded-xl px-3 py-3 text-sm hover:bg-[#fff3ec]"
+                  className="block rounded-xl px-3 py-3 text-sm text-[#131316] hover:bg-[#fff3ec]"
                   href={item.href}
                   onClick={() => setIsOpen(false)}
                 >
