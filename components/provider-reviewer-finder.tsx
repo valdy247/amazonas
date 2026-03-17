@@ -391,7 +391,7 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
               <Star className="h-5 w-5" />
             </span>
           </div>
-          <div className="mt-4 grid gap-3 md:grid-cols-2">
+          <div className="mt-4 space-y-3">
             {recommendedReviewers.map((reviewer) => (
               <button
                 key={`recommended-${reviewer.id}`}
