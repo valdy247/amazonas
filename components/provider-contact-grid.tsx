@@ -92,7 +92,6 @@ export function ProviderContactGrid({ contacts, initialContactedIds, language }:
 
   function markAsContacted(contactId: string) {
     setContactedIds((current) => (current.includes(contactId) ? current : [...current, contactId]));
-    setActiveTab("contacted");
   }
 
   function buildWhatsappInviteMessage() {
