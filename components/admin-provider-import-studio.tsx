@@ -462,35 +462,6 @@ export function AdminProviderImportStudio() {
     );
   }
 
-  function changeManualCropCount(delta: number) {
-    if (!currentManualImage) {
-      return;
-    }
-
-    setManualImages((current) =>
-      current.map((image) =>
-        image.id === currentManualImage.id
-          ? {
-              ...image,
-              crops:
-                delta > 0
-                  ? [
-                      ...image.crops,
-                      createManualCrop(
-                        `${image.id}-crop-${Date.now()}`,
-                        image.crops.length ? Math.min(0.98, image.crops[image.crops.length - 1].y + image.crops[image.crops.length - 1].h) : manualCropHeight / 200,
-                        manualCropLeft,
-                        manualCropWidth,
-                        manualCropHeight
-                      ),
-                    ]
-                  : image.crops.slice(0, -1),
-            }
-          : image
-      )
-    );
-  }
-
   function startDraggingCrop(crop: ManualCropBox, event: ReactPointerEvent<HTMLButtonElement>) {
     if (!currentManualImage) {
       return;
@@ -728,29 +699,6 @@ export function AdminProviderImportStudio() {
                       title="Arrastra para ajustar este recorte"
                     />
                   ))}
-                  <div className="pointer-events-none absolute bottom-3 right-3 z-10">
-                    <div className="pointer-events-auto flex items-center gap-2 rounded-full border border-white/12 bg-[#141926]/88 p-2 shadow-[0_18px_40px_rgba(0,0,0,0.32)] backdrop-blur">
-                      <button
-                        type="button"
-                        aria-label="Quitar un recorte"
-                        className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/8 text-xl font-bold text-white transition hover:bg-white/14 disabled:opacity-35"
-                        onClick={() => changeManualCropCount(-1)}
-                        disabled={currentManualImage.crops.length === 0}
-                      >
-                        −
-                      </button>
-                      <div className="min-w-10 text-center text-sm font-semibold text-white/84">{currentManualImage.crops.length}</div>
-                      <button
-                        type="button"
-                        aria-label="Agregar un recorte"
-                        className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-[#ff6b35] text-xl font-bold text-white shadow-[0_10px_24px_rgba(255,107,53,0.35)] transition hover:bg-[#ff7a4c] disabled:opacity-35"
-                        onClick={() => changeManualCropCount(1)}
-                        disabled={currentManualImage.crops.length >= 24}
-                      >
-                        +
-                      </button>
-                    </div>
-                  </div>
                 </div>
 
                 <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
