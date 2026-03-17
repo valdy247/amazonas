@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition, type PointerEvent as ReactPointerEvent } from "react";
 import { CompactSelect } from "@/components/compact-select";
 
 type ProviderImportSource = "messenger" | "facebook" | "instagram" | "whatsapp" | "email" | "bulk_text";
@@ -35,6 +35,14 @@ type ManualImage = {
   cropCount: number;
   crops: ManualCropBox[];
 };
+
+type DragState = {
+  imageId: string;
+  cropId: string;
+  pointerId: number;
+  startClientY: number;
+  startY: number;
+} | null;
 
 const SOURCE_OPTIONS: Array<{ value: ProviderImportSource; label: string }> = [
   { value: "messenger", label: "Messenger" },
@@ -268,6 +276,7 @@ export function AdminProviderImportStudio() {
   const [manualCropLeft, setManualCropLeft] = useState(4);
   const [manualCropWidth, setManualCropWidth] = useState(54);
   const [manualCropHeight, setManualCropHeight] = useState(9);
+  const [dragState, setDragState] = useState<DragState>(null);
   const [isExtracting, startExtract] = useTransition();
   const [isImporting, startImport] = useTransition();
 
@@ -289,6 +298,62 @@ export function AdminProviderImportStudio() {
       }))
     );
   }, [manualCropHeight, manualCropLeft, manualCropWidth]);
+
+  useEffect(() => {
+    if (!dragState) {
+      return;
+    }
+
+    const activeDrag = dragState;
+
+    function handlePointerMove(event: PointerEvent) {
+      if (event.pointerId !== activeDrag.pointerId) {
+        return;
+      }
+
+      const deltaRatio = (event.clientY - activeDrag.startClientY) / window.innerHeight;
+      const normalizedHeight = manualCropHeight / 100;
+      const nextY = Math.max(0, Math.min(1 - normalizedHeight, activeDrag.startY + deltaRatio));
+
+      setManualImages((current) =>
+        current.map((image) =>
+          image.id === activeDrag.imageId
+            ? {
+                ...image,
+                anchors: image.anchors
+                  .map((anchor) => (anchor.id === activeDrag.cropId ? { ...anchor, y: nextY } : anchor))
+                  .sort((left, right) => left.y - right.y),
+                crops: resolveManualCrops(
+                  image.anchors
+                    .map((anchor) => (anchor.id === activeDrag.cropId ? { ...anchor, y: nextY } : anchor))
+                    .sort((left, right) => left.y - right.y),
+                  image.cropCount,
+                  manualCropLeft,
+                  manualCropWidth,
+                  manualCropHeight
+                ),
+              }
+            : image
+        )
+      );
+    }
+
+    function handlePointerUp(event: PointerEvent) {
+      if (event.pointerId === activeDrag.pointerId) {
+        setDragState(null);
+      }
+    }
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp);
+    window.addEventListener("pointercancel", handlePointerUp);
+
+    return () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+      window.removeEventListener("pointercancel", handlePointerUp);
+    };
+  }, [dragState, manualCropHeight, manualCropLeft, manualCropWidth]);
 
   async function runExtractionFromPreparedFiles(
     prepared: File[],
@@ -494,6 +559,21 @@ export function AdminProviderImportStudio() {
           : image
       )
     );
+  }
+
+  function startDraggingCrop(crop: ManualCropBox, event: ReactPointerEvent<HTMLButtonElement>) {
+    if (!currentManualImage || !currentManualImage.anchors.some((anchor) => anchor.id === crop.id)) {
+      return;
+    }
+
+    event.preventDefault();
+    setDragState({
+      imageId: currentManualImage.id,
+      cropId: crop.id,
+      pointerId: event.pointerId,
+      startClientY: event.clientY,
+      startY: crop.y,
+    });
   }
 
   function processManualCrops() {
@@ -707,14 +787,19 @@ export function AdminProviderImportStudio() {
                       key={crop.id}
                       type="button"
                       onClick={() => removeManualCrop(crop.id)}
-                      className="absolute rounded-[1rem] border-2 border-[#ff6b35] bg-[rgba(255,107,53,0.12)]"
+                      onPointerDown={(event) => startDraggingCrop(crop, event)}
+                      className={`absolute rounded-[1rem] border-2 bg-[rgba(255,107,53,0.12)] ${
+                        currentManualImage.anchors.some((anchor) => anchor.id === crop.id)
+                          ? "cursor-grab border-[#ff6b35] active:cursor-grabbing"
+                          : "border-[#ff9a73]"
+                      }`}
                       style={{
                         left: `${crop.x * 100}%`,
                         top: `${crop.y * 100}%`,
                         width: `${crop.w * 100}%`,
                         height: `${crop.h * 100}%`,
                       }}
-                      title="Quitar este recorte"
+                      title={currentManualImage.anchors.some((anchor) => anchor.id === crop.id) ? "Arrastra para ajustar este recorte base" : "Quitar este recorte"}
                     />
                   ))}
                   <div className="pointer-events-none absolute bottom-3 right-3 z-10">
