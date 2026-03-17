@@ -1,8 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { hasAdminAccess } from "@/lib/admin";
 import { mergeProfileData } from "@/lib/profile-data";
+import { resolveSiteOrigin } from "@/lib/site-url";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   buildContactMethodsFromFields,
@@ -473,7 +475,12 @@ export async function sendPasswordRecoveryForUser(formData: FormData) {
     throw new Error("Usuario invalido.");
   }
 
-  const redirectTo = `${process.env.NEXT_PUBLIC_SITE_URL || "https://verifyzon.com"}/auth/callback`;
+  const requestHeaders = await headers();
+  const redirectTo = `${resolveSiteOrigin({
+    headerOrigin: requestHeaders.get("origin"),
+    forwardedHost: requestHeaders.get("x-forwarded-host") || requestHeaders.get("host"),
+    forwardedProto: requestHeaders.get("x-forwarded-proto"),
+  })}/auth/callback`;
   const { error } = await admin.auth.resetPasswordForEmail(email, { redirectTo });
 
   if (error) {

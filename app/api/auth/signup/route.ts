@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { callSupabaseAuth } from "@/lib/auth-api";
 import { rejectUntrustedOrigin } from "@/lib/security";
+import { resolveSiteOrigin } from "@/lib/site-url";
 
 type SignupBody = {
   email?: string;
@@ -26,7 +27,12 @@ export async function POST(request: Request) {
     const result = await callSupabaseAuth("/auth/v1/signup", {
       email,
       password,
-      emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || new URL(request.url).origin}/auth/callback`,
+      emailRedirectTo: `${resolveSiteOrigin({
+        requestUrl: request.url,
+        headerOrigin: request.headers.get("origin"),
+        forwardedHost: request.headers.get("x-forwarded-host") || request.headers.get("host"),
+        forwardedProto: request.headers.get("x-forwarded-proto"),
+      })}/auth/callback`,
       data: body.data || {},
     });
 

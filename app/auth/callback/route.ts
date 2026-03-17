@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
+import { resolveSiteOrigin } from "@/lib/site-url";
 import { createClient } from "@/lib/supabase/server";
 
 function getSafeRedirect(request: NextRequest) {
-  return process.env.NEXT_PUBLIC_SITE_URL || new URL(request.url).origin;
+  return resolveSiteOrigin({
+    requestUrl: request.url,
+    headerOrigin: request.headers.get("origin"),
+    forwardedHost: request.headers.get("x-forwarded-host") || request.headers.get("host"),
+    forwardedProto: request.headers.get("x-forwarded-proto"),
+  });
 }
 
 export async function GET(request: NextRequest) {
