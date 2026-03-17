@@ -412,6 +412,30 @@ export default async function DashboardPage({
   let providerAliasByManualId = new Map<number, string>();
   let providerAliasByRegisteredId = new Map<string, string>();
 
+  if (isProvider) {
+    const [{ count: manualContactCount }, registeredProvidersResult] = await Promise.all([
+      supabase.from("provider_contacts").select("*", { count: "exact", head: true }).eq("is_active", true),
+      supabase
+        .from("profiles")
+        .select("id, created_at")
+        .eq("role", "provider")
+        .not("accepted_terms_at", "is", null),
+    ]);
+
+    allRegisteredProviderProfiles = (registeredProvidersResult.data || []) as ProfileRow[];
+
+    const orderedRegisteredProviders = [...allRegisteredProviderProfiles].sort((left, right) => {
+      const leftTime = left.created_at ? new Date(left.created_at).getTime() : 0;
+      const rightTime = right.created_at ? new Date(right.created_at).getTime() : 0;
+
+      return leftTime - rightTime || left.id.localeCompare(right.id);
+    });
+
+    orderedRegisteredProviders.forEach((provider, index) => {
+      providerAliasByRegisteredId.set(provider.id, formatProviderAlias(101 + (manualContactCount || 0) + index));
+    });
+  }
+
   if (!isProvider) {
     const registeredProvidersResult = await supabase
       .from("profiles")
@@ -421,6 +445,10 @@ export default async function DashboardPage({
 
     allRegisteredProviderProfiles = (registeredProvidersResult.data || []) as ProfileRow[];
   }
+
+  const greetingName = isProvider
+    ? providerAliasByRegisteredId.get(user.id) || "Proveedor"
+    : firstName;
 
   if (canSeeContacts) {
       const withMethods = await supabase
@@ -831,7 +859,7 @@ export default async function DashboardPage({
           <section className="overflow-hidden rounded-[1.8rem] border border-[#ffc4a8] bg-[linear-gradient(135deg,#ffb28b_0%,#ff8356_38%,#ff6b35_100%)] p-5 text-white shadow-[0_26px_80px_rgba(220,95,45,0.24)]">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h1 className="mt-2 text-3xl font-bold">{copy.greeting}, {firstName}</h1>
+                <h1 className="mt-2 text-3xl font-bold">{copy.greeting}, {greetingName}</h1>
               </div>
               <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-white/18 shadow-[0_12px_28px_rgba(255,255,255,0.16)]">
                 <Sparkles className="h-5 w-5" />
