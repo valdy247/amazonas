@@ -64,13 +64,14 @@ export function parseContactMethods(contactMethods?: string | null, fallbackUrl?
     const requestedLabel = right ? left.trim() : "";
     const copyMode = /^copy:/i.test(target);
     const rawValue = copyMode ? target.replace(/^copy:/i, "").trim() : target;
-    const href = copyMode ? null : toHref(rawValue);
+    const directCopyHref = copyMode && isLikelyDirectLink(rawValue) ? toHref(rawValue) : null;
+    const href = copyMode ? directCopyHref : toHref(rawValue);
     const derivedLabel = href ? labelFromUrl(href) : "";
     const label = derivedLabel === "WhatsApp" ? "WhatsApp" : requestedLabel || derivedLabel || "Enlace";
 
     if (!rawValue) return;
 
-    if (copyMode || !href) {
+    if ((copyMode && !directCopyHref) || !href) {
       methods.push({ label, value: rawValue, mode: "copy" });
       return;
     }
