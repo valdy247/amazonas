@@ -88,6 +88,7 @@ export function ProviderContactGrid({ contacts, initialContactedIds, language, r
       return;
     }
 
+    window.localStorage.removeItem("provider-contacted");
     window.localStorage.setItem(contactedStorageKey, JSON.stringify(contactedIds));
   }, [contactedIds, contactedStorageKey]);
 
