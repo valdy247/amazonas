@@ -206,9 +206,9 @@ async function cropAvatarDataUrl(
     }
 
     if (socialCrop) {
-      const stripX = Math.max(0, Math.min(sourceX, image.width - sourceSize * 4.2));
+      const stripX = Math.max(0, Math.min(sourceX - sourceSize * 0.14, image.width - sourceSize * 4.34));
       const stripY = Math.max(0, Math.min(sourceY - sourceSize * 0.02, image.height - sourceSize * 1.04));
-      const stripW = Math.max(sourceSize * 3.8, Math.min(image.width - stripX, sourceSize * 4.2));
+      const stripW = Math.max(sourceSize * 3.94, Math.min(image.width - stripX, sourceSize * 4.34));
       const stripH = Math.max(sourceSize * 0.98, Math.min(image.height - stripY, sourceSize * 1.04));
 
       context.drawImage(image, stripX, stripY, stripW, stripH, 0, 0, socialWidth, socialHeight);
