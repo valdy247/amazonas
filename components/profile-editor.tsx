@@ -191,41 +191,19 @@ export function ProfileEditor({ email, initialValues }: ProfileEditorProps) {
         <div className="mt-3">
           <input className="input" value={values.phone} onChange={(event) => updateValue("phone", event.target.value)} placeholder={copy.phone} />
         </div>
-        <div className="mt-4 rounded-[1.5rem] border border-[#eadfd6] bg-[linear-gradient(180deg,#fffdfa_0%,#fcfaf7_100%)] p-4">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-sm font-semibold text-[#131316]">{copy.language}</p>
-              <p className="mt-1 text-sm text-[#62626d]">{copy.languageHelp}</p>
-            </div>
-            <span className="rounded-full bg-[#fff2eb] px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-[#dc4f1f]">
-              {values.preferredLanguage === "es" ? "Espanol" : "English"}
-            </span>
-          </div>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            {LANGUAGE_OPTIONS.map((option) => {
-              const active = values.preferredLanguage === option.value;
-              const helper =
-                option.value === "es"
-                  ? copy.spanishHelper
-                  : "You will see the platform and translated messages in English first.";
-
-              return (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => updateValue("preferredLanguage", normalizeLanguage(option.value))}
-                  className={`rounded-[1.35rem] border px-4 py-4 text-left transition ${
-                    active
-                      ? "border-[#ff6b35] bg-[linear-gradient(135deg,#ff6b35_0%,#ff8b5e_100%)] text-white shadow-[0_18px_30px_rgba(255,107,53,0.18)]"
-                      : "border-[#eadfd6] bg-white text-[#131316] hover:border-[#f0cbb8] hover:bg-[#fff8f3]"
-                  }`}
-                >
-                  <p className="text-base font-semibold">{option.label}</p>
-                  <p className={`mt-2 text-sm ${active ? "text-white/82" : "text-[#62626d]"}`}>{helper}</p>
-                </button>
-              );
-            })}
-          </div>
+        <div className="mt-4">
+          <p className="mb-2 text-sm font-semibold text-[#131316]">{copy.language}</p>
+          <select
+            className="input"
+            value={values.preferredLanguage}
+            onChange={(event) => updateValue("preferredLanguage", normalizeLanguage(event.target.value))}
+          >
+            {LANGUAGE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
         </div>
       </section>
 
