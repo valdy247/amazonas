@@ -39,6 +39,11 @@ export const authCopy = {
     password: "Contrasena",
     confirmPassword: "Confirmar contrasena",
     language: "Idioma",
+    accountType: "Tipo de cuenta",
+    reviewerAccount: "Resenador",
+    providerAccount: "Proveedor",
+    reviewerAccountBody: "Registro mas completo para luego validar identidad y colaborar con mas confianza.",
+    providerAccountBody: "Acceso mas rapido: correo, contrasena e intereses para empezar sin friccion.",
     identityConfirmation:
       "Confirmo que mi nombre y apellidos estan escritos correctamente y coinciden con mi documento oficial.",
     legalConsent:
@@ -68,6 +73,7 @@ export const authCopy = {
     englishOptionHelp: "Ideal si prefieres navegar y conversar en ingles.",
     active: "Activo",
     updatePassword: "Actualizar contrasena",
+    providerInterestsHint: "Luego podras completar mas datos, pero por ahora solo te pediremos correo, contrasena e intereses.",
   },
   en: {
     signupTitle: "Create account",
@@ -88,6 +94,11 @@ export const authCopy = {
     password: "Password",
     confirmPassword: "Confirm password",
     language: "Language",
+    accountType: "Account type",
+    reviewerAccount: "Reviewer",
+    providerAccount: "Provider",
+    reviewerAccountBody: "A fuller signup flow for identity checks and more trusted collaborations later.",
+    providerAccountBody: "Faster access: email, password, and interests so you can get started with less friction.",
     identityConfirmation:
       "I confirm that my first and last name are correct and match my official document.",
     legalConsent:
@@ -117,6 +128,7 @@ export const authCopy = {
     englishOptionHelp: "Ideal if you prefer to browse and chat in English.",
     active: "Active",
     updatePassword: "Update password",
+    providerInterestsHint: "You will be able to complete more details later, but for now we will only ask for email, password, and interests.",
   },
 } as const;
 
@@ -812,7 +824,7 @@ export const onboardingCopy = {
     },
     noCountrySelected: "Sin pais seleccionado",
     reviewerRoleCopy: "Te ayudaremos a construir un perfil claro para encontrar oportunidades alineadas.",
-    providerRoleCopy: "Activaremos un perfil orientado a descubrir reseñadores segun los productos que ofreces.",
+    providerRoleCopy: "Activaremos un perfil mas ligero para que puedas entrar rapido y definir tus intereses de producto.",
     stepLoadError: "No se pudo cargar este paso.",
     fullNameRequired: "Completa nombre y apellidos.",
     invalidPhone: "Ingresa un telefono valido.",
@@ -834,6 +846,7 @@ export const onboardingCopy = {
     providerDescription: "Quiero preparar mi perfil segun los productos que ofrezco para encontrar reseñadores relevantes.",
     essentials: "Completa lo esencial",
     essentialsBody: "Este paso debe sentirse rapido en movil, sin campos innecesarios.",
+    providerEssentialsBody: "Como proveedor, lo dejaremos ligero: podras completar mas datos despues desde tu perfil.",
     firstName: "Nombre",
     lastName: "Apellidos",
     phone: "Telefono",
@@ -868,6 +881,7 @@ export const onboardingCopy = {
     providerNote: "Describe que tipo de productos ofreces, tu enfoque y el reseñador ideal para colaborar.",
     summary: "Resumen rapido",
     summaryBody: "El objetivo es activar tu perfil sin friccion y dejar una base clara para agregar pasos despues.",
+    providerProfilePending: "Perfil ligero activado. Luego podras completar mas datos desde tu panel si lo necesitas.",
     role: "Rol",
     profile: "Perfil",
     pendingCountry: "Pais pendiente",
@@ -888,7 +902,7 @@ export const onboardingCopy = {
     },
     noCountrySelected: "No country selected",
     reviewerRoleCopy: "We will help you build a clear profile to find matching opportunities.",
-    providerRoleCopy: "We will activate a profile focused on discovering reviewers based on the products you offer.",
+    providerRoleCopy: "We will activate a lighter profile so you can get in fast and define your product interests.",
     stepLoadError: "This step could not be loaded.",
     fullNameRequired: "Complete first and last name.",
     invalidPhone: "Enter a valid phone number.",
@@ -910,6 +924,7 @@ export const onboardingCopy = {
     providerDescription: "I want to prepare my profile based on the products I offer to find relevant reviewers.",
     essentials: "Complete the essentials",
     essentialsBody: "This step should feel fast on mobile, with no unnecessary fields.",
+    providerEssentialsBody: "As a provider, we will keep this light: you can complete more details later from your profile.",
     firstName: "First name",
     lastName: "Last name",
     phone: "Phone",
@@ -944,6 +959,7 @@ export const onboardingCopy = {
     providerNote: "Describe the products you offer, your focus, and the ideal reviewer for collaboration.",
     summary: "Quick summary",
     summaryBody: "The goal is to activate your profile with low friction and leave a clear base for adding more steps later.",
+    providerProfilePending: "Light profile activated. You can complete more details later from your dashboard if needed.",
     role: "Role",
     profile: "Profile",
     pendingCountry: "Country pending",
@@ -956,3 +972,4 @@ export const onboardingCopy = {
     activating: "Activating...",
   },
 } as const;
+

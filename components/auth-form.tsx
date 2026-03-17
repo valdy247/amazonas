@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { authCopy, normalizeLanguage } from "@/lib/i18n";
 
 const phoneRegex = /^\+?[0-9()\-\s]{8,20}$/;
+type SignupRole = "reviewer" | "provider";
 
 type ApiResponse = {
   error?: string;
@@ -23,6 +24,7 @@ export function AuthForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [preferredLanguage, setPreferredLanguage] = useState(() => normalizeLanguage(params.get("lang")));
+  const [signupRole, setSignupRole] = useState<SignupRole>(() => (params.get("role") === "provider" ? "provider" : "reviewer"));
 
   const mode = useMemo(() => {
     const rawMode = params.get("mode");
@@ -60,6 +62,8 @@ export function AuthForm() {
     const identityConfirmed = String(formData.get("identity_confirmation") || "") === "on";
     const legalConsent = String(formData.get("legal_consent") || "") === "on";
     const preferredLanguageValue = normalizeLanguage(formData.get("preferred_language"));
+    const selectedRole = String(formData.get("signup_role") || "") === "provider" ? "provider" : "reviewer";
+    const isProviderSignup = selectedRole === "provider";
 
     try {
       if (mode === "recovery") {
@@ -81,9 +85,9 @@ export function AuthForm() {
       }
 
       if (mode === "signup") {
-        if (!firstName || !lastName) return setError(copy.requiredName), void setLoading(false);
-        if (!phoneRegex.test(phone)) return setError(copy.invalidPhone), void setLoading(false);
-        if (!identityConfirmed) {
+        if (!isProviderSignup && (!firstName || !lastName)) return setError(copy.requiredName), void setLoading(false);
+        if (!isProviderSignup && !phoneRegex.test(phone)) return setError(copy.invalidPhone), void setLoading(false);
+        if (!isProviderSignup && !identityConfirmed) {
           return setError(copy.identityRequired), void setLoading(false);
         }
         if (!legalConsent) {
@@ -105,6 +109,8 @@ export function AuthForm() {
               last_name: lastName,
               phone,
               full_name: fullName,
+              signup_role: selectedRole,
+              role: selectedRole,
               preferred_language: preferredLanguageValue,
               legal_consent: true,
               accepted_terms_at: acceptedAt,
@@ -190,6 +196,7 @@ export function AuthForm() {
       {mode === "signup" ? (
         <div className="grid gap-3">
           <input type="hidden" name="preferred_language" value={preferredLanguage} />
+          <input type="hidden" name="signup_role" value={signupRole} />
           <div className="rounded-[1.5rem] border border-[#eadfd6] bg-[linear-gradient(180deg,#fffdfa_0%,#fcfaf7_100%)] p-4">
             <div className="flex items-center justify-between gap-3">
               <div>
@@ -224,15 +231,54 @@ export function AuthForm() {
               })}
             </div>
           </div>
-          <input className="input" name="first_name" placeholder={copy.firstName} required />
-          <input className="input" name="last_name" placeholder={copy.lastName} required />
-          <input className="input" name="phone" placeholder={copy.phone} required />
-          <label className="rounded-[1.2rem] border border-[#eadfd6] bg-[#fcfaf7] px-4 py-3 text-sm text-[#62564a]">
-            <span className="flex items-start gap-3">
-              <input className="mt-1" type="checkbox" name="identity_confirmation" required />
-              <span>{copy.identityConfirmation}</span>
-            </span>
-          </label>
+          <div className="rounded-[1.5rem] border border-[#eadfd6] bg-[linear-gradient(180deg,#fffdfa_0%,#fcfaf7_100%)] p-4">
+            <p className="text-sm font-semibold text-[#131316]">{copy.accountType}</p>
+            <div className="mt-4 grid gap-3">
+              {([
+                { value: "reviewer", label: copy.reviewerAccount, body: copy.reviewerAccountBody },
+                { value: "provider", label: copy.providerAccount, body: copy.providerAccountBody },
+              ] as const).map((option) => {
+                const active = signupRole === option.value;
+
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => setSignupRole(option.value)}
+                    className={`rounded-[1.3rem] border p-4 text-left transition ${
+                      active ? "border-[#ff6b35] bg-[#fff3ec]" : "border-[#eadfd6] bg-white hover:border-[#f0cbb8] hover:bg-[#fff8f3]"
+                    }`}
+                  >
+                    <p className="font-semibold text-[#131316]">{option.label}</p>
+                    <p className="mt-1 text-sm text-[#62564a]">{option.body}</p>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          {signupRole === "reviewer" ? (
+            <>
+              <input className="input" name="first_name" placeholder={copy.firstName} required />
+              <input className="input" name="last_name" placeholder={copy.lastName} required />
+              <input className="input" name="phone" placeholder={copy.phone} required />
+              <label className="rounded-[1.2rem] border border-[#eadfd6] bg-[#fcfaf7] px-4 py-3 text-sm text-[#62564a]">
+                <span className="flex items-start gap-3">
+                  <input className="mt-1" type="checkbox" name="identity_confirmation" required />
+                  <span>{copy.identityConfirmation}</span>
+                </span>
+              </label>
+            </>
+          ) : (
+            <>
+              <input type="hidden" name="first_name" value="" />
+              <input type="hidden" name="last_name" value="" />
+              <input type="hidden" name="phone" value="" />
+              <input type="hidden" name="identity_confirmation" value="" />
+              <p className="rounded-[1.2rem] border border-[#eadfd6] bg-[#fcfaf7] px-4 py-3 text-sm text-[#62564a]">
+                {copy.providerInterestsHint}
+              </p>
+            </>
+          )}
           <label className="rounded-[1.2rem] border border-[#eadfd6] bg-[#fcfaf7] px-4 py-3 text-sm text-[#62564a]">
             <span className="flex items-start gap-3">
               <input className="mt-1" type="checkbox" name="legal_consent" required />

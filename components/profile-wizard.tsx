@@ -30,6 +30,7 @@ type ProfileWizardProps = {
   initialValues: Partial<WizardValues>;
   email?: string | null;
   language: AppLanguage;
+  roleLocked?: boolean;
 };
 
 const phoneRegex = /^\+?[0-9()\-\s]{8,20}$/;
@@ -39,7 +40,7 @@ function normalizeInterests(value: unknown) {
   return value.filter((item): item is string => typeof item === "string");
 }
 
-export function ProfileWizard({ initialValues, email, language }: ProfileWizardProps) {
+export function ProfileWizard({ initialValues, email, language, roleLocked = false }: ProfileWizardProps) {
   const router = useRouter();
   const copy = onboardingCopy[normalizeLanguage(language)];
   const [loading, setLoading] = useState(false);
@@ -61,7 +62,10 @@ export function ProfileWizard({ initialValues, email, language }: ProfileWizardP
     acceptTerms: Boolean(initialValues.acceptTerms),
   });
 
-  const hasEssentialProfile = Boolean(values.firstName.trim() && values.lastName.trim() && phoneRegex.test(values.phone.trim()));
+  const requiresIdentityProfile = values.role === "reviewer";
+  const hasEssentialProfile =
+    !requiresIdentityProfile ||
+    Boolean(values.firstName.trim() && values.lastName.trim() && phoneRegex.test(values.phone.trim()));
   const baseSteps = useMemo(
     () =>
       [
@@ -72,7 +76,15 @@ export function ProfileWizard({ initialValues, email, language }: ProfileWizardP
       ] as const,
     [copy]
   );
-  const steps = useMemo(() => baseSteps.filter((step) => (step.id === "profile" ? !hasEssentialProfile : true)), [baseSteps, hasEssentialProfile]);
+  const steps = useMemo(
+    () =>
+      baseSteps.filter((step) => {
+        if (step.id === "role" && roleLocked) return false;
+        if (step.id === "profile") return !hasEssentialProfile;
+        return true;
+      }),
+    [baseSteps, hasEssentialProfile, roleLocked]
+  );
   const [step, setStep] = useState(0);
 
   const currentStep = steps[step];
@@ -108,11 +120,11 @@ export function ProfileWizard({ initialValues, email, language }: ProfileWizardP
     }
 
     if (currentStep.id === "profile") {
-      if (!values.firstName.trim() || !values.lastName.trim()) {
+      if (requiresIdentityProfile && (!values.firstName.trim() || !values.lastName.trim())) {
         return copy.fullNameRequired;
       }
 
-      if (!phoneRegex.test(values.phone.trim())) {
+      if (requiresIdentityProfile && !phoneRegex.test(values.phone.trim())) {
         return copy.invalidPhone;
       }
     }
@@ -191,7 +203,7 @@ export function ProfileWizard({ initialValues, email, language }: ProfileWizardP
       .update({
         role: values.role,
         full_name: fullName,
-        phone: values.phone.trim(),
+        phone: values.role === "reviewer" ? values.phone.trim() : "",
         accepted_terms_at: acceptedTermsAt,
         profile_data: buildProfileData({
           country: values.country,
@@ -349,13 +361,19 @@ export function ProfileWizard({ initialValues, email, language }: ProfileWizardP
             <>
               <div>
                 <p className="text-sm font-semibold text-[#dc4f1f]">{copy.essentials}</p>
-                <p className="mt-1 text-sm text-[#62626d]">{copy.essentialsBody}</p>
+                <p className="mt-1 text-sm text-[#62626d]">
+                  {values.role === "reviewer" ? copy.essentialsBody : copy.providerEssentialsBody}
+                </p>
               </div>
 
               <div className="grid gap-3">
-                <input className="input" value={values.firstName} onChange={(event) => updateValue("firstName", event.target.value)} placeholder={copy.firstName} />
-                <input className="input" value={values.lastName} onChange={(event) => updateValue("lastName", event.target.value)} placeholder={copy.lastName} />
-                <input className="input" value={values.phone} onChange={(event) => updateValue("phone", event.target.value)} placeholder={copy.phone} />
+                {values.role === "reviewer" ? (
+                  <>
+                    <input className="input" value={values.firstName} onChange={(event) => updateValue("firstName", event.target.value)} placeholder={copy.firstName} />
+                    <input className="input" value={values.lastName} onChange={(event) => updateValue("lastName", event.target.value)} placeholder={copy.lastName} />
+                    <input className="input" value={values.phone} onChange={(event) => updateValue("phone", event.target.value)} placeholder={copy.phone} />
+                  </>
+                ) : null}
                 <div className="rounded-2xl border border-dashed border-[#e5e5df] bg-[#f8f4ef] p-3 text-sm text-[#62626d]">
                   <p className="font-semibold text-[#131316]">{copy.accessEmail}</p>
                   <p className="mt-1">{email || copy.noEmail}</p>
@@ -546,10 +564,19 @@ export function ProfileWizard({ initialValues, email, language }: ProfileWizardP
                 <p className="text-sm text-[#62626d]">{copy.role}</p>
                 <p className="font-semibold capitalize">{values.role}</p>
                 <p className="mt-3 text-sm text-[#62626d]">{copy.profile}</p>
-                <p className="font-semibold">
-                  {values.firstName} {values.lastName}
-                </p>
-                <p className="text-sm text-[#62626d]">{values.country || copy.pendingCountry}</p>
+                {values.role === "reviewer" ? (
+                  <>
+                    <p className="font-semibold">
+                      {values.firstName} {values.lastName}
+                    </p>
+                    <p className="text-sm text-[#62626d]">{values.country || copy.pendingCountry}</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="font-semibold">{email || copy.noEmail}</p>
+                    <p className="text-sm text-[#62626d]">{copy.providerProfilePending}</p>
+                  </>
+                )}
                 <p className="mt-3 text-sm text-[#62626d]">{values.role === "reviewer" ? copy.interests : copy.productCategories}</p>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {values.interests.map((interest) => (

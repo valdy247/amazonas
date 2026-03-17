@@ -46,6 +46,10 @@ export default async function OnboardingPage() {
 
   const metadata = (user.user_metadata || {}) as Record<string, unknown>;
   const fallbackName = splitFullName(profile?.full_name);
+  const signupRole =
+    typeof metadata.signup_role === "string" || typeof metadata.role === "string"
+      ? normalizeUserRole((metadata.signup_role as string) || (metadata.role as string))
+      : null;
 
   const language = normalizeLanguage(profile?.preferred_language || metadata.preferred_language);
 
@@ -56,8 +60,9 @@ export default async function OnboardingPage() {
         <ProfileWizard
           language={language}
           email={user.email}
+          roleLocked={Boolean(signupRole)}
           initialValues={{
-            role: normalizeUserRole(profile?.role),
+            role: signupRole || normalizeUserRole(profile?.role),
             firstName:
               fallbackName.firstName ||
               (typeof metadata.first_name === "string" ? metadata.first_name : ""),

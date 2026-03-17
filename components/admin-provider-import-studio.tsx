@@ -515,6 +515,9 @@ export function AdminProviderImportStudio() {
                 onChange={(event) => setBulkText(event.target.value)}
                 placeholder="Pega aqui el texto enorme con enlaces de Facebook, correos y numeros..."
               />
+              <div className="mt-2 text-right text-xs text-[#8f857b]">
+                {bulkText.length.toLocaleString("en-US")} caracteres
+              </div>
               <button className="btn-primary mt-3" type="button" onClick={extractFromText} disabled={isExtracting}>
                 {isExtracting ? "Procesando..." : "Extraer desde texto"}
               </button>
