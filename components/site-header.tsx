@@ -43,7 +43,7 @@ export async function SiteHeader({ menuItems, messageHref, hasUnreadMessages = f
     <>
       <header className="sticky top-0 z-10 border-b border-[#e5e5df] bg-[#f7f7f2]/90 backdrop-blur">
         <div className="container-x flex items-center justify-between py-3">
-          <Link href="/" className="text-base font-extrabold tracking-tight">
+          <Link href="/" className="verifyzon-wordmark text-base font-extrabold tracking-tight">
             Verifyzon
           </Link>
           <AccountMenu

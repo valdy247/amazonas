@@ -127,6 +127,14 @@ textarea.input {
   animation: verifyzon-neon-rise 1.4s ease-out forwards;
 }
 
+.verifyzon-wordmark {
+  color: #101626;
+  text-shadow:
+    0 0 1px rgba(11, 15, 30, 0.95),
+    0 0 10px rgba(80, 186, 255, 0.18),
+    0 0 20px rgba(80, 186, 255, 0.08);
+}
+
 @keyframes verifyzon-neon-rise {
   0% {
     color: rgba(186, 241, 255, 0.16);
