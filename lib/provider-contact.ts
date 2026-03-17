@@ -144,7 +144,7 @@ export function normalizeContactValue(raw?: string | null) {
 
 export function getComparableContactMethods(contactMethods?: string | null, fallbackUrl?: string | null, fallbackNetwork?: string | null) {
   return parseContactMethods(contactMethods, fallbackUrl, fallbackNetwork)
-    .map((method) => normalizeContactValue(method.href))
+    .map((method) => normalizeContactValue(method.mode === "copy" ? method.value : method.href || method.value))
     .filter(Boolean);
 }
 
