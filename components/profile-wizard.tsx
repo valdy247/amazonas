@@ -423,22 +423,24 @@ export function ProfileWizard({ initialValues, email, language, roleLocked = fal
                 ) : null}
               </div>
 
-              <div className="rounded-[1.5rem] border border-[#eadfd6] bg-[#fcfaf7] p-4">
-                <p className="text-sm font-semibold text-[#131316]">{copy.experienceLevel ?? "Nivel de experiencia"}</p>
-                <p className="mt-1 text-sm text-[#62626d]">
-                  {copy.experienceLevelBody ?? "Elige el punto que mejor describe en que etapa te encuentras ahora."}
-                </p>
-                <div className="mt-4">
-                  <CompactSelect
-                    value={values.experienceLevel}
-                    onChange={(nextValue) => updateValue("experienceLevel", nextValue as ExperienceLevel)}
-                    options={(["new", "growing", "advanced"] as ExperienceLevel[]).map((level) => ({
-                      value: level,
-                      label: EXPERIENCE_LABELS[level],
-                    }))}
-                  />
+              {values.role === "reviewer" ? (
+                <div className="rounded-[1.5rem] border border-[#eadfd6] bg-[#fcfaf7] p-4">
+                  <p className="text-sm font-semibold text-[#131316]">{copy.experienceLevel ?? "Nivel de experiencia"}</p>
+                  <p className="mt-1 text-sm text-[#62626d]">
+                    {copy.experienceLevelBody ?? "Elige el punto que mejor describe en que etapa te encuentras ahora."}
+                  </p>
+                  <div className="mt-4">
+                    <CompactSelect
+                      value={values.experienceLevel}
+                      onChange={(nextValue) => updateValue("experienceLevel", nextValue as ExperienceLevel)}
+                      options={(["new", "growing", "advanced"] as ExperienceLevel[]).map((level) => ({
+                        value: level,
+                        label: EXPERIENCE_LABELS[level],
+                      }))}
+                    />
+                  </div>
                 </div>
-              </div>
+              ) : null}
 
               <div className="rounded-[1.5rem] border border-[#eadfd6] bg-[#fcfaf7] p-4">
                 <p className="text-sm font-semibold text-[#131316]">{copy.visibilityContactTitle}</p>
