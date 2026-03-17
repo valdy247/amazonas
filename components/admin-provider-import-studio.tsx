@@ -127,26 +127,47 @@ async function detectStructuredAvatarBoxes(file: File, source: ProviderImportSou
     scores.push({ y: centerY, score: samples ? total / samples : 0 });
   }
 
-  const maxScore = Math.max(...scores.map((item) => item.score), 0);
   const limit = expectedCount > 0 ? expectedCount : 18;
-  const minGap = Math.max(Math.round(avatarSize * 0.9), Math.round(height / Math.max(limit + 3, 8)));
+  const sortedValues = scores.map((item) => item.score).sort((left, right) => left - right);
+  const baseline = sortedValues[Math.max(0, Math.floor(sortedValues.length * 0.45))] || 0;
+  const peakThreshold = baseline * 1.08;
+  const minGap = Math.max(Math.round(avatarSize * 0.58), 18);
   const peaks: Array<{ y: number; score: number }> = [];
+  let runStart = -1;
 
-  for (let index = 1; index < scores.length - 1; index += 1) {
+  for (let index = 0; index < scores.length; index += 1) {
     const current = scores[index];
+    const aboveThreshold = current.score >= peakThreshold;
 
-    if (current.score < maxScore * 0.55) {
+    if (aboveThreshold && runStart === -1) {
+      runStart = index;
       continue;
     }
 
-    if (current.score >= scores[index - 1].score && current.score >= scores[index + 1].score) {
+    if (!aboveThreshold && runStart !== -1) {
+      const run = scores.slice(runStart, index);
+      const best = run.reduce((top, item) => (item.score > top.score ? item : top), run[0]);
       const previousPeak = peaks[peaks.length - 1];
 
-      if (!previousPeak || current.y - previousPeak.y >= minGap) {
-        peaks.push(current);
-      } else if (current.score > previousPeak.score) {
-        peaks[peaks.length - 1] = current;
+      if (!previousPeak || best.y - previousPeak.y >= minGap) {
+        peaks.push(best);
+      } else if (best.score > previousPeak.score) {
+        peaks[peaks.length - 1] = best;
       }
+
+      runStart = -1;
+    }
+  }
+
+  if (runStart !== -1) {
+    const run = scores.slice(runStart);
+    const best = run.reduce((top, item) => (item.score > top.score ? item : top), run[0]);
+    const previousPeak = peaks[peaks.length - 1];
+
+    if (!previousPeak || best.y - previousPeak.y >= minGap) {
+      peaks.push(best);
+    } else if (best.score > previousPeak.score) {
+      peaks[peaks.length - 1] = best;
     }
   }
 
