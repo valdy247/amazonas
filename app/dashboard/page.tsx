@@ -834,11 +834,6 @@ export default async function DashboardPage({
     { href: "/profile", label: currentUserLanguage === "en" ? "Edit profile" : "Editar perfil" },
     isAdmin ? { href: "/admin", label: currentUserLanguage === "en" ? "Admin panel" : "Panel admin" } : null,
   ].filter(Boolean) as Array<{ href: string; label: string; locked?: boolean }>;
-  const providerRequestStats = {
-    active: sentReviewerRequests.length,
-    accepted: unreadConversationCount,
-    conversations: collaborationThreads.length,
-  };
   const collaborationInboxKey = `${user.id}-${requestedThreadId || "none"}-${isProvider ? "provider" : "reviewer"}`;
 
   return (
@@ -883,18 +878,6 @@ export default async function DashboardPage({
               providerInterests={userInterests}
               language={currentUserLanguage}
             />
-            <section className="grid gap-3 sm:grid-cols-3">
-              {[
-                { label: copy.providerOpenChats, value: providerRequestStats.active, href: "/dashboard?section=messages" },
-                { label: copy.providerNewMessages, value: providerRequestStats.accepted, href: "/dashboard?section=messages" },
-                { label: copy.providerConversations, value: providerRequestStats.conversations, href: "/dashboard?section=messages" },
-              ].map((item) => (
-                <Link key={item.label} href={item.href} className="rounded-[1.6rem] border border-[#eadfd6] bg-white p-4 shadow-[0_18px_36px_rgba(22,18,14,0.04)] transition hover:border-[#ffcfbe] hover:bg-[#fffaf6]">
-                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8f857b]">{item.label}</p>
-                  <p className="mt-2 text-3xl font-bold text-[#131316]">{item.value}</p>
-                </Link>
-              ))}
-            </section>
           </>
         ) : null}
 
