@@ -212,7 +212,7 @@ export function ProviderContactGrid({ contacts, initialContactedIds, language }:
                     alt={contact.title}
                     className={`ring-1 ring-[#eadfd6] ${
                       isSocialReference(contact)
-                        ? "h-[3.2rem] w-[8.4rem] rounded-[1rem] bg-[#0f1117] object-contain object-left"
+                        ? "h-[3.2rem] w-[8.4rem] rounded-[1rem] bg-[#f5eee6] object-cover object-center"
                         : "h-12 w-12 rounded-full object-cover"
                     }`}
                   />
@@ -278,7 +278,7 @@ export function ProviderContactGrid({ contacts, initialContactedIds, language }:
                     alt={selectedContact.title}
                     className={`ring-1 ring-[#eadfd6] ${
                       isSocialReference(selectedContact)
-                        ? "h-[3.6rem] w-[9.4rem] rounded-[1rem] bg-[#0f1117] object-contain object-left"
+                        ? "h-[3.6rem] w-[9.4rem] rounded-[1rem] bg-[#f5eee6] object-cover object-center"
                         : "h-14 w-14 rounded-full object-cover"
                     }`}
                   />
