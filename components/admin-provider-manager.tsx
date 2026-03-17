@@ -139,7 +139,7 @@ export function AdminProviderManager({
                 }}
               >
                 <p className="text-sm font-semibold text-[#131316]">{group.reason}</p>
-                <p className="mt-1 text-xs text-[#62564a]">{group.labels.join(" • ")}</p>
+                <p className="mt-1 text-xs text-[#62564a]">{group.labels.join(" · ")}</p>
               </button>
             ))}
           </div>
@@ -174,7 +174,7 @@ export function AdminProviderManager({
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="rounded-full bg-[#f6f0e9] px-3 py-1 text-xs font-semibold text-[#62564a]">#{contact.id}</span>
-                  <span className="text-lg text-[#8f857b]">{isOpen ? "−" : "+"}</span>
+                  <span className="text-lg text-[#8f857b]">{isOpen ? "-" : "+"}</span>
                 </div>
               </button>
 
@@ -249,3 +249,4 @@ export function AdminProviderManager({
     </div>
   );
 }
+
