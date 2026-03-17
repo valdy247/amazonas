@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { AdminProviderCreateForm } from "@/components/admin-provider-create-form";
 import { AdminExportButton } from "@/components/admin-export-button";
+import { AdminOptionsPanel } from "@/components/admin-options-panel";
 import { AdminProviderImportStudio } from "@/components/admin-provider-import-studio";
 import { AdminProviderManager } from "@/components/admin-provider-manager";
 import { AdminSectionNav } from "@/components/admin-section-nav";
@@ -10,7 +11,6 @@ import { SiteHeader } from "@/components/site-header";
 import { hasAdminAccess } from "@/lib/admin";
 import { createClient } from "@/lib/supabase/server";
 import { WHATSAPP_PREFIX_OPTIONS } from "@/lib/whatsapp-prefix-options";
-import { createAdminUser } from "./actions";
 
 type ProfileRow = {
   id: string;
@@ -350,16 +350,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
           ) : null}
 
           {activeSection === "options" ? (
-            <div className="card p-4">
-              <h2 className="font-bold">Opciones admin</h2>
-              <p className="mt-1 text-sm text-[#62626d]">Gestiona permisos internos, administradores y accesos especiales.</p>
-              <form action={createAdminUser} noValidate className="mt-4 flex flex-col gap-2 sm:flex-row">
-                <input className="input" name="email" placeholder="correo@dominio.com" />
-                <button className="btn-primary" type="submit">
-                  Asignar admin
-                </button>
-              </form>
-            </div>
+            <AdminOptionsPanel />
           ) : null}
 
           {activeSection === "metrics" ? (

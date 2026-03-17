@@ -466,6 +466,24 @@ export async function createAdminUser(formData: FormData) {
   revalidatePath("/admin");
 }
 
+export async function createAdminUserAction(
+  _previousState: AdminActionState,
+  formData: FormData
+): Promise<AdminActionState> {
+  try {
+    await createAdminUser(formData);
+    return {
+      status: "success",
+      message: "Admin asignado correctamente.",
+    };
+  } catch (error) {
+    return {
+      status: "error",
+      message: error instanceof Error ? error.message : "No se pudo asignar el admin.",
+    };
+  }
+}
+
 export async function sendPasswordRecoveryForUser(formData: FormData) {
   const { supabase, admin, adminId } = await assertAdmin();
   const userId = String(formData.get("user_id") || "").trim();
