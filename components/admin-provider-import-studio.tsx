@@ -717,6 +717,29 @@ export function AdminProviderImportStudio() {
                       title="Quitar este recorte"
                     />
                   ))}
+                  <div className="pointer-events-none absolute bottom-3 right-3 z-10">
+                    <div className="pointer-events-auto flex items-center gap-2 rounded-full border border-white/12 bg-[#141926]/88 p-2 shadow-[0_18px_40px_rgba(0,0,0,0.32)] backdrop-blur">
+                      <button
+                        type="button"
+                        aria-label="Quitar un recorte"
+                        className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/8 text-xl font-bold text-white transition hover:bg-white/14 disabled:opacity-35"
+                        onClick={() => changeManualCropCount(-1)}
+                        disabled={(currentManualImage.anchors?.length || 0) < 2 || currentManualImage.cropCount <= 2}
+                      >
+                        −
+                      </button>
+                      <div className="min-w-10 text-center text-sm font-semibold text-white/84">{currentManualImage.cropCount}</div>
+                      <button
+                        type="button"
+                        aria-label="Agregar un recorte"
+                        className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-[#ff6b35] text-xl font-bold text-white shadow-[0_10px_24px_rgba(255,107,53,0.35)] transition hover:bg-[#ff7a4c] disabled:opacity-35"
+                        onClick={() => changeManualCropCount(1)}
+                        disabled={(currentManualImage.anchors?.length || 0) < 2 || currentManualImage.cropCount >= 24}
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
@@ -724,22 +747,6 @@ export function AdminProviderImportStudio() {
                     {currentManualImage.crops.length} recortes en esta imagen
                   </div>
                   <div className="flex gap-2">
-                    <button
-                      type="button"
-                      className="rounded-full border border-[#eadfd6] px-3 py-2 text-xs font-semibold text-[#62564a] disabled:opacity-45"
-                      onClick={() => changeManualCropCount(-1)}
-                      disabled={(currentManualImage.anchors?.length || 0) < 2 || currentManualImage.cropCount <= 2}
-                    >
-                      -
-                    </button>
-                    <button
-                      type="button"
-                      className="rounded-full border border-[#eadfd6] px-3 py-2 text-xs font-semibold text-[#62564a] disabled:opacity-45"
-                      onClick={() => changeManualCropCount(1)}
-                      disabled={(currentManualImage.anchors?.length || 0) < 2 || currentManualImage.cropCount >= 24}
-                    >
-                      +
-                    </button>
                     <button
                       type="button"
                       className="rounded-full border border-[#eadfd6] px-3 py-2 text-xs font-semibold text-[#62564a]"
