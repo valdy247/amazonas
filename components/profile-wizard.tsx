@@ -130,7 +130,7 @@ export function ProfileWizard({ initialValues, email, language, roleLocked = fal
     }
 
     if (currentStep.id === "focus") {
-      if (!values.country) {
+      if (values.role === "reviewer" && !values.country) {
         return copy.selectCountry;
       }
 
@@ -399,26 +399,28 @@ export function ProfileWizard({ initialValues, email, language, roleLocked = fal
                   </span>
                 </div>
 
-                <div className="mt-4 rounded-[1.5rem] bg-[#1e1712] p-4 text-white">
-                  <div className="flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-white/55">
-                    <MapPin className="h-4 w-4" />
-                    {copy.mainRegion}
+                {values.role === "reviewer" ? (
+                  <div className="mt-4 rounded-[1.5rem] bg-[#1e1712] p-4 text-white">
+                    <div className="flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-white/55">
+                      <MapPin className="h-4 w-4" />
+                      {copy.mainRegion}
+                    </div>
+                    <p className="mt-3 text-lg font-bold">{selectedCountryLabel}</p>
+                    <p className="mt-1 text-sm text-white/65">{copy.mainRegionBody}</p>
+                    <div className="mt-4">
+                      <CompactSelect
+                        tone="dark"
+                        value={values.country}
+                        onChange={(nextValue) => updateValue("country", nextValue)}
+                        placeholder={copy.noCountrySelected}
+                        options={[
+                          { value: "", label: copy.noCountrySelected },
+                          ...COUNTRY_OPTIONS.map((country) => ({ value: country, label: country })),
+                        ]}
+                      />
+                    </div>
                   </div>
-                  <p className="mt-3 text-lg font-bold">{selectedCountryLabel}</p>
-                  <p className="mt-1 text-sm text-white/65">{copy.mainRegionBody}</p>
-                  <div className="mt-4">
-                    <CompactSelect
-                      tone="dark"
-                      value={values.country}
-                      onChange={(nextValue) => updateValue("country", nextValue)}
-                      placeholder={copy.noCountrySelected}
-                      options={[
-                        { value: "", label: copy.noCountrySelected },
-                        ...COUNTRY_OPTIONS.map((country) => ({ value: country, label: country })),
-                      ]}
-                    />
-                  </div>
-                </div>
+                ) : null}
               </div>
 
               <div className="rounded-[1.5rem] border border-[#eadfd6] bg-[#fcfaf7] p-4">
