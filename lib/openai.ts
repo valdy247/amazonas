@@ -226,7 +226,7 @@ export async function extractProviderContactsFromImage(input: {
           content: [
             {
               type: "input_text",
-              text: `Source platform selected by admin: ${sourceLabel}.\n${extractionRule}\nIf you can see a profile image next to a contact row, also return an approximate normalized avatar box for that row. Use numbers between 0 and 1. Return only JSON in this shape: {"contacts":[{"value":"value 1","avatar_box":{"x":0.1,"y":0.2,"w":0.08,"h":0.08}}]}`,
+              text: `Source platform selected by admin: ${sourceLabel}.\n${extractionRule}\nIf you can see a profile image next to a contact row, also return an approximate normalized avatar box for that row. The avatar_box must be tightly framed around the avatar image only, not the full row, not the text, and not neighboring avatars. For Messenger and Facebook chat lists, prefer the left circular thumbnail only. Use numbers between 0 and 1. Return only JSON in this shape: {"contacts":[{"value":"value 1","avatar_box":{"x":0.1,"y":0.2,"w":0.08,"h":0.08}}]}`,
             },
             {
               type: "input_image",

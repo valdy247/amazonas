@@ -85,9 +85,8 @@ async function cropAvatarDataUrl(
     const rawH = Math.max(24, box.h * image.height);
     const socialCrop = source === "messenger" || source === "facebook";
     const baseSquare = socialCrop ? Math.min(rawW, rawH) : Math.max(rawW, rawH);
-    const horizontalBias = socialCrop ? rawW * 0.12 : 0;
-    const centerX = rawX + rawW / 2 - horizontalBias;
-    const centerY = socialCrop && rawH > rawW * 1.2 ? rawY + Math.min(rawW, rawH) / 2 : rawY + rawH / 2;
+    const centerX = socialCrop ? rawX + baseSquare / 2 : rawX + rawW / 2;
+    const centerY = socialCrop ? rawY + baseSquare / 2 : rawY + rawH / 2;
     const squareSize = Math.max(24, baseSquare * (socialCrop ? 0.98 : 1.45));
     const sourceX = Math.round(Math.max(0, Math.min(centerX - squareSize / 2, image.width - squareSize)));
     const sourceY = Math.round(Math.max(0, Math.min(centerY - squareSize / 2, image.height - squareSize)));
