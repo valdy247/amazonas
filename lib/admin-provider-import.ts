@@ -15,6 +15,7 @@ export type ProviderImportDraft = {
   instagram?: string | null;
   messenger?: string | null;
   facebook?: string | null;
+  avatarDataUrl?: string | null;
   notes?: string | null;
   isVerified?: boolean;
 };
@@ -164,6 +165,7 @@ export async function createProviderContactRecord(
   const instagram = String(input.instagram || "").trim();
   const messenger = String(input.messenger || "").trim();
   const facebook = String(input.facebook || "").trim();
+  const avatarDataUrl = String(input.avatarDataUrl || "").trim();
   const notes = String(input.notes || "").trim();
   const contactMethods = buildContactMethodsFromFields({ whatsapp, instagram, messenger, facebook });
   const methodCount = [whatsapp, instagram, messenger, facebook].filter(Boolean).length;
@@ -195,6 +197,7 @@ export async function createProviderContactRecord(
       network: primaryNetwork,
       url: safeUrl,
       contact_methods: contactMethods || null,
+      avatar_data_url: avatarDataUrl || null,
       notes,
       is_verified: Boolean(input.isVerified),
       created_by: adminId,
@@ -204,6 +207,7 @@ export async function createProviderContactRecord(
       network: primaryNetwork,
       url: safeUrl,
       contact_methods: contactMethods || null,
+      avatar_data_url: avatarDataUrl || null,
       notes,
       is_verified: Boolean(input.isVerified),
       created_by: adminId,
@@ -212,6 +216,7 @@ export async function createProviderContactRecord(
       title: safeTitle,
       network: primaryNetwork,
       url: safeUrl,
+      avatar_data_url: avatarDataUrl || null,
       notes,
       is_verified: Boolean(input.isVerified),
       created_by: adminId,
@@ -220,6 +225,7 @@ export async function createProviderContactRecord(
       title: safeTitle,
       network: primaryNetwork,
       url: safeUrl,
+      avatar_data_url: avatarDataUrl || null,
       notes,
       created_by: adminId,
     },

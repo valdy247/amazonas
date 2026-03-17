@@ -226,7 +226,7 @@ export async function extractProviderContactsFromImage(input: {
           content: [
             {
               type: "input_text",
-              text: `Source platform selected by admin: ${sourceLabel}.\n${extractionRule}\nReturn only JSON in this shape: {"contacts":["value 1","value 2"]}`,
+              text: `Source platform selected by admin: ${sourceLabel}.\n${extractionRule}\nIf you can see a profile image next to a contact row, also return an approximate normalized avatar box for that row. Use numbers between 0 and 1. Return only JSON in this shape: {"contacts":[{"value":"value 1","avatar_box":{"x":0.1,"y":0.2,"w":0.08,"h":0.08}}]}`,
             },
             {
               type: "input_image",
@@ -254,8 +254,29 @@ export async function extractProviderContactsFromImage(input: {
     throw new Error(data.error?.message || "No se pudo procesar la captura.");
   }
 
-  const parsed = parseJsonObject<{ contacts?: string[] }>(extractResponseText(data));
+  const parsed = parseJsonObject<{
+    contacts?: Array<{
+      value?: string;
+      avatar_box?: { x?: number; y?: number; w?: number; h?: number };
+    }>;
+  }>(extractResponseText(data));
   return Array.isArray(parsed?.contacts)
-    ? parsed.contacts.map((item) => String(item || "").trim()).filter(Boolean)
+    ? parsed.contacts
+        .map((item) => ({
+          value: String(item?.value || "").trim(),
+          avatarBox:
+            item?.avatar_box &&
+            [item.avatar_box.x, item.avatar_box.y, item.avatar_box.w, item.avatar_box.h].every(
+              (part) => typeof part === "number" && Number.isFinite(part)
+            )
+              ? {
+                  x: Math.max(0, Math.min(1, Number(item.avatar_box.x))),
+                  y: Math.max(0, Math.min(1, Number(item.avatar_box.y))),
+                  w: Math.max(0, Math.min(1, Number(item.avatar_box.w))),
+                  h: Math.max(0, Math.min(1, Number(item.avatar_box.h))),
+                }
+              : null,
+        }))
+        .filter((item) => item.value)
     : [];
 }

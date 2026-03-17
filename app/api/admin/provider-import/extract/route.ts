@@ -69,6 +69,7 @@ export async function POST(request: Request) {
       preview: string;
       duplicateMessage: string | null;
       fileName: string;
+      avatarBox?: { x: number; y: number; w: number; h: number } | null;
     }> = [];
     const seen = new Set<string>();
 
@@ -78,7 +79,7 @@ export async function POST(request: Request) {
       const extracted = await extractProviderContactsFromImage({ imageDataUrl: dataUrl, source });
 
       for (const rawValue of extracted) {
-        const normalized = normalizeImportedContactValue(source, rawValue);
+        const normalized = normalizeImportedContactValue(source, rawValue.value);
 
         if (!normalized || seen.has(`${source}:${normalized}`)) {
           continue;
@@ -88,6 +89,7 @@ export async function POST(request: Request) {
         const draft = inferDraftFromSource(source, normalized);
         const duplicateMessage = await findDuplicateProviderContact(admin, {
           email: draft.email,
+          facebook: "facebook" in draft ? draft.facebook : undefined,
           instagram: draft.instagram,
           messenger: draft.messenger,
           whatsapp: draft.whatsapp,
@@ -100,6 +102,7 @@ export async function POST(request: Request) {
           preview: draft.preview,
           duplicateMessage,
           fileName: file.name,
+          avatarBox: rawValue.avatarBox,
         });
       }
     }

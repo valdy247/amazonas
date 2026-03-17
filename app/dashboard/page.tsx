@@ -23,6 +23,7 @@ type ProviderContact = {
   url: string;
   notes: string | null;
   is_verified: boolean;
+  avatar_data_url?: string | null;
   email?: string | null;
   contact_methods?: string | null;
   source?: "admin" | "registered";
@@ -392,15 +393,15 @@ export default async function DashboardPage({
   }
 
   if (canSeeContacts) {
-    const withMethods = await supabase
+      const withMethods = await supabase
       .from("provider_contacts")
-      .select("id, title, email, network, url, notes, is_verified, contact_methods")
+      .select("id, title, email, network, url, notes, is_verified, avatar_data_url, contact_methods")
       .eq("is_active", true);
 
     if (withMethods.error) {
-      const withVerification = await supabase
+        const withVerification = await supabase
         .from("provider_contacts")
-        .select("id, title, network, url, notes, is_verified")
+        .select("id, title, network, url, notes, is_verified, avatar_data_url")
         .eq("is_active", true);
 
       if (withVerification.error) {
@@ -410,6 +411,7 @@ export default async function DashboardPage({
           id: `admin:${contact.id}`,
           email: null,
           is_verified: false,
+          avatar_data_url: null,
           contact_methods: null,
           history_id: contact.id,
           source: "admin",
@@ -417,10 +419,11 @@ export default async function DashboardPage({
         })) as ProviderContact[];
       } else {
         contacts = (withVerification.data || []).map((contact) => ({
-          ...contact,
-          email: null,
-          id: `admin:${contact.id}`,
-          contact_methods: null,
+            ...contact,
+            email: null,
+            id: `admin:${contact.id}`,
+            avatar_data_url: contact.avatar_data_url || null,
+            contact_methods: null,
           history_id: contact.id,
           source: "admin",
           source_label: "Equipo",

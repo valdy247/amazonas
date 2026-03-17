@@ -13,6 +13,7 @@ type ProviderContact = {
   url: string;
   notes: string | null;
   is_verified: boolean;
+  avatar_data_url?: string | null;
   contact_methods?: string | null;
   source?: "admin" | "registered";
   source_label?: string | null;
@@ -194,9 +195,18 @@ export function ProviderContactGrid({ contacts, initialContactedIds, language }:
         {visibleContacts.map((contact) => (
           <article key={contact.id} className="rounded-[1.5rem] border border-[#eee5db] bg-[linear-gradient(180deg,#ffffff_0%,#fcfaf7_100%)] p-4">
             <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="font-semibold">{contact.title}</p>
-                <p className="text-xs text-[#62626d]">{contact.network || copy.undefinedNetwork}</p>
+              <div className="flex items-start gap-3">
+                {contact.avatar_data_url ? (
+                  <img src={contact.avatar_data_url} alt={contact.title} className="h-12 w-12 rounded-full object-cover ring-1 ring-[#eadfd6]" />
+                ) : (
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#f4ece5] text-sm font-bold text-[#7c7064]">
+                    {contact.title.slice(0, 1)}
+                  </div>
+                )}
+                <div>
+                  <p className="font-semibold">{contact.title}</p>
+                  <p className="text-xs text-[#62626d]">{contact.network || copy.undefinedNetwork}</p>
+                </div>
               </div>
               <div className="flex flex-wrap justify-end gap-2">
                 {contact.source_label ? (
@@ -239,10 +249,15 @@ export function ProviderContactGrid({ contacts, initialContactedIds, language }:
         <div className="fixed inset-0 z-30 bg-[#131316]/45 p-4 backdrop-blur-sm">
           <div className="mx-auto mt-16 w-full max-w-md rounded-[1.8rem] border border-[#e7ddd2] bg-white p-5 shadow-[0_26px_80px_rgba(17,17,17,0.18)]">
             <div className="flex items-start justify-between gap-3">
-              <div>
+              <div className="flex items-start gap-3">
+                {selectedContact.avatar_data_url ? (
+                  <img src={selectedContact.avatar_data_url} alt={selectedContact.title} className="h-14 w-14 rounded-full object-cover ring-1 ring-[#eadfd6]" />
+                ) : null}
+                <div>
                 <p className="text-sm font-semibold text-[#dc4f1f]">{copy.contactProviderTitle}</p>
                 <h3 className="mt-2 text-2xl font-bold">{selectedContact.title}</h3>
                 <p className="mt-2 text-sm text-[#62626d]">{copy.contactProviderBody}</p>
+                </div>
               </div>
               <button
                 type="button"

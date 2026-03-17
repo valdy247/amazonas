@@ -57,6 +57,7 @@ create table if not exists public.provider_contacts (
   network text,
   url text not null,
   contact_methods text,
+  avatar_data_url text,
   notes text,
   is_active boolean default true,
   is_verified boolean default false,
@@ -66,6 +67,7 @@ create table if not exists public.provider_contacts (
 
 alter table public.provider_contacts add column if not exists contact_methods text;
 alter table public.provider_contacts add column if not exists email text;
+alter table public.provider_contacts add column if not exists avatar_data_url text;
 alter table public.provider_contacts add column if not exists is_verified boolean default false;
 
 create table if not exists public.admin_audit_logs (

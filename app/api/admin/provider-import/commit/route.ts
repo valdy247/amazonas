@@ -11,6 +11,7 @@ import { createClient } from "@/lib/supabase/server";
 
 type ImportRow = {
   value: string;
+  avatarDataUrl?: string | null;
 };
 
 async function assertAdminRoute() {
@@ -84,6 +85,7 @@ export async function POST(request: Request) {
       try {
         const alias = await createProviderContactRecord(admin, userId, {
           ...buildDraftFromSource(source, normalized),
+          avatarDataUrl: row.avatarDataUrl || null,
           notes: `Importado con IA desde capturas de ${source}.`,
           isVerified: Boolean(body.isVerified),
         });

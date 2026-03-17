@@ -12,6 +12,8 @@ type PreviewRow = {
   preview: string;
   duplicateMessage: string | null;
   fileName: string;
+  avatarBox?: { x: number; y: number; w: number; h: number } | null;
+  avatarDataUrl?: string | null;
 };
 
 const SOURCE_OPTIONS: Array<{ value: ProviderImportSource; label: string }> = [
@@ -22,7 +24,7 @@ const SOURCE_OPTIONS: Array<{ value: ProviderImportSource; label: string }> = [
   { value: "email", label: "Email" },
 ];
 
-async function compressImage(file: File) {
+async function compressImage(file: File, index: number) {
   const imageUrl = URL.createObjectURL(file);
 
   try {
@@ -52,7 +54,48 @@ async function compressImage(file: File) {
       canvas.toBlob(resolve, "image/jpeg", 0.78);
     });
 
-    return new File([blob || file], `${file.name.replace(/\.[^.]+$/, "")}.jpg`, { type: "image/jpeg" });
+    return new File([blob || file], `${file.name.replace(/\.[^.]+$/, "")}-${index}.jpg`, { type: "image/jpeg" });
+  } finally {
+    URL.revokeObjectURL(imageUrl);
+  }
+}
+
+async function cropAvatarDataUrl(file: File, box?: { x: number; y: number; w: number; h: number } | null) {
+  if (!box) {
+    return null;
+  }
+
+  const imageUrl = URL.createObjectURL(file);
+
+  try {
+    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error(`No se pudo leer ${file.name}`));
+      img.src = imageUrl;
+    });
+
+    const sourceX = Math.max(0, Math.round(box.x * image.width));
+    const sourceY = Math.max(0, Math.round(box.y * image.height));
+    const sourceW = Math.max(24, Math.round(box.w * image.width));
+    const sourceH = Math.max(24, Math.round(box.h * image.height));
+    const size = 96;
+    const canvas = document.createElement("canvas");
+    canvas.width = size;
+    canvas.height = size;
+    const context = canvas.getContext("2d");
+
+    if (!context) {
+      return null;
+    }
+
+    context.beginPath();
+    context.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
+    context.closePath();
+    context.clip();
+    context.drawImage(image, sourceX, sourceY, sourceW, sourceH, 0, 0, size, size);
+
+    return canvas.toDataURL("image/jpeg", 0.82);
   } finally {
     URL.revokeObjectURL(imageUrl);
   }
@@ -76,7 +119,8 @@ export function AdminProviderImportStudio() {
     setStatus("");
     startExtract(async () => {
       try {
-        const prepared = await Promise.all(Array.from(files).map((file) => compressImage(file)));
+        const prepared = await Promise.all(Array.from(files).map((file, index) => compressImage(file, index)));
+        const preparedByName = new Map(prepared.map((file) => [file.name, file]));
         const chunkSize = 8;
         const aggregated: PreviewRow[] = [];
 
@@ -96,7 +140,14 @@ export function AdminProviderImportStudio() {
             throw new Error(data.error || "No se pudieron procesar las capturas.");
           }
 
-          aggregated.push(...(data.rows || []));
+          const enrichedRows = await Promise.all(
+            (data.rows || []).map(async (row) => ({
+              ...row,
+              avatarDataUrl: row.avatarBox ? await cropAvatarDataUrl(preparedByName.get(row.fileName) || chunk[0], row.avatarBox) : null,
+            }))
+          );
+
+          aggregated.push(...enrichedRows);
           setStatus(`Procesadas ${Math.min(index + chunk.length, prepared.length)} de ${prepared.length} capturas...`);
         }
 
@@ -150,7 +201,7 @@ export function AdminProviderImportStudio() {
             isVerified,
             rows: rows
               .filter((row) => !row.duplicateMessage && row.value.trim())
-              .map((row) => ({ value: row.value.trim() })),
+              .map((row) => ({ value: row.value.trim(), avatarDataUrl: row.avatarDataUrl || null })),
           }),
         });
         const data = (await response.json()) as {
@@ -238,6 +289,12 @@ export function AdminProviderImportStudio() {
                 <div key={row.id} className="rounded-[1.2rem] border border-[#efe5db] bg-[#fffdfa] p-3">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
+                      {row.avatarDataUrl ? (
+                        <div className="mb-2 flex items-center gap-3">
+                          <img src={row.avatarDataUrl} alt={row.preview} className="h-12 w-12 rounded-full object-cover ring-1 ring-[#eadfd6]" />
+                          <span className="text-xs text-[#8f857b]">Referencia visual</span>
+                        </div>
+                      ) : null}
                       <p className="text-xs uppercase tracking-[0.18em] text-[#8f857b]">
                         {row.source} · {row.fileName}
                       </p>
