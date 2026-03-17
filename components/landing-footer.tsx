@@ -85,6 +85,15 @@ export function LandingFooter({ language }: LandingFooterProps) {
                 <Link href={`/terms?lang=${language}`} className="text-white/70 transition hover:text-[#ff9c72]">
                   {copy.footerTerms}
                 </Link>
+                <Link href={`/acceptable-use?lang=${language}`} className="text-white/70 transition hover:text-[#ff9c72]">
+                  {copy.footerAcceptableUse}
+                </Link>
+                <Link href={`/review-integrity?lang=${language}`} className="text-white/70 transition hover:text-[#ff9c72]">
+                  {copy.footerReviewIntegrity}
+                </Link>
+                <Link href={`/disputes?lang=${language}`} className="text-white/70 transition hover:text-[#ff9c72]">
+                  {copy.footerDisputes}
+                </Link>
               </div>
             </div>
 

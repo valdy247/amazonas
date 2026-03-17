@@ -58,6 +58,7 @@ export function AuthForm() {
     const phone = String(formData.get("phone") || "").trim();
     const fullName = `${firstName} ${lastName}`.trim();
     const identityConfirmed = String(formData.get("identity_confirmation") || "") === "on";
+    const legalConsent = String(formData.get("legal_consent") || "") === "on";
     const preferredLanguageValue = normalizeLanguage(formData.get("preferred_language"));
 
     try {
@@ -85,8 +86,13 @@ export function AuthForm() {
         if (!identityConfirmed) {
           return setError(copy.identityRequired), void setLoading(false);
         }
+        if (!legalConsent) {
+          return setError(copy.legalConsentRequired), void setLoading(false);
+        }
         if (password.length < 8) return setError(copy.passwordMin), void setLoading(false);
         if (password !== confirmPassword) return setError(copy.passwordMismatch), void setLoading(false);
+
+        const acceptedAt = new Date().toISOString();
 
         const res = await fetch("/api/auth/signup", {
           method: "POST",
@@ -100,6 +106,9 @@ export function AuthForm() {
               phone,
               full_name: fullName,
               preferred_language: preferredLanguageValue,
+              legal_consent: true,
+              accepted_terms_at: acceptedAt,
+              accepted_legal_policy_version: "2026-03-17",
             },
           }),
         });
@@ -222,6 +231,20 @@ export function AuthForm() {
             <span className="flex items-start gap-3">
               <input className="mt-1" type="checkbox" name="identity_confirmation" required />
               <span>{copy.identityConfirmation}</span>
+            </span>
+          </label>
+          <label className="rounded-[1.2rem] border border-[#eadfd6] bg-[#fcfaf7] px-4 py-3 text-sm text-[#62564a]">
+            <span className="flex items-start gap-3">
+              <input className="mt-1" type="checkbox" name="legal_consent" required />
+              <span>
+                {copy.legalConsent}{" "}
+                <a className="font-semibold text-[#dc4f1f]" href={`/terms?lang=${preferredLanguage}`} target="_blank" rel="noreferrer">{preferredLanguage === "en" ? "Terms" : "Terminos"}</a>,{" "}
+                <a className="font-semibold text-[#dc4f1f]" href={`/privacy?lang=${preferredLanguage}`} target="_blank" rel="noreferrer">{preferredLanguage === "en" ? "Privacy" : "Privacidad"}</a>,{" "}
+                <a className="font-semibold text-[#dc4f1f]" href={`/acceptable-use?lang=${preferredLanguage}`} target="_blank" rel="noreferrer">AUP</a>,{" "}
+                <a className="font-semibold text-[#dc4f1f]" href={`/review-integrity?lang=${preferredLanguage}`} target="_blank" rel="noreferrer">Review Integrity</a>{" "}
+                {preferredLanguage === "en" ? "and" : "y"}{" "}
+                <a className="font-semibold text-[#dc4f1f]" href={`/disputes?lang=${preferredLanguage}`} target="_blank" rel="noreferrer">Disputes</a>.
+              </span>
             </span>
           </label>
         </div>

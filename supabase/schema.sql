@@ -203,6 +203,13 @@ begin
     coalesce(new.raw_user_meta_data ->> 'preferred_language', 'es')
   );
 
+  update public.profiles
+  set accepted_terms_at = coalesce(
+    nullif(new.raw_user_meta_data ->> 'accepted_terms_at', '')::timestamptz,
+    accepted_terms_at
+  )
+  where id = new.id;
+
   insert into public.memberships (user_id)
   values (new.id);
 

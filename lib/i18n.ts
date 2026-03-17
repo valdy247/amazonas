@@ -41,6 +41,8 @@ export const authCopy = {
     language: "Idioma",
     identityConfirmation:
       "Confirmo que mi nombre y apellidos estan escritos correctamente y coinciden con mi documento oficial.",
+    legalConsent:
+      "Acepto los Terminos, la Politica de privacidad, la Politica de uso aceptable, la Politica de integridad de resenas y la Politica de disputas y limitacion de responsabilidad.",
     createAccount: "Crear cuenta",
     enter: "Entrar",
     processing: "Procesando...",
@@ -51,6 +53,7 @@ export const authCopy = {
     requiredName: "Debes ingresar nombre y apellidos.",
     invalidPhone: "Numero de telefono invalido.",
     identityRequired: "Debes confirmar que tu nombre coincide con tu documento oficial.",
+    legalConsentRequired: "Debes aceptar las politicas y terminos para crear tu cuenta.",
     passwordMin: "La contrasena debe tener al menos 8 caracteres.",
     passwordMismatch: "Las contrasenas no coinciden.",
     passwordUpdateFailed: "No se pudo actualizar la contrasena.",
@@ -87,6 +90,8 @@ export const authCopy = {
     language: "Language",
     identityConfirmation:
       "I confirm that my first and last name are correct and match my official document.",
+    legalConsent:
+      "I accept the Terms, Privacy Policy, Acceptable Use Policy, Review Integrity Policy, and Disputes and Limitation of Liability Policy.",
     createAccount: "Create account",
     enter: "Enter",
     processing: "Processing...",
@@ -97,6 +102,7 @@ export const authCopy = {
     requiredName: "You must enter first and last name.",
     invalidPhone: "Invalid phone number.",
     identityRequired: "You must confirm that your name matches your official document.",
+    legalConsentRequired: "You must accept the policies and terms before creating your account.",
     passwordMin: "Password must be at least 8 characters long.",
     passwordMismatch: "Passwords do not match.",
     passwordUpdateFailed: "The password could not be updated.",
@@ -144,6 +150,9 @@ export const landingCopy = {
     footerLegal: "Legal",
     footerPrivacy: "Politica de privacidad",
     footerTerms: "Terminos y condiciones",
+    footerAcceptableUse: "Uso aceptable",
+    footerReviewIntegrity: "Integridad de resenas",
+    footerDisputes: "Disputas y responsabilidad",
     footerSupport: "Soporte",
     footerSupportLink: "Centro de soporte",
     footerSupportBody: "Si ya tienes cuenta, puedes hablar con soporte desde tu panel.",
@@ -176,6 +185,9 @@ export const landingCopy = {
     footerLegal: "Legal",
     footerPrivacy: "Privacy policy",
     footerTerms: "Terms and conditions",
+    footerAcceptableUse: "Acceptable use",
+    footerReviewIntegrity: "Review integrity",
+    footerDisputes: "Disputes and liability",
     footerSupport: "Support",
     footerSupportLink: "Support center",
     footerSupportBody: "If you already have an account, you can talk to support from your dashboard.",

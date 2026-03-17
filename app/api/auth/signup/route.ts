@@ -20,9 +20,14 @@ export async function POST(request: Request) {
     const body = (await request.json()) as SignupBody;
     const email = String(body.email || "").trim().toLowerCase();
     const password = String(body.password || "");
+    const legalConsent = body.data && typeof body.data === "object" ? Boolean(body.data.legal_consent) : false;
 
     if (!email || !password) {
       return NextResponse.json({ error: "Datos incompletos" }, { status: 400 });
+    }
+
+    if (!legalConsent) {
+      return NextResponse.json({ error: "Debes aceptar las politicas y terminos antes de crear tu cuenta." }, { status: 400 });
     }
 
     const rateLimitError = await rejectRateLimited({
