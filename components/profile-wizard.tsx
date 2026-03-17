@@ -150,7 +150,7 @@ export function ProfileWizard({ initialValues, email, language, roleLocked = fal
     }
 
     if (currentStep.id === "confirm" && !values.acceptTerms) {
-      return copy.acceptTerms;
+      return null;
     }
 
     return null;
@@ -635,11 +635,6 @@ export function ProfileWizard({ initialValues, email, language, roleLocked = fal
                   ))}
                 </div>
               </div>
-
-              <label className="flex items-start gap-3 rounded-2xl border border-[#e5e5df] p-4 text-sm">
-                <input type="checkbox" checked={values.acceptTerms} onChange={(event) => updateValue("acceptTerms", event.target.checked)} className="mt-1" />
-                <span>{copy.terms}</span>
-              </label>
             </>
           ) : null}
 
