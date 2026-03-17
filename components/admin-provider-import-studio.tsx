@@ -248,11 +248,24 @@ function resolveManualCrops(
     ...sortedAnchors[1],
     y: Math.max(0, Math.min(1 - normalizedHeight, sortedAnchors[1].y)),
   };
-  const spacing = Math.max(normalizedHeight * 0.75, secondAnchor.y - firstAnchor.y);
   const generated: ManualCropBox[] = [firstAnchor, secondAnchor];
 
+  const thirdAnchor =
+    sortedAnchors.length >= 3
+      ? {
+          ...sortedAnchors[2],
+          y: Math.max(0, Math.min(1 - normalizedHeight, sortedAnchors[2].y)),
+        }
+      : null;
+
+  const topSpacing = Math.max(normalizedHeight * 0.75, secondAnchor.y - firstAnchor.y);
+  const bottomSpacing =
+    thirdAnchor && cropCount > 1 ? Math.max(normalizedHeight * 0.75, (thirdAnchor.y - firstAnchor.y) / (cropCount - 1)) : topSpacing;
+
   for (let index = 2; index < cropCount; index += 1) {
-    const nextY = firstAnchor.y + spacing * index;
+    const progress = cropCount <= 1 ? 1 : index / (cropCount - 1);
+    const interpolatedSpacing = topSpacing + (bottomSpacing - topSpacing) * progress;
+    const nextY = generated[index - 1].y + interpolatedSpacing;
     if (nextY > 1 - normalizedHeight) {
       break;
     }
@@ -499,11 +512,11 @@ export function AdminProviderImportStudio() {
               ...image,
               anchors: [...image.anchors, createManualCrop(`${image.id}-anchor-${Date.now()}`, clickRatioY, manualCropLeft, manualCropWidth, manualCropHeight)]
                 .sort((left, right) => left.y - right.y)
-                .slice(0, 2),
+                .slice(0, 3),
               crops: resolveManualCrops(
                 [...image.anchors, createManualCrop(`${image.id}-anchor-${Date.now()}`, clickRatioY, manualCropLeft, manualCropWidth, manualCropHeight)]
                   .sort((left, right) => left.y - right.y)
-                  .slice(0, 2),
+                  .slice(0, 3),
                 image.anchors.length >= 1 ? image.cropCount : 1,
                 manualCropLeft,
                 manualCropWidth,
@@ -745,7 +758,7 @@ export function AdminProviderImportStudio() {
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-sm font-semibold text-[#131316]">3. Recorte manual por filas</p>
-                <p className="mt-1 text-xs text-[#62564a]">Toca la primera y la segunda fila para crear el patrón. Luego usa + o - para generar más o menos recortes.</p>
+                <p className="mt-1 text-xs text-[#62564a]">Toca la primera y la segunda fila para crear el patrón. Si abajo se corre, marca una tercera fila para calibrarlo.</p>
               </div>
               <span className="rounded-full bg-[#f6f1ea] px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-[#7c7064]">
                 {manualIndex + 1}/{manualImages.length}
