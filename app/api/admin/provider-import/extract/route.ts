@@ -13,6 +13,8 @@ function inferDraftFromSource(source: ProviderImportSource, value: string) {
   switch (source) {
     case "messenger":
       return { messenger: value, preview: value.replace(/^https?:\/\/(www\.)?m\.me\//i, "") };
+    case "facebook":
+      return { messenger: value, preview: value.replace(/^https?:\/\/(www\.)?facebook\.com\//i, "") };
     case "instagram":
       return { instagram: value, preview: value.replace(/^https?:\/\/(www\.)?instagram\.com\//i, "") };
     case "whatsapp":
@@ -52,7 +54,7 @@ export async function POST(request: Request) {
       .getAll("files")
       .filter((entry): entry is File => entry instanceof File && entry.size > 0);
 
-    if (!["messenger", "instagram", "whatsapp", "email"].includes(source)) {
+    if (!["messenger", "facebook", "instagram", "whatsapp", "email"].includes(source)) {
       return NextResponse.json({ error: "Fuente invalida." }, { status: 400 });
     }
 

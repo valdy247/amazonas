@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 
-type ProviderImportSource = "messenger" | "instagram" | "whatsapp" | "email";
+type ProviderImportSource = "messenger" | "facebook" | "instagram" | "whatsapp" | "email";
 
 type PreviewRow = {
   id: string;
@@ -13,27 +13,12 @@ type PreviewRow = {
   fileName: string;
 };
 
-const SOURCE_OPTIONS: Array<{ value: ProviderImportSource; label: string; helper: string }> = [
-  {
-    value: "messenger",
-    label: "Messenger",
-    helper: "GPT solo sacara usernames o handles de Messenger visibles en las capturas.",
-  },
-  {
-    value: "instagram",
-    label: "Instagram",
-    helper: "GPT solo sacara usernames de Instagram visibles en las capturas.",
-  },
-  {
-    value: "whatsapp",
-    label: "WhatsApp",
-    helper: "GPT solo sacara numeros de WhatsApp visibles en las capturas.",
-  },
-  {
-    value: "email",
-    label: "Email",
-    helper: "GPT solo sacara correos visibles en las capturas.",
-  },
+const SOURCE_OPTIONS: Array<{ value: ProviderImportSource; label: string }> = [
+  { value: "messenger", label: "Messenger" },
+  { value: "facebook", label: "Facebook" },
+  { value: "instagram", label: "Instagram" },
+  { value: "whatsapp", label: "WhatsApp" },
+  { value: "email", label: "Email" },
 ];
 
 async function compressImage(file: File) {
@@ -201,7 +186,7 @@ export function AdminProviderImportStudio() {
       <div className="mt-4 grid gap-3">
         <div className="rounded-[1.3rem] border border-[#eadfd6] bg-[#fcfaf7] p-4">
           <p className="text-sm font-semibold text-[#131316]">1. De donde vienen las capturas</p>
-          <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
             {SOURCE_OPTIONS.map((option) => {
               const isActive = option.value === source;
               return (
@@ -209,14 +194,13 @@ export function AdminProviderImportStudio() {
                   key={option.value}
                   type="button"
                   onClick={() => setSource(option.value)}
-                  className={`rounded-[1.2rem] border px-4 py-4 text-left transition ${
+                  className={`rounded-[1.2rem] border px-4 py-5 text-left transition ${
                     isActive
                       ? "border-[#ff6b35] bg-[linear-gradient(180deg,#fff3ec_0%,#fffaf7_100%)] shadow-[0_16px_32px_rgba(255,107,53,0.12)]"
                       : "border-[#eadfd6] bg-white hover:border-[#d7c8bb]"
                   }`}
                 >
-                  <p className="font-semibold text-[#131316]">{option.label}</p>
-                  <p className="mt-2 text-xs leading-5 text-[#62564a]">{option.helper}</p>
+                  <p className="text-center font-semibold text-[#131316]">{option.label}</p>
                 </button>
               );
             })}

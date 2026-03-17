@@ -184,6 +184,8 @@ export async function extractProviderContactsFromImage(input: {
   const sourceLabel =
     input.source === "messenger"
       ? "Messenger"
+      : input.source === "facebook"
+        ? "Facebook"
       : input.source === "instagram"
         ? "Instagram"
         : input.source === "whatsapp"
@@ -192,6 +194,8 @@ export async function extractProviderContactsFromImage(input: {
   const extractionRule =
     input.source === "messenger"
       ? "Extract only Messenger usernames or direct Messenger handles visible in the screenshot. Return usernames only, without labels, @ symbols, or full URLs when possible."
+      : input.source === "facebook"
+        ? "Extract only Facebook usernames or profile handles visible in the screenshot. Return usernames only, without labels, @ symbols, or full URLs when possible."
       : input.source === "instagram"
         ? "Extract only Instagram usernames visible in the screenshot. Return usernames only, without labels, @ symbols, or full URLs when possible."
         : input.source === "whatsapp"

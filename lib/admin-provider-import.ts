@@ -7,7 +7,7 @@ import {
 } from "@/lib/provider-contact";
 import type { createAdminClient } from "@/lib/supabase/admin";
 
-export type ProviderImportSource = "messenger" | "instagram" | "whatsapp" | "email";
+export type ProviderImportSource = "messenger" | "facebook" | "instagram" | "whatsapp" | "email";
 
 export type ProviderImportDraft = {
   email?: string | null;
@@ -50,6 +50,14 @@ export function normalizeImportedContactValue(source: ProviderImportSource, raw:
         .replace(/^profile\.php\?id=/i, "")
         .trim();
       return cleaned ? `https://m.me/${cleaned}` : "";
+    }
+    case "facebook": {
+      const cleaned = value
+        .replace(/^https?:\/\/(www\.)?facebook\.com\//i, "")
+        .replace(/^@/, "")
+        .replace(/\/+$/, "")
+        .trim();
+      return cleaned ? `https://facebook.com/${cleaned}` : "";
     }
     case "instagram": {
       const cleaned = value

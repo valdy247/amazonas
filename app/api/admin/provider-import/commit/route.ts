@@ -37,6 +37,7 @@ function buildDraftFromSource(source: ProviderImportSource, rawValue: string) {
 
   switch (source) {
     case "messenger":
+    case "facebook":
       return { messenger: value };
     case "instagram":
       return { instagram: value };
@@ -60,7 +61,7 @@ export async function POST(request: Request) {
     const source = body.source;
     const rows = Array.isArray(body.rows) ? body.rows : [];
 
-    if (!source || !["messenger", "instagram", "whatsapp", "email"].includes(source)) {
+    if (!source || !["messenger", "facebook", "instagram", "whatsapp", "email"].includes(source)) {
       return NextResponse.json({ error: "Fuente invalida." }, { status: 400 });
     }
 
