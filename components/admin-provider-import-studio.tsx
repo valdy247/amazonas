@@ -60,7 +60,11 @@ async function compressImage(file: File, index: number) {
   }
 }
 
-async function cropAvatarDataUrl(file: File, box?: { x: number; y: number; w: number; h: number } | null) {
+async function cropAvatarDataUrl(
+  file: File,
+  source: ProviderImportSource,
+  box?: { x: number; y: number; w: number; h: number } | null
+) {
   if (!box) {
     return null;
   }
@@ -79,9 +83,11 @@ async function cropAvatarDataUrl(file: File, box?: { x: number; y: number; w: nu
     const rawY = box.y * image.height;
     const rawW = Math.max(24, box.w * image.width);
     const rawH = Math.max(24, box.h * image.height);
+    const socialCrop = source === "messenger" || source === "facebook";
+    const baseSquare = socialCrop ? Math.min(rawW, rawH) : Math.max(rawW, rawH);
     const centerX = rawX + rawW / 2;
-    const centerY = rawY + rawH / 2;
-    const squareSize = Math.max(rawW, rawH) * 1.45;
+    const centerY = socialCrop && rawH > rawW * 1.2 ? rawY + Math.min(rawW, rawH) / 2 : rawY + rawH / 2;
+    const squareSize = Math.max(24, baseSquare * (socialCrop ? 1.08 : 1.45));
     const sourceX = Math.round(Math.max(0, Math.min(centerX - squareSize / 2, image.width - squareSize)));
     const sourceY = Math.round(Math.max(0, Math.min(centerY - squareSize / 2, image.height - squareSize)));
     const sourceSize = Math.round(Math.max(24, Math.min(squareSize, image.width - sourceX, image.height - sourceY)));
@@ -149,7 +155,9 @@ export function AdminProviderImportStudio() {
           const enrichedRows = await Promise.all(
             (data.rows || []).map(async (row) => ({
               ...row,
-              avatarDataUrl: row.avatarBox ? await cropAvatarDataUrl(preparedByName.get(row.fileName) || chunk[0], row.avatarBox) : null,
+              avatarDataUrl: row.avatarBox
+                ? await cropAvatarDataUrl(preparedByName.get(row.fileName) || chunk[0], row.source, row.avatarBox)
+                : null,
             }))
           );
 
