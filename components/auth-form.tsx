@@ -283,13 +283,15 @@ export function AuthForm() {
             <span className="flex items-start gap-3">
               <input className="mt-1" type="checkbox" name="legal_consent" required />
               <span>
-                {copy.legalConsent}{" "}
-                <a className="font-semibold text-[#dc4f1f]" href={`/terms?lang=${preferredLanguage}`} target="_blank" rel="noreferrer">{preferredLanguage === "en" ? "Terms" : "Terminos"}</a>,{" "}
-                <a className="font-semibold text-[#dc4f1f]" href={`/privacy?lang=${preferredLanguage}`} target="_blank" rel="noreferrer">{preferredLanguage === "en" ? "Privacy" : "Privacidad"}</a>,{" "}
-                <a className="font-semibold text-[#dc4f1f]" href={`/acceptable-use?lang=${preferredLanguage}`} target="_blank" rel="noreferrer">AUP</a>,{" "}
-                <a className="font-semibold text-[#dc4f1f]" href={`/review-integrity?lang=${preferredLanguage}`} target="_blank" rel="noreferrer">Review Integrity</a>{" "}
-                {preferredLanguage === "en" ? "and" : "y"}{" "}
-                <a className="font-semibold text-[#dc4f1f]" href={`/disputes?lang=${preferredLanguage}`} target="_blank" rel="noreferrer">Disputes</a>.
+                {preferredLanguage === "en" ? "I accept the " : "Acepto los "}
+                <a className="font-semibold text-[#2563eb]" href={`/terms?lang=${preferredLanguage}`} target="_blank" rel="noreferrer">
+                  {preferredLanguage === "en" ? "Terms and Conditions" : "Terminos y condiciones"}
+                </a>{" "}
+                {preferredLanguage === "en" ? "and the " : "y la "}
+                <a className="font-semibold text-[#2563eb]" href={`/privacy?lang=${preferredLanguage}`} target="_blank" rel="noreferrer">
+                  {preferredLanguage === "en" ? "Privacy Policy" : "Politica de privacidad"}
+                </a>
+                .
               </span>
             </span>
           </label>
