@@ -297,6 +297,18 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
 
   return (
     <div className="space-y-4">
+      {expandedId ? (
+        <button
+          type="button"
+          aria-label={copy.close}
+          className="fixed inset-0 z-10 bg-[#17120d]/45 backdrop-blur-[2px]"
+          onClick={() => {
+            setExpandedId(null);
+            setContactOptionsId(null);
+          }}
+        />
+      ) : null}
+
       <section className="overflow-hidden rounded-[2rem] border border-[#ecd8cb] bg-[radial-gradient(circle_at_top_left,#fff9f5_0%,#fff2e7_42%,#fffdfb_100%)] p-5 shadow-[0_28px_70px_rgba(220,79,31,0.08)]">
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -448,7 +460,9 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
               ref={(node) => {
                 reviewerRefs.current[reviewer.id] = node;
               }}
-              className="overflow-hidden rounded-[1.6rem] border border-[#e6ddd1] bg-[linear-gradient(180deg,#ffffff_0%,#fffdfa_100%)] shadow-[0_18px_36px_rgba(22,18,14,0.04)]"
+              className={`overflow-hidden rounded-[1.6rem] border border-[#e6ddd1] bg-[linear-gradient(180deg,#ffffff_0%,#fffdfa_100%)] shadow-[0_18px_36px_rgba(22,18,14,0.04)] ${
+                isExpanded ? "relative z-20 shadow-[0_26px_70px_rgba(22,18,14,0.2)]" : "relative z-0"
+              }`}
             >
               <button
                 type="button"
