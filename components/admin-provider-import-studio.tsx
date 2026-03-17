@@ -76,7 +76,7 @@ async function loadImageElement(file: File) {
 }
 
 async function detectStructuredAvatarBoxes(file: File, source: ProviderImportSource, expectedCount: number) {
-  if (!expectedCount || (source !== "messenger" && source !== "facebook")) {
+  if (source !== "messenger" && source !== "facebook") {
     return [];
   }
 
@@ -128,7 +128,8 @@ async function detectStructuredAvatarBoxes(file: File, source: ProviderImportSou
   }
 
   const maxScore = Math.max(...scores.map((item) => item.score), 0);
-  const minGap = Math.max(avatarSize, Math.round(height / Math.max(expectedCount + 2, 6)));
+  const limit = expectedCount > 0 ? expectedCount : 18;
+  const minGap = Math.max(Math.round(avatarSize * 0.9), Math.round(height / Math.max(limit + 3, 8)));
   const peaks: Array<{ y: number; score: number }> = [];
 
   for (let index = 1; index < scores.length - 1; index += 1) {
@@ -151,7 +152,7 @@ async function detectStructuredAvatarBoxes(file: File, source: ProviderImportSou
 
   const selected = peaks
     .sort((left, right) => left.y - right.y)
-    .slice(0, expectedCount)
+    .slice(0, limit)
     .map((peak) => {
       if (source === "messenger" || source === "facebook") {
         const stripX = Math.max(0, centerX - half * 1.25);
@@ -176,6 +177,37 @@ async function detectStructuredAvatarBoxes(file: File, source: ProviderImportSou
     });
 
   return selected;
+}
+
+async function cropImageRegion(
+  file: File,
+  box: { x: number; y: number; w: number; h: number },
+  outputName: string
+) {
+  const image = await loadImageElement(file);
+  const sourceX = Math.max(0, Math.round(box.x * image.width));
+  const sourceY = Math.max(0, Math.round(box.y * image.height));
+  const sourceW = Math.max(24, Math.round(box.w * image.width));
+  const sourceH = Math.max(24, Math.round(box.h * image.height));
+  const canvas = document.createElement("canvas");
+  canvas.width = sourceW;
+  canvas.height = sourceH;
+  const context = canvas.getContext("2d");
+
+  if (!context) {
+    throw new Error("No se pudo preparar el recorte.");
+  }
+
+  context.drawImage(image, sourceX, sourceY, sourceW, sourceH, 0, 0, sourceW, sourceH);
+
+  const blob = await new Promise<Blob | null>((resolve) => {
+    canvas.toBlob(resolve, "image/jpeg", 0.84);
+  });
+
+  return {
+    dataUrl: canvas.toDataURL("image/jpeg", 0.84),
+    file: new File([blob || file], outputName, { type: "image/jpeg" }),
+  };
 }
 
 async function cropAvatarDataUrl(
@@ -262,11 +294,36 @@ export function AdminProviderImportStudio() {
       try {
         const prepared = await Promise.all(Array.from(files).map((file, index) => compressImage(file, index)));
         const preparedByName = new Map(prepared.map((file) => [file.name, file]));
+        const socialPreviewByFileName = new Map<string, string>();
+        const extractionFiles =
+          source === "messenger" || source === "facebook"
+            ? (
+                await Promise.all(
+                  prepared.map(async (file) => {
+                    const boxes = await detectStructuredAvatarBoxes(file, source, 0);
+
+                    if (!boxes.length) {
+                      socialPreviewByFileName.set(file.name, URL.createObjectURL(file));
+                      return [file];
+                    }
+
+                    return Promise.all(
+                      boxes.map(async (box, rowIndex) => {
+                        const outputName = `${file.name.replace(/\.jpg$/i, "")}-row-${rowIndex + 1}.jpg`;
+                        const cropped = await cropImageRegion(file, box, outputName);
+                        socialPreviewByFileName.set(cropped.file.name, cropped.dataUrl);
+                        return cropped.file;
+                      })
+                    );
+                  })
+                )
+              ).flat()
+            : prepared;
         const chunkSize = 8;
         const aggregated: PreviewRow[] = [];
 
-        for (let index = 0; index < prepared.length; index += chunkSize) {
-          const chunk = prepared.slice(index, index + chunkSize);
+        for (let index = 0; index < extractionFiles.length; index += chunkSize) {
+          const chunk = extractionFiles.slice(index, index + chunkSize);
           const formData = new FormData();
           formData.set("source", source);
           chunk.forEach((file) => formData.append("files", file));
@@ -281,41 +338,24 @@ export function AdminProviderImportStudio() {
             throw new Error(data.error || "No se pudieron procesar las capturas.");
           }
 
-          const groupedRows = new Map<string, PreviewRow[]>();
-
-          for (const row of data.rows || []) {
-            const current = groupedRows.get(row.fileName) || [];
-            current.push(row);
-            groupedRows.set(row.fileName, current);
-          }
-
-          const enrichedRows = await Promise.all(
-            Array.from(groupedRows.entries()).flatMap(([fileName, fileRows]) => {
-              const preparedFile = preparedByName.get(fileName) || chunk[0];
-
-              return (async () => {
-                const scriptBoxes = await detectStructuredAvatarBoxes(preparedFile, fileRows[0]?.source || source, fileRows.length);
-
-                return Promise.all(
-                  fileRows.map(async (row, rowIndex) => {
-                    const effectiveBox =
-                      row.source === "messenger" || row.source === "facebook"
-                        ? scriptBoxes[rowIndex] || null
-                        : row.avatarBox || scriptBoxes[rowIndex] || null;
-
+          const flattenedRows =
+            source === "messenger" || source === "facebook"
+              ? (data.rows || []).map((row) => ({
+                  ...row,
+                  avatarDataUrl: socialPreviewByFileName.get(row.fileName) || null,
+                }))
+              : await Promise.all(
+                  (data.rows || []).map(async (row) => {
+                    const preparedFile = preparedByName.get(row.fileName) || chunk[0];
                     return {
                       ...row,
-                      avatarDataUrl: effectiveBox ? await cropAvatarDataUrl(preparedFile, row.source, effectiveBox) : null,
+                      avatarDataUrl: row.avatarBox ? await cropAvatarDataUrl(preparedFile, row.source, row.avatarBox) : null,
                     };
                   })
                 );
-              })();
-            })
-          );
-          const flattenedRows = enrichedRows.flat();
 
           aggregated.push(...flattenedRows);
-          setStatus(`Procesadas ${Math.min(index + chunk.length, prepared.length)} de ${prepared.length} capturas...`);
+          setStatus(`Procesadas ${Math.min(index + chunk.length, extractionFiles.length)} de ${extractionFiles.length} capturas...`);
         }
 
         const deduped = aggregated.filter(
