@@ -18,24 +18,39 @@ type ContactRow = {
   contact_methods?: string | null;
 };
 
+type DuplicateGroup = {
+  key: string;
+  reason: string;
+  contactIds: number[];
+  labels: string[];
+};
+
 type AdminProviderManagerProps = {
   contacts: ContactRow[];
   whatsappPrefixOptions: readonly WhatsappPrefixOption[];
+  duplicateGroups?: DuplicateGroup[];
 };
 
-export function AdminProviderManager({ contacts, whatsappPrefixOptions }: AdminProviderManagerProps) {
+export function AdminProviderManager({
+  contacts,
+  whatsappPrefixOptions,
+  duplicateGroups = [],
+}: AdminProviderManagerProps) {
   const [query, setQuery] = useState("");
   const [openContactId, setOpenContactId] = useState<number | null>(contacts[0]?.id ?? null);
+  const [duplicatesOnly, setDuplicatesOnly] = useState(false);
   const deferredQuery = useDeferredValue(query);
+
+  const duplicateIdSet = useMemo(() => new Set(duplicateGroups.flatMap((group) => group.contactIds)), [duplicateGroups]);
 
   const filteredContacts = useMemo(() => {
     const normalizedQuery = deferredQuery.trim().toLowerCase();
 
-    if (!normalizedQuery) {
-      return contacts;
-    }
-
     return contacts.filter((contact) => {
+      if (duplicatesOnly && !duplicateIdSet.has(contact.id)) {
+        return false;
+      }
+
       const methods = getContactFieldValues(contact.contact_methods, contact.url, contact.network);
       const haystack = [
         contact.title,
@@ -54,37 +69,82 @@ export function AdminProviderManager({ contacts, whatsappPrefixOptions }: AdminP
         .join(" ")
         .toLowerCase();
 
+      if (!normalizedQuery) {
+        return true;
+      }
+
       return haystack.includes(normalizedQuery);
     });
-  }, [contacts, deferredQuery]);
+  }, [contacts, deferredQuery, duplicateIdSet, duplicatesOnly]);
 
   return (
     <div className="mt-4 space-y-3">
       <div className="rounded-[1.2rem] border border-[#eadfd6] bg-[#fcfaf7] p-3">
-        <label className="text-sm font-semibold text-[#131316]" htmlFor="provider-search">
-          Buscar proveedor
-        </label>
-        <input
-          id="provider-search"
-          className="input mt-2"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="Alias, WhatsApp, Instagram, Messenger, email o nota"
-        />
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="flex-1">
+            <label className="text-sm font-semibold text-[#131316]" htmlFor="provider-search">
+              Buscar proveedor
+            </label>
+            <input
+              id="provider-search"
+              className="input mt-2"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Alias, WhatsApp, Instagram, Messenger, Facebook, email o nota"
+            />
+          </div>
+          <label className="mt-7 flex items-center gap-2 text-sm text-[#62564a]">
+            <input type="checkbox" checked={duplicatesOnly} onChange={(event) => setDuplicatesOnly(event.target.checked)} />
+            <span>Solo duplicados</span>
+          </label>
+        </div>
       </div>
 
       <div className="flex items-center justify-between gap-3 text-sm text-[#62626d]">
         <span>{filteredContacts.length} coincidencias</span>
-        {query ? (
+        {query || duplicatesOnly ? (
           <button
             className="font-semibold text-[#dc4f1f]"
             type="button"
-            onClick={() => setQuery("")}
+            onClick={() => {
+              setQuery("");
+              setDuplicatesOnly(false);
+            }}
           >
             Limpiar filtro
           </button>
         ) : null}
       </div>
+
+      {duplicateGroups.length ? (
+        <div className="rounded-[1.2rem] border border-[#f0d7ca] bg-[#fff8f4] p-3">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-[#131316]">Posibles duplicados</p>
+              <p className="mt-1 text-xs text-[#62564a]">Agrupados por email o metodo de contacto comparable.</p>
+            </div>
+            <span className="rounded-full bg-[#fff2eb] px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.16em] text-[#dc4f1f]">
+              {duplicateGroups.length} grupos
+            </span>
+          </div>
+          <div className="mt-3 space-y-2">
+            {duplicateGroups.slice(0, 8).map((group) => (
+              <button
+                key={group.key}
+                type="button"
+                className="w-full rounded-[1rem] bg-white px-3 py-3 text-left"
+                onClick={() => {
+                  setDuplicatesOnly(true);
+                  setOpenContactId(group.contactIds[0] || null);
+                }}
+              >
+                <p className="text-sm font-semibold text-[#131316]">{group.reason}</p>
+                <p className="mt-1 text-xs text-[#62564a]">{group.labels.join(" • ")}</p>
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
 
       {filteredContacts.length ? (
         filteredContacts.map((contact) => {
@@ -95,8 +155,8 @@ export function AdminProviderManager({ contacts, whatsappPrefixOptions }: AdminP
           const whatsappNumber = whatsappValue.replace(/^\+\d{1,3}/, "");
           const selectedPrefixValue =
             whatsappPrefixOptions.find((option) => option.value.endsWith(whatsappPrefix))?.value || "us:+1";
-          const prefixOptionsForContact = whatsappPrefixOptions;
           const isOpen = openContactId === contact.id;
+          const duplicateMatch = duplicateGroups.find((group) => group.contactIds.includes(contact.id));
 
           return (
             <article key={contact.id} className="overflow-hidden rounded-[1.35rem] border border-[#e5ddd3] bg-[#fffdfa]">
@@ -110,11 +170,10 @@ export function AdminProviderManager({ contacts, whatsappPrefixOptions }: AdminP
                   <p className="mt-1 text-xs text-[#62626d]">
                     {contact.is_active ? "activo" : "inactivo"} · {contact.is_verified ? "verificado" : "sin verificar"}
                   </p>
+                  {duplicateMatch ? <p className="mt-2 text-xs font-semibold text-[#c24d3a]">{duplicateMatch.reason}</p> : null}
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="rounded-full bg-[#f6f0e9] px-3 py-1 text-xs font-semibold text-[#62564a]">
-                    #{contact.id}
-                  </span>
+                  <span className="rounded-full bg-[#f6f0e9] px-3 py-1 text-xs font-semibold text-[#62564a]">#{contact.id}</span>
                   <span className="text-lg text-[#8f857b]">{isOpen ? "−" : "+"}</span>
                 </div>
               </button>
@@ -126,13 +185,19 @@ export function AdminProviderManager({ contacts, whatsappPrefixOptions }: AdminP
                     <div className="rounded-[1.2rem] border border-[#eadfd6] bg-[#fcfaf7] px-4 py-3 text-sm text-[#62564a]">
                       Alias generado: <span className="font-semibold text-[#131316]">{contact.title}</span>
                     </div>
-                    <input className="input" name="email" defaultValue={contact.email || ""} placeholder="Correo del proveedor (opcional)" type="email" />
+                    <input
+                      className="input"
+                      name="email"
+                      defaultValue={contact.email || ""}
+                      placeholder="Correo del proveedor (opcional)"
+                      type="email"
+                    />
                     <div className="rounded-[1.2rem] border border-[#eadfd6] bg-[#fcfaf7] p-3">
                       <p className="text-sm font-semibold text-[#131316]">WhatsApp</p>
                       <div className="mt-3 grid gap-2 sm:grid-cols-[minmax(0,220px)_1fr]">
                         <WhatsappCountrySelect
                           name="whatsapp_prefix"
-                          options={prefixOptionsForContact}
+                          options={whatsappPrefixOptions}
                           defaultValue={selectedPrefixValue}
                         />
                         <input
@@ -159,7 +224,9 @@ export function AdminProviderManager({ contacts, whatsappPrefixOptions }: AdminP
                       </label>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      <button className="btn-secondary" type="submit">Actualizar contacto</button>
+                      <button className="btn-secondary" type="submit">
+                        Actualizar contacto
+                      </button>
                     </div>
                   </form>
 

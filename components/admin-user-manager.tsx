@@ -26,10 +26,21 @@ type MemberRow = {
   kycVerifiedFullName?: string | null;
   kycReviewNote?: string | null;
   kycReviewedAt?: string | null;
+  history?: Array<{
+    id: string;
+    type: "payment" | "kyc" | "support" | "chat" | "admin";
+    title: string;
+    body: string;
+    at: string;
+  }>;
+  supportCount?: number;
+  chatCount?: number;
+  adminActionCount?: number;
 };
 
 type AdminUserManagerProps = {
   members: MemberRow[];
+  initialQuery?: string;
 };
 
 const idleAdminActionState: AdminActionState = {
@@ -129,26 +140,56 @@ function AdminAccountActions({ member }: { member: MemberRow }) {
   );
 }
 
-export function AdminUserManager({ members }: AdminUserManagerProps) {
-  const [query, setQuery] = useState("");
+export function AdminUserManager({ members, initialQuery = "" }: AdminUserManagerProps) {
+  const [query, setQuery] = useState(initialQuery);
   const [openUserId, setOpenUserId] = useState<string | null>(members[0]?.id ?? null);
+  const [roleFilter, setRoleFilter] = useState("all");
+  const [membershipFilter, setMembershipFilter] = useState("all");
+  const [kycFilter, setKycFilter] = useState("all");
   const deferredQuery = useDeferredValue(query);
 
   const filteredMembers = useMemo(() => {
     const normalizedQuery = deferredQuery.trim().toLowerCase();
 
-    if (!normalizedQuery) {
-      return members;
-    }
+    return members.filter((member) => {
+      if (roleFilter !== "all" && member.role !== roleFilter) {
+        return false;
+      }
+      if (membershipFilter !== "all" && member.membershipStatus !== membershipFilter) {
+        return false;
+      }
+      if (kycFilter !== "all" && member.kycStatus !== kycFilter) {
+        return false;
+      }
 
-    return members.filter((member) =>
-      [member.full_name, member.email, member.role, member.membershipStatus, member.kycStatus]
+      if (!normalizedQuery) {
+        return true;
+      }
+
+      const historyHaystack = (member.history || [])
+        .map((entry) => `${entry.title} ${entry.body}`)
+        .join(" ");
+
+      return [
+        member.full_name,
+        member.email,
+        member.id,
+        member.role,
+        member.membershipStatus,
+        member.membershipSquareCustomerId,
+        member.membershipSquareOrderId,
+        member.membershipSquareSubscriptionId,
+        member.kycStatus,
+        member.kycReferenceId,
+        member.kycVerifiedFullName,
+        historyHaystack,
+      ]
         .filter(Boolean)
         .join(" ")
         .toLowerCase()
-        .includes(normalizedQuery)
-    );
-  }, [deferredQuery, members]);
+        .includes(normalizedQuery);
+    });
+  }, [deferredQuery, kycFilter, members, membershipFilter, roleFilter]);
 
   return (
     <div className="mt-4 space-y-3">
@@ -161,14 +202,48 @@ export function AdminUserManager({ members }: AdminUserManagerProps) {
           className="input mt-2"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Nombre, correo o rol"
+          placeholder="Email, user id, alias, referencia KYC, Square id o historial"
         />
+        <div className="mt-3 grid gap-2 sm:grid-cols-3">
+          <select className="input" value={roleFilter} onChange={(event) => setRoleFilter(event.target.value)}>
+            <option value="all">Todos los roles</option>
+            <option value="admin">Admin</option>
+            <option value="provider">Provider</option>
+            <option value="reviewer">Resenador</option>
+            <option value="tester">Tester</option>
+          </select>
+          <select className="input" value={membershipFilter} onChange={(event) => setMembershipFilter(event.target.value)}>
+            <option value="all">Todas las membresias</option>
+            <option value="pending_payment">Pago pendiente</option>
+            <option value="payment_processing">Validando pago</option>
+            <option value="active">Activa</option>
+            <option value="payment_failed">Cobro fallido</option>
+            <option value="canceled">Cancelada</option>
+            <option value="suspended">Suspendida</option>
+          </select>
+          <select className="input" value={kycFilter} onChange={(event) => setKycFilter(event.target.value)}>
+            <option value="all">Todos los KYC</option>
+            <option value="pending">Pendiente</option>
+            <option value="in_review">En revision</option>
+            <option value="approved">Aprobado</option>
+            <option value="rejected">Rechazado</option>
+          </select>
+        </div>
       </div>
 
       <div className="flex items-center justify-between gap-3 text-sm text-[#62626d]">
         <span>{filteredMembers.length} coincidencias</span>
-        {query ? (
-          <button className="font-semibold text-[#dc4f1f]" type="button" onClick={() => setQuery("")}>
+        {query || roleFilter !== "all" || membershipFilter !== "all" || kycFilter !== "all" ? (
+          <button
+            className="font-semibold text-[#dc4f1f]"
+            type="button"
+            onClick={() => {
+              setQuery("");
+              setRoleFilter("all");
+              setMembershipFilter("all");
+              setKycFilter("all");
+            }}
+          >
             Limpiar filtro
           </button>
         ) : null}
@@ -261,6 +336,15 @@ export function AdminUserManager({ members }: AdminUserManagerProps) {
                         <span className="font-semibold text-[#131316]">Nota de revision:</span> {member.kycReviewNote}
                       </p>
                     ) : null}
+                    <p>
+                      <span className="font-semibold text-[#131316]">Tickets soporte:</span> {member.supportCount || 0}
+                    </p>
+                    <p>
+                      <span className="font-semibold text-[#131316]">Hilos/chat:</span> {member.chatCount || 0}
+                    </p>
+                    <p>
+                      <span className="font-semibold text-[#131316]">Cambios admin:</span> {member.adminActionCount || 0}
+                    </p>
                   </div>
 
                   <form action={updateMemberStatus} className="grid gap-3 rounded-[1.1rem] border border-[#efe5db] bg-[#fffaf6] p-3">
@@ -304,6 +388,37 @@ export function AdminUserManager({ members }: AdminUserManagerProps) {
                   </form>
 
                   <AdminAccountActions member={member} />
+
+                  <div className="mt-4 rounded-[1.1rem] border border-[#efe5db] bg-[#fffaf6] p-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <h3 className="text-sm font-semibold text-[#131316]">Historial del usuario</h3>
+                      <span className="rounded-full bg-[#f6f0e9] px-3 py-1 text-[11px] font-semibold text-[#62564a]">
+                        {(member.history || []).length} eventos
+                      </span>
+                    </div>
+                    <div className="mt-3 space-y-2">
+                      {(member.history || []).length ? (
+                        member.history!.map((entry) => (
+                          <div key={entry.id} className="rounded-[1rem] bg-white px-3 py-3 text-sm text-[#62564a]">
+                            <div className="flex items-start justify-between gap-3">
+                              <div>
+                                <p className="font-semibold text-[#131316]">{entry.title}</p>
+                                <p className="mt-1">{entry.body}</p>
+                              </div>
+                              <span className="rounded-full bg-[#fff2eb] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-[#dc4f1f]">
+                                {entry.type}
+                              </span>
+                            </div>
+                            <p className="mt-2 text-[11px] text-[#8f857b]">{formatMembershipDate(entry.at, "es") || entry.at}</p>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="rounded-[1rem] border border-dashed border-[#e2d8cc] bg-white px-3 py-4 text-sm text-[#62626d]">
+                          Aun no hay historial consolidado para este usuario.
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               ) : null}
             </article>
