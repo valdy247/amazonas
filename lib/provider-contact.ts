@@ -48,7 +48,12 @@ function toHref(raw: string) {
 }
 
 function isLikelyDirectLink(value: string) {
-  return /^https?:\/\//i.test(value) || /^\+?\d{7,15}$/.test(value.replace(/[^\d+]/g, ""));
+  const trimmed = value.trim();
+  return (
+    /^https?:\/\//i.test(trimmed) ||
+    /^(www\.)?[a-z0-9.-]+\.[a-z]{2,}(\/|$)/i.test(trimmed) ||
+    /^\+?\d{7,15}$/.test(trimmed.replace(/[^\d+]/g, ""))
+  );
 }
 
 export function parseContactMethods(contactMethods?: string | null, fallbackUrl?: string | null, fallbackNetwork?: string | null) {
