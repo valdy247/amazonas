@@ -238,7 +238,6 @@ export function ProviderContactGrid({ contacts, initialContactedIds, language }:
                 ) : null}
               </div>
             </div>
-            {contact.notes ? <p className="mt-3 text-sm text-[#62626d]">{contact.notes}</p> : null}
             <button
               type="button"
               onClick={() => setSelectedContactId(contact.id)}
@@ -339,10 +338,6 @@ export function ProviderContactGrid({ contacts, initialContactedIds, language }:
                 </button>
               ))}
             </div>
-
-            {selectedContact.notes ? (
-              <p className="mt-4 rounded-[1.25rem] bg-[#f8f4ef] p-4 text-sm text-[#62626d]">{selectedContact.notes}</p>
-            ) : null}
           </div>
         </div>
       ) : null}
