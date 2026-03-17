@@ -30,6 +30,11 @@ export function formatProviderAlias(sequenceId: number) {
   return `Proveedor ${100 + sequenceId}`;
 }
 
+function canRetryProviderContactWrite(errorMessage: string, columns: string[]) {
+  const normalized = errorMessage.toLowerCase();
+  return columns.some((column) => normalized.includes(column.toLowerCase()));
+}
+
 async function getNextProviderAlias(admin: AdminClient) {
   const { data } = await admin.from("provider_contacts").select("id").order("id", { ascending: false }).limit(1).maybeSingle();
   const nextId = (typeof data?.id === "number" ? data.id : 0) + 1;
@@ -190,69 +195,34 @@ export async function createProviderContactRecord(
   const safeUrl = getPrimaryContactUrl(contactMethods) || "#";
   const primaryNetwork = whatsapp ? "WhatsApp" : instagram ? "Instagram" : messenger ? "Messenger" : facebook ? "Facebook" : "";
 
-  const payloads = [
-    {
-      title: safeTitle,
-      email: email || null,
-      network: primaryNetwork,
-      url: safeUrl,
-      contact_methods: contactMethods || null,
-      avatar_data_url: avatarDataUrl || null,
-      notes,
-      is_verified: Boolean(input.isVerified),
-      created_by: adminId,
-    },
-    {
-      title: safeTitle,
-      network: primaryNetwork,
-      url: safeUrl,
-      contact_methods: contactMethods || null,
-      avatar_data_url: avatarDataUrl || null,
-      notes,
-      is_verified: Boolean(input.isVerified),
-      created_by: adminId,
-    },
-    {
-      title: safeTitle,
-      network: primaryNetwork,
-      url: safeUrl,
-      avatar_data_url: avatarDataUrl || null,
-      notes,
-      is_verified: Boolean(input.isVerified),
-      created_by: adminId,
-    },
-    {
-      title: safeTitle,
-      network: primaryNetwork,
-      url: safeUrl,
-      avatar_data_url: avatarDataUrl || null,
-      notes,
-      created_by: adminId,
-    },
-    {
-      title: safeTitle,
-      network: primaryNetwork,
-      url: safeUrl,
-      notes,
-    },
-    {
-      title: safeTitle,
-      network: primaryNetwork,
-      url: safeUrl,
-    },
-  ];
+  const basePayload = {
+    title: safeTitle,
+    email: email || null,
+    network: primaryNetwork,
+    url: safeUrl,
+    contact_methods: contactMethods || null,
+    avatar_data_url: avatarDataUrl || null,
+    notes,
+    is_verified: Boolean(input.isVerified),
+    created_by: adminId,
+  };
 
-  let lastError: string | null = null;
+  const { error } = await admin.from("provider_contacts").insert(basePayload);
 
-  for (const payload of payloads) {
-    const { error } = await admin.from("provider_contacts").insert(payload);
+  if (!error) {
+    return safeTitle;
+  }
 
-    if (!error) {
+  if (canRetryProviderContactWrite(error.message, ["email"])) {
+    const retryWithoutEmail = { ...basePayload, email: null };
+    const { error: retryError } = await admin.from("provider_contacts").insert(retryWithoutEmail);
+
+    if (!retryError) {
       return safeTitle;
     }
 
-    lastError = error.message;
+    throw new Error(retryError.message || "No se pudo crear el contacto del proveedor.");
   }
 
-  throw new Error(lastError || "No se pudo crear el contacto del proveedor.");
+  throw new Error(error.message || "No se pudo crear el contacto del proveedor.");
 }

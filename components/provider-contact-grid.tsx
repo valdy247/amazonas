@@ -77,6 +77,11 @@ export function ProviderContactGrid({ contacts, initialContactedIds, language }:
   );
   const visibleContacts = activeTab === "pending" ? pendingContacts : contactedContacts;
 
+  function hasOnlyCopyMethods(contact: ProviderContact) {
+    const contactMethods = parseContactMethods(contact.contact_methods, contact.url, contact.network);
+    return contactMethods.length > 0 && contactMethods.every((method) => method.mode === "copy");
+  }
+
   useEffect(() => {
     if (typeof window === "undefined") {
       return;
@@ -238,8 +243,12 @@ export function ProviderContactGrid({ contacts, initialContactedIds, language }:
               onClick={() => setSelectedContactId(contact.id)}
               className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-[#dc4f1f]"
             >
-              {activeTab === "pending" ? copy.contactProvider : copy.contactAgain}
-              <ArrowUpRight className="h-4 w-4" />
+              {activeTab === "pending"
+                ? hasOnlyCopyMethods(contact)
+                  ? copy.copyUsername
+                  : copy.contactProvider
+                : copy.contactAgain}
+              {hasOnlyCopyMethods(contact) ? <Copy className="h-4 w-4" /> : <ArrowUpRight className="h-4 w-4" />}
             </button>
           </article>
         ))}
@@ -254,7 +263,7 @@ export function ProviderContactGrid({ contacts, initialContactedIds, language }:
       ) : null}
 
       {error ? <p className="mt-3 text-sm font-semibold text-red-600">{error}</p> : null}
-      {feedback ? <p className="mt-3 text-sm font-semibold text-[#177a52]">Copiado: {feedback}</p> : null}
+      {feedback ? <p className="mt-3 text-sm font-semibold text-[#177a52]">{copy.copiedPrefix}: {feedback}</p> : null}
 
       {selectedContact ? (
         <div className="fixed inset-0 z-30 bg-[#131316]/45 p-4 backdrop-blur-sm">
@@ -271,9 +280,17 @@ export function ProviderContactGrid({ contacts, initialContactedIds, language }:
                   />
                 ) : null}
                 <div>
-                <p className="text-sm font-semibold text-[#dc4f1f]">{copy.contactProviderTitle}</p>
+                <p className="text-sm font-semibold text-[#dc4f1f]">
+                  {methods.length > 0 && methods.every((method) => method.mode === "copy")
+                    ? copy.copyProviderTitle
+                    : copy.contactProviderTitle}
+                </p>
                 <h3 className="mt-2 text-2xl font-bold">{selectedContact.title}</h3>
-                <p className="mt-2 text-sm text-[#62626d]">{copy.contactProviderBody}</p>
+                <p className="mt-2 text-sm text-[#62626d]">
+                  {methods.length > 0 && methods.every((method) => method.mode === "copy")
+                    ? copy.copyProviderBody
+                    : copy.contactProviderBody}
+                </p>
                 </div>
               </div>
               <button
@@ -300,12 +317,14 @@ export function ProviderContactGrid({ contacts, initialContactedIds, language }:
                   disabled={isPending}
                   className="inline-flex items-center justify-between rounded-[1.4rem] border border-[#ebdfd2] bg-[#fcfaf7] px-4 py-4 text-left"
                 >
-                  <span className="flex items-center gap-3">
+                    <span className="flex items-center gap-3">
                     <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-[#fff1e8] text-[#dc4f1f]">
                       <MessageCircleMore className="h-5 w-5" />
                     </span>
                     <span>
-                      <span className="block text-sm text-[#62626d]">{copy.contactVia}</span>
+                      <span className="block text-sm text-[#62626d]">
+                        {method.mode === "copy" ? copy.copyVia : copy.contactVia}
+                      </span>
                       <span className="block font-semibold">{method.label}</span>
                     </span>
                   </span>
