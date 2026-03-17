@@ -195,7 +195,7 @@ async function cropAvatarDataUrl(
     const sourceSize = Math.round(Math.max(24, Math.min(squareSize, image.width - sourceX, image.height - sourceY)));
     const size = 96;
     const socialWidth = 188;
-    const socialHeight = 72;
+    const socialHeight = 64;
     const canvas = document.createElement("canvas");
     canvas.width = socialCrop ? socialWidth : size;
     canvas.height = socialCrop ? socialHeight : size;
@@ -206,10 +206,10 @@ async function cropAvatarDataUrl(
     }
 
     if (socialCrop) {
-      const stripX = Math.max(0, Math.min(sourceX, image.width - sourceSize * 4.4));
-      const stripY = Math.max(0, Math.min(sourceY - sourceSize * 0.16, image.height - sourceSize * 1.36));
-      const stripW = Math.max(sourceSize * 3.9, Math.min(image.width - stripX, sourceSize * 4.4));
-      const stripH = Math.max(sourceSize * 1.28, Math.min(image.height - stripY, sourceSize * 1.36));
+      const stripX = Math.max(0, Math.min(sourceX, image.width - sourceSize * 4.2));
+      const stripY = Math.max(0, Math.min(sourceY - sourceSize * 0.02, image.height - sourceSize * 1.04));
+      const stripW = Math.max(sourceSize * 3.8, Math.min(image.width - stripX, sourceSize * 4.2));
+      const stripH = Math.max(sourceSize * 0.98, Math.min(image.height - stripY, sourceSize * 1.04));
 
       context.drawImage(image, stripX, stripY, stripW, stripH, 0, 0, socialWidth, socialHeight);
     } else {
