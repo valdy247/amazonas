@@ -449,11 +449,32 @@ export async function updateMemberStatus(formData: FormData) {
     throw new Error("Usuario invalido");
   }
 
-  const { data: existingMembership, error: existingMembershipError } = await admin
+  const membershipWithOrderId = await admin
     .from("memberships")
     .select("square_customer_id, square_order_id, square_subscription_id, created_at")
     .eq("user_id", userId)
     .maybeSingle();
+
+  const membershipWithoutOrderId = membershipWithOrderId.error
+    ? await admin
+        .from("memberships")
+        .select("square_customer_id, square_subscription_id, created_at")
+        .eq("user_id", userId)
+        .maybeSingle()
+    : null;
+
+  const existingMembership = membershipWithOrderId.error
+    ? membershipWithoutOrderId?.data
+      ? {
+          ...membershipWithoutOrderId.data,
+          square_order_id: null,
+        }
+      : null
+    : membershipWithOrderId.data;
+
+  const existingMembershipError = membershipWithOrderId.error && !membershipWithoutOrderId?.data
+    ? membershipWithoutOrderId?.error || membershipWithOrderId.error
+    : null;
 
   if (existingMembershipError) {
     throw new Error(existingMembershipError.message || "No se pudo leer la membresia actual.");
