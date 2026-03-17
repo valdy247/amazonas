@@ -194,20 +194,31 @@ async function cropAvatarDataUrl(
     const sourceY = Math.round(Math.max(0, Math.min(centerY - squareSize / 2, image.height - squareSize)));
     const sourceSize = Math.round(Math.max(24, Math.min(squareSize, image.width - sourceX, image.height - sourceY)));
     const size = 96;
+    const socialWidth = 188;
+    const socialHeight = 72;
     const canvas = document.createElement("canvas");
-    canvas.width = size;
-    canvas.height = size;
+    canvas.width = socialCrop ? socialWidth : size;
+    canvas.height = socialCrop ? socialHeight : size;
     const context = canvas.getContext("2d");
 
     if (!context) {
       return null;
     }
 
-    context.beginPath();
-    context.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
-    context.closePath();
-    context.clip();
-    context.drawImage(image, sourceX, sourceY, sourceSize, sourceSize, 0, 0, size, size);
+    if (socialCrop) {
+      const stripX = Math.max(0, Math.min(sourceX, image.width - sourceSize * 4.4));
+      const stripY = Math.max(0, Math.min(sourceY - sourceSize * 0.16, image.height - sourceSize * 1.36));
+      const stripW = Math.max(sourceSize * 3.9, Math.min(image.width - stripX, sourceSize * 4.4));
+      const stripH = Math.max(sourceSize * 1.28, Math.min(image.height - stripY, sourceSize * 1.36));
+
+      context.drawImage(image, stripX, stripY, stripW, stripH, 0, 0, socialWidth, socialHeight);
+    } else {
+      context.beginPath();
+      context.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
+      context.closePath();
+      context.clip();
+      context.drawImage(image, sourceX, sourceY, sourceSize, sourceSize, 0, 0, size, size);
+    }
 
     return canvas.toDataURL("image/jpeg", 0.82);
   } finally {
@@ -431,7 +442,11 @@ export function AdminProviderImportStudio() {
                           <img
                             src={row.avatarDataUrl}
                             alt={row.preview}
-                            className="h-12 w-12 shrink-0 rounded-full bg-[#f5eee6] object-cover object-center ring-1 ring-[#eadfd6]"
+                            className={`shrink-0 bg-[#f5eee6] object-cover object-center ring-1 ring-[#eadfd6] ${
+                              row.source === "messenger" || row.source === "facebook"
+                                ? "h-[3.2rem] w-[8.4rem] rounded-[1rem]"
+                                : "h-12 w-12 rounded-full"
+                            }`}
                           />
                           <span className="text-xs text-[#8f857b]">Referencia visual</span>
                         </div>

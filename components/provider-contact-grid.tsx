@@ -168,6 +168,11 @@ export function ProviderContactGrid({ contacts, initialContactedIds, language }:
     });
   }
 
+  function isSocialReference(contact: ProviderContact) {
+    const network = String(contact.network || "").toLowerCase();
+    return network.includes("messenger") || network.includes("facebook");
+  }
+
   return (
     <>
       <div className="mt-4 flex rounded-full border border-[#e8ddd2] bg-[#f8f3ed] p-1">
@@ -197,7 +202,13 @@ export function ProviderContactGrid({ contacts, initialContactedIds, language }:
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-start gap-3">
                 {contact.avatar_data_url ? (
-                  <img src={contact.avatar_data_url} alt={contact.title} className="h-12 w-12 rounded-full object-cover ring-1 ring-[#eadfd6]" />
+                  <img
+                    src={contact.avatar_data_url}
+                    alt={contact.title}
+                    className={`object-cover ring-1 ring-[#eadfd6] ${
+                      isSocialReference(contact) ? "h-[3.2rem] w-[8.4rem] rounded-[1rem]" : "h-12 w-12 rounded-full"
+                    }`}
+                  />
                 ) : (
                   <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#f4ece5] text-sm font-bold text-[#7c7064]">
                     {contact.title.slice(0, 1)}
@@ -251,7 +262,13 @@ export function ProviderContactGrid({ contacts, initialContactedIds, language }:
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-start gap-3">
                 {selectedContact.avatar_data_url ? (
-                  <img src={selectedContact.avatar_data_url} alt={selectedContact.title} className="h-14 w-14 rounded-full object-cover ring-1 ring-[#eadfd6]" />
+                  <img
+                    src={selectedContact.avatar_data_url}
+                    alt={selectedContact.title}
+                    className={`object-cover ring-1 ring-[#eadfd6] ${
+                      isSocialReference(selectedContact) ? "h-[3.6rem] w-[9.4rem] rounded-[1rem]" : "h-14 w-14 rounded-full"
+                    }`}
+                  />
                 ) : null}
                 <div>
                 <p className="text-sm font-semibold text-[#dc4f1f]">{copy.contactProviderTitle}</p>
