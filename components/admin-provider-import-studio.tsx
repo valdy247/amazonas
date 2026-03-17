@@ -60,6 +60,108 @@ async function compressImage(file: File, index: number) {
   }
 }
 
+async function loadImageElement(file: File) {
+  const imageUrl = URL.createObjectURL(file);
+
+  try {
+    return await new Promise<HTMLImageElement>((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error(`No se pudo leer ${file.name}`));
+      img.src = imageUrl;
+    });
+  } finally {
+    URL.revokeObjectURL(imageUrl);
+  }
+}
+
+async function detectStructuredAvatarBoxes(file: File, source: ProviderImportSource, expectedCount: number) {
+  if (!expectedCount || (source !== "messenger" && source !== "facebook")) {
+    return [];
+  }
+
+  const image = await loadImageElement(file);
+  const canvas = document.createElement("canvas");
+  canvas.width = image.width;
+  canvas.height = image.height;
+  const context = canvas.getContext("2d", { willReadFrequently: true });
+
+  if (!context) {
+    return [];
+  }
+
+  context.drawImage(image, 0, 0);
+  const { data, width, height } = context.getImageData(0, 0, canvas.width, canvas.height);
+  const avatarSize = Math.max(34, Math.min(88, Math.round(width * 0.14)));
+  const half = Math.round(avatarSize / 2);
+  const centerX = Math.round(width * 0.12);
+  const startY = Math.max(half, Math.round(height * 0.08));
+  const endY = Math.max(startY + avatarSize, height - half);
+  const scores: Array<{ y: number; score: number }> = [];
+
+  for (let centerY = startY; centerY < endY; centerY += 3) {
+    let total = 0;
+    let samples = 0;
+
+    for (let y = centerY - half; y < centerY + half; y += 2) {
+      if (y < 0 || y >= height) {
+        continue;
+      }
+
+      for (let x = centerX - half; x < centerX + half; x += 2) {
+        if (x < 0 || x >= width) {
+          continue;
+        }
+
+        const index = (y * width + x) * 4;
+        const r = data[index] || 0;
+        const g = data[index + 1] || 0;
+        const b = data[index + 2] || 0;
+        const brightness = (r + g + b) / 3;
+        const variance = Math.abs(r - g) + Math.abs(g - b) + Math.abs(b - r);
+        total += variance + Math.abs(brightness - 128) * 0.35;
+        samples += 1;
+      }
+    }
+
+    scores.push({ y: centerY, score: samples ? total / samples : 0 });
+  }
+
+  const maxScore = Math.max(...scores.map((item) => item.score), 0);
+  const minGap = Math.max(avatarSize, Math.round(height / Math.max(expectedCount + 2, 6)));
+  const peaks: Array<{ y: number; score: number }> = [];
+
+  for (let index = 1; index < scores.length - 1; index += 1) {
+    const current = scores[index];
+
+    if (current.score < maxScore * 0.55) {
+      continue;
+    }
+
+    if (current.score >= scores[index - 1].score && current.score >= scores[index + 1].score) {
+      const previousPeak = peaks[peaks.length - 1];
+
+      if (!previousPeak || current.y - previousPeak.y >= minGap) {
+        peaks.push(current);
+      } else if (current.score > previousPeak.score) {
+        peaks[peaks.length - 1] = current;
+      }
+    }
+  }
+
+  const selected = peaks
+    .sort((left, right) => left.y - right.y)
+    .slice(0, expectedCount)
+    .map((peak) => ({
+      x: Math.max(0, Math.min(1, (centerX - half) / width)),
+      y: Math.max(0, Math.min(1, (peak.y - half) / height)),
+      w: Math.max(0, Math.min(1, avatarSize / width)),
+      h: Math.max(0, Math.min(1, avatarSize / height)),
+    }));
+
+  return selected;
+}
+
 async function cropAvatarDataUrl(
   file: File,
   source: ProviderImportSource,
@@ -152,16 +254,37 @@ export function AdminProviderImportStudio() {
             throw new Error(data.error || "No se pudieron procesar las capturas.");
           }
 
-          const enrichedRows = await Promise.all(
-            (data.rows || []).map(async (row) => ({
-              ...row,
-              avatarDataUrl: row.avatarBox
-                ? await cropAvatarDataUrl(preparedByName.get(row.fileName) || chunk[0], row.source, row.avatarBox)
-                : null,
-            }))
-          );
+          const groupedRows = new Map<string, PreviewRow[]>();
 
-          aggregated.push(...enrichedRows);
+          for (const row of data.rows || []) {
+            const current = groupedRows.get(row.fileName) || [];
+            current.push(row);
+            groupedRows.set(row.fileName, current);
+          }
+
+          const enrichedRows = await Promise.all(
+            Array.from(groupedRows.entries()).flatMap(([fileName, fileRows]) => {
+              const preparedFile = preparedByName.get(fileName) || chunk[0];
+
+              return (async () => {
+                const scriptBoxes = await detectStructuredAvatarBoxes(preparedFile, fileRows[0]?.source || source, fileRows.length);
+
+                return Promise.all(
+                  fileRows.map(async (row, rowIndex) => {
+                    const effectiveBox = scriptBoxes[rowIndex] || row.avatarBox || null;
+
+                    return {
+                      ...row,
+                      avatarDataUrl: effectiveBox ? await cropAvatarDataUrl(preparedFile, row.source, effectiveBox) : null,
+                    };
+                  })
+                );
+              })();
+            })
+          );
+          const flattenedRows = enrichedRows.flat();
+
+          aggregated.push(...flattenedRows);
           setStatus(`Procesadas ${Math.min(index + chunk.length, prepared.length)} de ${prepared.length} capturas...`);
         }
 
