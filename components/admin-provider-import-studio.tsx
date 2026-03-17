@@ -16,6 +16,21 @@ type PreviewRow = {
   avatarDataUrl?: string | null;
 };
 
+type ManualCropBox = {
+  id: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+};
+
+type ManualImage = {
+  id: string;
+  file: File;
+  dataUrl: string;
+  crops: ManualCropBox[];
+};
+
 const SOURCE_OPTIONS: Array<{ value: ProviderImportSource; label: string }> = [
   { value: "messenger", label: "Messenger" },
   { value: "facebook", label: "Facebook" },
@@ -75,129 +90,13 @@ async function loadImageElement(file: File) {
   }
 }
 
-async function detectStructuredAvatarBoxes(file: File, source: ProviderImportSource, expectedCount: number) {
-  if (source !== "messenger" && source !== "facebook") {
-    return [];
-  }
-
-  const image = await loadImageElement(file);
-  const canvas = document.createElement("canvas");
-  canvas.width = image.width;
-  canvas.height = image.height;
-  const context = canvas.getContext("2d", { willReadFrequently: true });
-
-  if (!context) {
-    return [];
-  }
-
-  context.drawImage(image, 0, 0);
-  const { data, width, height } = context.getImageData(0, 0, canvas.width, canvas.height);
-  const avatarSize = Math.max(34, Math.min(88, Math.round(width * 0.14)));
-  const half = Math.round(avatarSize / 2);
-  const centerX = Math.round(width * 0.12);
-  const startY = Math.max(half, Math.round(height * 0.08));
-  const endY = Math.max(startY + avatarSize, height - half);
-  const scores: Array<{ y: number; score: number }> = [];
-
-  for (let centerY = startY; centerY < endY; centerY += 3) {
-    let total = 0;
-    let samples = 0;
-
-    for (let y = centerY - half; y < centerY + half; y += 2) {
-      if (y < 0 || y >= height) {
-        continue;
-      }
-
-      for (let x = centerX - half; x < centerX + half; x += 2) {
-        if (x < 0 || x >= width) {
-          continue;
-        }
-
-        const index = (y * width + x) * 4;
-        const r = data[index] || 0;
-        const g = data[index + 1] || 0;
-        const b = data[index + 2] || 0;
-        const brightness = (r + g + b) / 3;
-        const variance = Math.abs(r - g) + Math.abs(g - b) + Math.abs(b - r);
-        total += variance + Math.abs(brightness - 128) * 0.35;
-        samples += 1;
-      }
-    }
-
-    scores.push({ y: centerY, score: samples ? total / samples : 0 });
-  }
-
-  const limit = expectedCount > 0 ? expectedCount : 18;
-  const sortedValues = scores.map((item) => item.score).sort((left, right) => left - right);
-  const baseline = sortedValues[Math.max(0, Math.floor(sortedValues.length * 0.45))] || 0;
-  const peakThreshold = baseline * 1.08;
-  const minGap = Math.max(Math.round(avatarSize * 0.58), 18);
-  const peaks: Array<{ y: number; score: number }> = [];
-  let runStart = -1;
-
-  for (let index = 0; index < scores.length; index += 1) {
-    const current = scores[index];
-    const aboveThreshold = current.score >= peakThreshold;
-
-    if (aboveThreshold && runStart === -1) {
-      runStart = index;
-      continue;
-    }
-
-    if (!aboveThreshold && runStart !== -1) {
-      const run = scores.slice(runStart, index);
-      const best = run.reduce((top, item) => (item.score > top.score ? item : top), run[0]);
-      const previousPeak = peaks[peaks.length - 1];
-
-      if (!previousPeak || best.y - previousPeak.y >= minGap) {
-        peaks.push(best);
-      } else if (best.score > previousPeak.score) {
-        peaks[peaks.length - 1] = best;
-      }
-
-      runStart = -1;
-    }
-  }
-
-  if (runStart !== -1) {
-    const run = scores.slice(runStart);
-    const best = run.reduce((top, item) => (item.score > top.score ? item : top), run[0]);
-    const previousPeak = peaks[peaks.length - 1];
-
-    if (!previousPeak || best.y - previousPeak.y >= minGap) {
-      peaks.push(best);
-    } else if (best.score > previousPeak.score) {
-      peaks[peaks.length - 1] = best;
-    }
-  }
-
-  const selected = peaks
-    .sort((left, right) => left.y - right.y)
-    .slice(0, limit)
-    .map((peak) => {
-      if (source === "messenger" || source === "facebook") {
-        const stripX = Math.max(0, centerX - half * 1.25);
-        const stripY = Math.max(0, peak.y - half * 0.62);
-        const stripW = Math.min(width - stripX, avatarSize * 4.2);
-        const stripH = Math.min(height - stripY, avatarSize * 1.04);
-
-        return {
-          x: Math.max(0, Math.min(1, stripX / width)),
-          y: Math.max(0, Math.min(1, stripY / height)),
-          w: Math.max(0, Math.min(1, stripW / width)),
-          h: Math.max(0, Math.min(1, stripH / height)),
-        };
-      }
-
-      return {
-        x: Math.max(0, Math.min(1, (centerX - half) / width)),
-        y: Math.max(0, Math.min(1, (peak.y - half) / height)),
-        w: Math.max(0, Math.min(1, avatarSize / width)),
-        h: Math.max(0, Math.min(1, avatarSize / height)),
-      };
-    });
-
-  return selected;
+async function fileToDataUrl(file: File) {
+  return await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(typeof reader.result === "string" ? reader.result : "");
+    reader.onerror = () => reject(new Error(`No se pudo leer ${file.name}`));
+    reader.readAsDataURL(file);
+  });
 }
 
 async function cropImageRegion(
@@ -300,10 +199,72 @@ export function AdminProviderImportStudio() {
   const [rows, setRows] = useState<PreviewRow[]>([]);
   const [status, setStatus] = useState<string>("");
   const [isVerified, setIsVerified] = useState(false);
+  const [manualImages, setManualImages] = useState<ManualImage[]>([]);
+  const [manualIndex, setManualIndex] = useState(0);
+  const [manualCropLeft, setManualCropLeft] = useState(4);
+  const [manualCropWidth, setManualCropWidth] = useState(46);
+  const [manualCropHeight, setManualCropHeight] = useState(11);
   const [isExtracting, startExtract] = useTransition();
   const [isImporting, startImport] = useTransition();
 
   const sourceCopy = useMemo(() => SOURCE_OPTIONS.find((option) => option.value === source) || SOURCE_OPTIONS[0], [source]);
+  const socialManualMode = source === "messenger" || source === "facebook";
+  const currentManualImage = manualImages[manualIndex] || null;
+
+  async function runExtractionFromPreparedFiles(
+    prepared: File[],
+    previewMap?: Map<string, string>
+  ) {
+    const preparedByName = new Map(prepared.map((file) => [file.name, file]));
+    const chunkSize = 8;
+    const aggregated: PreviewRow[] = [];
+
+    for (let index = 0; index < prepared.length; index += chunkSize) {
+      const chunk = prepared.slice(index, index + chunkSize);
+      const formData = new FormData();
+      formData.set("source", source);
+      chunk.forEach((file) => formData.append("files", file));
+
+      const response = await fetch("/api/admin/provider-import/extract", {
+        method: "POST",
+        body: formData,
+      });
+      const data = (await response.json()) as { rows?: PreviewRow[]; error?: string };
+
+      if (!response.ok) {
+        throw new Error(data.error || "No se pudieron procesar las capturas.");
+      }
+
+      const flattenedRows =
+        socialManualMode
+          ? (data.rows || []).map((row) => ({
+              ...row,
+              avatarDataUrl: previewMap?.get(row.fileName) || null,
+            }))
+          : await Promise.all(
+              (data.rows || []).map(async (row) => {
+                const preparedFile = preparedByName.get(row.fileName) || chunk[0];
+                return {
+                  ...row,
+                  avatarDataUrl: row.avatarBox ? await cropAvatarDataUrl(preparedFile, row.source, row.avatarBox) : null,
+                };
+              })
+            );
+
+      aggregated.push(...flattenedRows);
+      setStatus(`Procesadas ${Math.min(index + chunk.length, prepared.length)} de ${prepared.length} capturas...`);
+    }
+
+    const deduped = aggregated.filter(
+      (row, index, current) => current.findIndex((candidate) => candidate.source === row.source && candidate.value === row.value) === index
+    );
+    setRows(deduped);
+    setStatus(
+      deduped.length
+        ? `Listo. Detectamos ${deduped.length} proveedores potenciales. Revisa la lista antes de importar.`
+        : "No se detectaron contactos utiles en esas capturas."
+    );
+  }
 
   async function handleFiles(files: FileList | null) {
     if (!files?.length) {
@@ -314,82 +275,94 @@ export function AdminProviderImportStudio() {
     startExtract(async () => {
       try {
         const prepared = await Promise.all(Array.from(files).map((file, index) => compressImage(file, index)));
-        const preparedByName = new Map(prepared.map((file) => [file.name, file]));
-        const socialPreviewByFileName = new Map<string, string>();
-        const extractionFiles =
-          source === "messenger" || source === "facebook"
-            ? (
-                await Promise.all(
-                  prepared.map(async (file) => {
-                    const boxes = await detectStructuredAvatarBoxes(file, source, 0);
-
-                    if (!boxes.length) {
-                      socialPreviewByFileName.set(file.name, URL.createObjectURL(file));
-                      return [file];
-                    }
-
-                    return Promise.all(
-                      boxes.map(async (box, rowIndex) => {
-                        const outputName = `${file.name.replace(/\.jpg$/i, "")}-row-${rowIndex + 1}.jpg`;
-                        const cropped = await cropImageRegion(file, box, outputName);
-                        socialPreviewByFileName.set(cropped.file.name, cropped.dataUrl);
-                        return cropped.file;
-                      })
-                    );
-                  })
-                )
-              ).flat()
-            : prepared;
-        const chunkSize = 8;
-        const aggregated: PreviewRow[] = [];
-
-        for (let index = 0; index < extractionFiles.length; index += chunkSize) {
-          const chunk = extractionFiles.slice(index, index + chunkSize);
-          const formData = new FormData();
-          formData.set("source", source);
-          chunk.forEach((file) => formData.append("files", file));
-
-          const response = await fetch("/api/admin/provider-import/extract", {
-            method: "POST",
-            body: formData,
-          });
-          const data = (await response.json()) as { rows?: PreviewRow[]; error?: string };
-
-          if (!response.ok) {
-            throw new Error(data.error || "No se pudieron procesar las capturas.");
-          }
-
-          const flattenedRows =
-            source === "messenger" || source === "facebook"
-              ? (data.rows || []).map((row) => ({
-                  ...row,
-                  avatarDataUrl: socialPreviewByFileName.get(row.fileName) || null,
-                }))
-              : await Promise.all(
-                  (data.rows || []).map(async (row) => {
-                    const preparedFile = preparedByName.get(row.fileName) || chunk[0];
-                    return {
-                      ...row,
-                      avatarDataUrl: row.avatarBox ? await cropAvatarDataUrl(preparedFile, row.source, row.avatarBox) : null,
-                    };
-                  })
-                );
-
-          aggregated.push(...flattenedRows);
-          setStatus(`Procesadas ${Math.min(index + chunk.length, extractionFiles.length)} de ${extractionFiles.length} capturas...`);
+        if (socialManualMode) {
+          const images = await Promise.all(
+            prepared.map(async (file, index) => ({
+              id: `${file.name}-${index}`,
+              file,
+              dataUrl: await fileToDataUrl(file),
+              crops: [],
+            }))
+          );
+          setManualImages(images);
+          setManualIndex(0);
+          setRows([]);
+          setStatus("Haz clic en cada fila que quieras recortar. Puedes avanzar imagen por imagen.");
+          return;
         }
 
-        const deduped = aggregated.filter(
-          (row, index, current) => current.findIndex((candidate) => candidate.source === row.source && candidate.value === row.value) === index
-        );
-        setRows(deduped);
-        setStatus(
-          deduped.length
-            ? `Listo. Detectamos ${deduped.length} proveedores potenciales. Revisa la lista antes de importar.`
-            : "No se detectaron contactos utiles en esas capturas."
-        );
+        await runExtractionFromPreparedFiles(prepared);
       } catch (error) {
         setStatus(error instanceof Error ? error.message : "No se pudieron procesar las capturas.");
+      }
+    });
+  }
+
+  function addManualCrop(clickRatioY: number) {
+    if (!currentManualImage) {
+      return;
+    }
+
+    const nextCrop: ManualCropBox = {
+      id: `${currentManualImage.id}-${Date.now()}-${currentManualImage.crops.length}`,
+      x: manualCropLeft / 100,
+      y: Math.max(0, Math.min(1 - manualCropHeight / 100, clickRatioY - manualCropHeight / 200)),
+      w: manualCropWidth / 100,
+      h: manualCropHeight / 100,
+    };
+
+    setManualImages((current) =>
+      current.map((image) =>
+        image.id === currentManualImage.id
+          ? {
+              ...image,
+              crops: [...image.crops, nextCrop].sort((left, right) => left.y - right.y),
+            }
+          : image
+      )
+    );
+  }
+
+  function removeManualCrop(cropId: string) {
+    setManualImages((current) =>
+      current.map((image) =>
+        image.id === currentManualImage?.id
+          ? {
+              ...image,
+              crops: image.crops.filter((crop) => crop.id !== cropId),
+            }
+          : image
+      )
+    );
+  }
+
+  function processManualCrops() {
+    if (!manualImages.some((image) => image.crops.length)) {
+      setStatus("Marca al menos una fila antes de procesar.");
+      return;
+    }
+
+    startExtract(async () => {
+      try {
+        const cropPreviewByFileName = new Map<string, string>();
+        const croppedFiles = (
+          await Promise.all(
+            manualImages.map(async (image) =>
+              Promise.all(
+                image.crops.map(async (crop, cropIndex) => {
+                  const outputName = `${image.file.name.replace(/\.jpg$/i, "")}-manual-${cropIndex + 1}.jpg`;
+                  const cropped = await cropImageRegion(image.file, crop, outputName);
+                  cropPreviewByFileName.set(cropped.file.name, cropped.dataUrl);
+                  return cropped.file;
+                })
+              )
+            )
+          )
+        ).flat();
+
+        await runExtractionFromPreparedFiles(croppedFiles, cropPreviewByFileName);
+      } catch (error) {
+        setStatus(error instanceof Error ? error.message : "No se pudieron procesar los recortes manuales.");
       }
     });
   }
@@ -496,6 +469,94 @@ export function AdminProviderImportStudio() {
           </label>
         </div>
 
+        {socialManualMode && manualImages.length ? (
+          <div className="rounded-[1.3rem] border border-[#eadfd6] bg-white p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-[#131316]">3. Recorte manual por filas</p>
+                <p className="mt-1 text-xs text-[#62564a]">Ajusta el ancho y la altura una vez, luego toca cada fila que quieras cortar.</p>
+              </div>
+              <span className="rounded-full bg-[#f6f1ea] px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-[#7c7064]">
+                {manualIndex + 1}/{manualImages.length}
+              </span>
+            </div>
+
+            <div className="mt-4 grid gap-3 sm:grid-cols-3">
+              <label className="grid gap-1 text-xs text-[#62564a]">
+                <span>Margen izquierdo</span>
+                <input type="range" min="0" max="25" value={manualCropLeft} onChange={(event) => setManualCropLeft(Number(event.target.value))} />
+              </label>
+              <label className="grid gap-1 text-xs text-[#62564a]">
+                <span>Ancho del recorte</span>
+                <input type="range" min="25" max="80" value={manualCropWidth} onChange={(event) => setManualCropWidth(Number(event.target.value))} />
+              </label>
+              <label className="grid gap-1 text-xs text-[#62564a]">
+                <span>Altura de fila</span>
+                <input type="range" min="6" max="20" value={manualCropHeight} onChange={(event) => setManualCropHeight(Number(event.target.value))} />
+              </label>
+            </div>
+
+            {currentManualImage ? (
+              <div className="mt-4">
+                <div className="relative overflow-hidden rounded-[1.2rem] border border-[#eadfd6] bg-[#f9f4ee]">
+                  <img
+                    src={currentManualImage.dataUrl}
+                    alt="Captura para recorte manual"
+                    className="w-full"
+                    onClick={(event) => {
+                      const rect = event.currentTarget.getBoundingClientRect();
+                      const clickRatioY = (event.clientY - rect.top) / rect.height;
+                      addManualCrop(clickRatioY);
+                    }}
+                  />
+                  {currentManualImage.crops.map((crop) => (
+                    <button
+                      key={crop.id}
+                      type="button"
+                      onClick={() => removeManualCrop(crop.id)}
+                      className="absolute rounded-[1rem] border-2 border-[#ff6b35] bg-[rgba(255,107,53,0.12)]"
+                      style={{
+                        left: `${crop.x * 100}%`,
+                        top: `${crop.y * 100}%`,
+                        width: `${crop.w * 100}%`,
+                        height: `${crop.h * 100}%`,
+                      }}
+                      title="Quitar este recorte"
+                    />
+                  ))}
+                </div>
+
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+                  <div className="text-xs text-[#62564a]">
+                    {currentManualImage.crops.length} recortes en esta imagen
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      className="rounded-full border border-[#eadfd6] px-3 py-2 text-xs font-semibold text-[#62564a]"
+                      onClick={() => setManualIndex((current) => Math.max(0, current - 1))}
+                      disabled={manualIndex === 0}
+                    >
+                      Anterior
+                    </button>
+                    <button
+                      type="button"
+                      className="rounded-full border border-[#eadfd6] px-3 py-2 text-xs font-semibold text-[#62564a]"
+                      onClick={() => setManualIndex((current) => Math.min(manualImages.length - 1, current + 1))}
+                      disabled={manualIndex === manualImages.length - 1}
+                    >
+                      Siguiente
+                    </button>
+                    <button type="button" className="btn-primary" onClick={processManualCrops} disabled={isExtracting}>
+                      {isExtracting ? "Procesando..." : "Procesar recortes"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+
         {status ? (
           <div className="rounded-[1.2rem] border border-[#eadfd6] bg-white px-4 py-3 text-sm text-[#62564a]">{status}</div>
         ) : null}
@@ -504,7 +565,7 @@ export function AdminProviderImportStudio() {
           <div className="rounded-[1.3rem] border border-[#eadfd6] bg-white p-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <p className="text-sm font-semibold text-[#131316]">3. Revisar antes de importar</p>
+                <p className="text-sm font-semibold text-[#131316]">{socialManualMode ? "4. Revisar antes de importar" : "3. Revisar antes de importar"}</p>
                 <p className="mt-1 text-xs text-[#62564a]">Los alias se generaran solos. Si ves un duplicado, lo dejamos fuera del lote.</p>
               </div>
               <button className="btn-primary" type="button" onClick={importRows} disabled={isImporting || !rows.some((row) => !row.duplicateMessage)}>
