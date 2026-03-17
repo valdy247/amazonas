@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { CompactSelect } from "@/components/compact-select";
 
 type ProviderImportSource = "messenger" | "facebook" | "instagram" | "whatsapp" | "email" | "bulk_text";
@@ -31,6 +31,8 @@ type ManualImage = {
   id: string;
   file: File;
   dataUrl: string;
+  anchors: ManualCropBox[];
+  cropCount: number;
   crops: ManualCropBox[];
 };
 
@@ -198,6 +200,63 @@ async function cropAvatarDataUrl(
   }
 }
 
+function createManualCrop(id: string, clickRatioY: number, left: number, width: number, height: number): ManualCropBox {
+  const normalizedHeight = height / 100;
+  return {
+    id,
+    x: left / 100,
+    y: Math.max(0, Math.min(1 - normalizedHeight, clickRatioY - normalizedHeight / 2)),
+    w: width / 100,
+    h: normalizedHeight,
+  };
+}
+
+function resolveManualCrops(
+  anchors: ManualCropBox[],
+  cropCount: number,
+  left: number,
+  width: number,
+  height: number
+) {
+  const normalizedHeight = height / 100;
+  const normalizedWidth = width / 100;
+  const normalizedLeft = left / 100;
+  const sortedAnchors = [...anchors]
+    .map((anchor) => ({
+      ...anchor,
+      x: normalizedLeft,
+      w: normalizedWidth,
+      h: normalizedHeight,
+      y: Math.max(0, Math.min(1 - normalizedHeight, anchor.y)),
+    }))
+    .sort((first, second) => first.y - second.y);
+
+  if (sortedAnchors.length < 2) {
+    return sortedAnchors;
+  }
+
+  const [firstAnchor, secondAnchor] = sortedAnchors;
+  const spacing = Math.max(secondAnchor.y - firstAnchor.y, normalizedHeight * 0.72);
+  const generated: ManualCropBox[] = [firstAnchor, secondAnchor];
+
+  for (let index = 2; index < cropCount; index += 1) {
+    const nextY = firstAnchor.y + spacing * index;
+    if (nextY > 1 - normalizedHeight) {
+      break;
+    }
+
+    generated.push({
+      id: `generated-${index}`,
+      x: normalizedLeft,
+      y: nextY,
+      w: normalizedWidth,
+      h: normalizedHeight,
+    });
+  }
+
+  return generated;
+}
+
 export function AdminProviderImportStudio() {
   const [source, setSource] = useState<ProviderImportSource>("messenger");
   const [rows, setRows] = useState<PreviewRow[]>([]);
@@ -216,6 +275,20 @@ export function AdminProviderImportStudio() {
   const socialManualMode = source === "messenger" || source === "facebook";
   const bulkTextMode = source === "bulk_text";
   const currentManualImage = manualImages[manualIndex] || null;
+  const manualCropWidthMax = Math.max(25, 100 - manualCropLeft);
+
+  useEffect(() => {
+    setManualCropWidth((current) => Math.min(current, manualCropWidthMax));
+  }, [manualCropWidthMax]);
+
+  useEffect(() => {
+    setManualImages((current) =>
+      current.map((image) => ({
+        ...image,
+        crops: resolveManualCrops(image.anchors, image.cropCount, manualCropLeft, manualCropWidth, manualCropHeight),
+      }))
+    );
+  }, [manualCropHeight, manualCropLeft, manualCropWidth]);
 
   async function runExtractionFromPreparedFiles(
     prepared: File[],
@@ -291,6 +364,8 @@ export function AdminProviderImportStudio() {
               id: `${file.name}-${index}`,
               file,
               dataUrl: await fileToDataUrl(file),
+              anchors: [],
+              cropCount: 10,
               crops: [],
             }))
           );
@@ -348,20 +423,23 @@ export function AdminProviderImportStudio() {
       return;
     }
 
-    const nextCrop: ManualCropBox = {
-      id: `${currentManualImage.id}-${Date.now()}-${currentManualImage.crops.length}`,
-      x: manualCropLeft / 100,
-      y: Math.max(0, Math.min(1 - manualCropHeight / 100, clickRatioY - manualCropHeight / 200)),
-      w: manualCropWidth / 100,
-      h: manualCropHeight / 100,
-    };
-
     setManualImages((current) =>
       current.map((image) =>
         image.id === currentManualImage.id
           ? {
               ...image,
-              crops: [...image.crops, nextCrop].sort((left, right) => left.y - right.y),
+              anchors: [...image.anchors, createManualCrop(`${image.id}-anchor-${Date.now()}`, clickRatioY, manualCropLeft, manualCropWidth, manualCropHeight)]
+                .sort((left, right) => left.y - right.y)
+                .slice(0, 2),
+              crops: resolveManualCrops(
+                [...image.anchors, createManualCrop(`${image.id}-anchor-${Date.now()}`, clickRatioY, manualCropLeft, manualCropWidth, manualCropHeight)]
+                  .sort((left, right) => left.y - right.y)
+                  .slice(0, 2),
+                image.anchors.length >= 1 ? image.cropCount : 1,
+                manualCropLeft,
+                manualCropWidth,
+                manualCropHeight
+              ),
             }
           : image
       )
@@ -371,10 +449,47 @@ export function AdminProviderImportStudio() {
   function removeManualCrop(cropId: string) {
     setManualImages((current) =>
       current.map((image) =>
-        image.id === currentManualImage?.id
+        image.id !== currentManualImage?.id
+          ? image
+          : image.anchors.some((anchor) => anchor.id === cropId)
+            ? {
+                ...image,
+                anchors: image.anchors.filter((anchor) => anchor.id !== cropId),
+                crops: resolveManualCrops(
+                  image.anchors.filter((anchor) => anchor.id !== cropId),
+                  image.cropCount,
+                  manualCropLeft,
+                  manualCropWidth,
+                  manualCropHeight
+                ),
+              }
+            : {
+                ...image,
+                cropCount: Math.max(2, image.cropCount - 1),
+                crops: resolveManualCrops(image.anchors, Math.max(2, image.cropCount - 1), manualCropLeft, manualCropWidth, manualCropHeight),
+              }
+      )
+    );
+  }
+
+  function changeManualCropCount(delta: number) {
+    if (!currentManualImage?.anchors || currentManualImage.anchors.length < 2) {
+      return;
+    }
+
+    setManualImages((current) =>
+      current.map((image) =>
+        image.id === currentManualImage.id
           ? {
               ...image,
-              crops: image.crops.filter((crop) => crop.id !== cropId),
+              cropCount: Math.max(2, Math.min(24, image.cropCount + delta)),
+              crops: resolveManualCrops(
+                image.anchors,
+                Math.max(2, Math.min(24, image.cropCount + delta)),
+                manualCropLeft,
+                manualCropWidth,
+                manualCropHeight
+              ),
             }
           : image
       )
@@ -546,7 +661,7 @@ export function AdminProviderImportStudio() {
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-sm font-semibold text-[#131316]">3. Recorte manual por filas</p>
-                <p className="mt-1 text-xs text-[#62564a]">Ajusta el ancho y la altura una vez, luego toca cada fila que quieras cortar.</p>
+                <p className="mt-1 text-xs text-[#62564a]">Toca la primera y la segunda fila para crear el patrón. Luego usa + o - para generar más o menos recortes.</p>
               </div>
               <span className="rounded-full bg-[#f6f1ea] px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-[#7c7064]">
                 {manualIndex + 1}/{manualImages.length}
@@ -560,7 +675,13 @@ export function AdminProviderImportStudio() {
               </label>
               <label className="grid gap-1 text-xs text-[#62564a]">
                 <span>Ancho del recorte</span>
-                <input type="range" min="25" max="80" value={manualCropWidth} onChange={(event) => setManualCropWidth(Number(event.target.value))} />
+                <input
+                  type="range"
+                  min="25"
+                  max={manualCropWidthMax}
+                  value={manualCropWidth}
+                  onChange={(event) => setManualCropWidth(Number(event.target.value))}
+                />
               </label>
               <label className="grid gap-1 text-xs text-[#62564a]">
                 <span>Altura de fila</span>
@@ -603,6 +724,22 @@ export function AdminProviderImportStudio() {
                     {currentManualImage.crops.length} recortes en esta imagen
                   </div>
                   <div className="flex gap-2">
+                    <button
+                      type="button"
+                      className="rounded-full border border-[#eadfd6] px-3 py-2 text-xs font-semibold text-[#62564a] disabled:opacity-45"
+                      onClick={() => changeManualCropCount(-1)}
+                      disabled={(currentManualImage.anchors?.length || 0) < 2 || currentManualImage.cropCount <= 2}
+                    >
+                      -
+                    </button>
+                    <button
+                      type="button"
+                      className="rounded-full border border-[#eadfd6] px-3 py-2 text-xs font-semibold text-[#62564a] disabled:opacity-45"
+                      onClick={() => changeManualCropCount(1)}
+                      disabled={(currentManualImage.anchors?.length || 0) < 2 || currentManualImage.cropCount >= 24}
+                    >
+                      +
+                    </button>
                     <button
                       type="button"
                       className="rounded-full border border-[#eadfd6] px-3 py-2 text-xs font-semibold text-[#62564a]"
