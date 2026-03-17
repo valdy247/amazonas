@@ -90,6 +90,18 @@ export function ProviderContactGrid({ contacts, initialContactedIds, language }:
     window.localStorage.setItem(contactedStorageKey, JSON.stringify(contactedIds));
   }, [contactedIds]);
 
+  useEffect(() => {
+    if (!feedback) {
+      return;
+    }
+
+    const timeout = window.setTimeout(() => {
+      setFeedback(null);
+    }, 2000);
+
+    return () => window.clearTimeout(timeout);
+  }, [feedback]);
+
   function markAsContacted(contactId: string) {
     setContactedIds((current) => (current.includes(contactId) ? current : [...current, contactId]));
   }
@@ -263,7 +275,13 @@ export function ProviderContactGrid({ contacts, initialContactedIds, language }:
       ) : null}
 
       {error ? <p className="mt-3 text-sm font-semibold text-red-600">{error}</p> : null}
-      {feedback ? <p className="mt-3 text-sm font-semibold text-[#177a52]">{copy.copiedPrefix}: {feedback}</p> : null}
+      {feedback ? (
+        <div className="pointer-events-none fixed inset-x-0 bottom-6 z-40 flex justify-center px-4">
+          <div className="rounded-full bg-[#131316]/92 px-5 py-3 text-sm font-semibold text-white shadow-[0_18px_50px_rgba(0,0,0,0.28)] backdrop-blur">
+            {feedback} {copy.copiedPrefix.toLowerCase()}.
+          </div>
+        </div>
+      ) : null}
 
       {selectedContact ? (
         <div className="fixed inset-0 z-30 bg-[#131316]/45 p-4 backdrop-blur-sm">
