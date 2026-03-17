@@ -513,6 +513,24 @@ export async function updateMemberStatus(formData: FormData) {
   revalidatePath("/dashboard");
 }
 
+export async function updateMemberStatusAction(
+  _previousState: AdminActionState,
+  formData: FormData
+): Promise<AdminActionState> {
+  try {
+    await updateMemberStatus(formData);
+    return {
+      status: "success",
+      message: "Decision guardada correctamente.",
+    };
+  } catch (error) {
+    return {
+      status: "error",
+      message: error instanceof Error ? error.message : "No se pudo guardar la decision.",
+    };
+  }
+}
+
 export async function createAdminUser(formData: FormData) {
   const { supabase, admin, adminId } = await assertAdmin();
 

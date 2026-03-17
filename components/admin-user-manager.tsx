@@ -4,7 +4,7 @@ import { useActionState, useDeferredValue, useMemo, useState } from "react";
 import { formatMembershipDate } from "@/lib/membership";
 import {
   sendPasswordRecoveryForUserAction,
-  updateMemberStatus,
+  updateMemberStatusAction,
   updateUserEmailAction,
   type AdminActionState,
 } from "@/app/admin/actions";
@@ -137,6 +137,57 @@ function AdminAccountActions({ member }: { member: MemberRow }) {
         ) : null}
       </form>
     </div>
+  );
+}
+
+function AdminMembershipActions({ member }: { member: MemberRow }) {
+  const [state, action, pending] = useActionState(updateMemberStatusAction, idleAdminActionState);
+
+  return (
+    <form action={action} className="grid gap-3 rounded-[1.1rem] border border-[#efe5db] bg-[#fffaf6] p-3">
+      <input type="hidden" name="user_id" value={member.id} />
+      <div className="grid gap-2 sm:grid-cols-3">
+        <label className="grid gap-1 text-sm text-[#62564a]">
+          <span className="font-semibold text-[#131316]">Membresia</span>
+          <select className="input" name="membership_status" defaultValue={member.membershipStatus}>
+            <option value="pending_payment">Pago pendiente</option>
+            <option value="payment_processing">Validando pago</option>
+            <option value="active">Activa</option>
+            <option value="payment_failed">Cobro fallido</option>
+            <option value="canceled">Cancelada</option>
+            <option value="suspended">Suspendida</option>
+          </select>
+        </label>
+        <label className="grid gap-1 text-sm text-[#62564a]">
+          <span className="font-semibold text-[#131316]">Estado KYC</span>
+          <select className="input" name="kyc_status" defaultValue={member.kycStatus}>
+            <option value="pending">Pendiente</option>
+            <option value="in_review">En revision</option>
+            <option value="approved">Aprobado</option>
+            <option value="rejected">Rechazado</option>
+          </select>
+        </label>
+        <label className="grid gap-1 text-sm text-[#62564a] sm:col-span-1">
+          <span className="font-semibold text-[#131316]">Nota de revision</span>
+          <textarea
+            className="input min-h-24"
+            name="kyc_review_note"
+            defaultValue={member.kycReviewNote || ""}
+            placeholder="Explica si hubo mismatch, fraude, reintento o aprobacion manual."
+          />
+        </label>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <button className="btn-secondary" type="submit" disabled={pending}>
+          {pending ? "Guardando..." : "Guardar decision"}
+        </button>
+        {state.status !== "idle" ? (
+          <p className={`text-xs ${state.status === "success" ? "text-[#177a52]" : "text-[#c24d3a]"}`}>
+            {state.message}
+          </p>
+        ) : null}
+      </div>
+    </form>
   );
 }
 
@@ -347,45 +398,7 @@ export function AdminUserManager({ members, initialQuery = "" }: AdminUserManage
                     </p>
                   </div>
 
-                  <form action={updateMemberStatus} className="grid gap-3 rounded-[1.1rem] border border-[#efe5db] bg-[#fffaf6] p-3">
-                    <input type="hidden" name="user_id" value={member.id} />
-                    <div className="grid gap-2 sm:grid-cols-3">
-                      <label className="grid gap-1 text-sm text-[#62564a]">
-                        <span className="font-semibold text-[#131316]">Membresia</span>
-                        <select className="input" name="membership_status" defaultValue={member.membershipStatus}>
-                          <option value="pending_payment">Pago pendiente</option>
-                          <option value="payment_processing">Validando pago</option>
-                          <option value="active">Activa</option>
-                          <option value="payment_failed">Cobro fallido</option>
-                          <option value="canceled">Cancelada</option>
-                          <option value="suspended">Suspendida</option>
-                        </select>
-                      </label>
-                      <label className="grid gap-1 text-sm text-[#62564a]">
-                        <span className="font-semibold text-[#131316]">Estado KYC</span>
-                        <select className="input" name="kyc_status" defaultValue={member.kycStatus}>
-                          <option value="pending">Pendiente</option>
-                          <option value="in_review">En revision</option>
-                          <option value="approved">Aprobado</option>
-                          <option value="rejected">Rechazado</option>
-                        </select>
-                      </label>
-                      <label className="grid gap-1 text-sm text-[#62564a] sm:col-span-1">
-                        <span className="font-semibold text-[#131316]">Nota de revision</span>
-                        <textarea
-                          className="input min-h-24"
-                          name="kyc_review_note"
-                          defaultValue={member.kycReviewNote || ""}
-                          placeholder="Explica si hubo mismatch, fraude, reintento o aprobacion manual."
-                        />
-                      </label>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      <button className="btn-secondary" type="submit">
-                        Guardar decision
-                      </button>
-                    </div>
-                  </form>
+                  <AdminMembershipActions member={member} />
 
                   <AdminAccountActions member={member} />
 
