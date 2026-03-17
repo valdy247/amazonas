@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { LockKeyhole, Sparkles, WalletCards } from "lucide-react";
 import { SiteHeader } from "@/components/site-header";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { hasAdminAccess } from "@/lib/admin";
 import { ProviderReviewerFinder } from "@/components/provider-reviewer-finder";
 import { ProviderCampaignStudio } from "@/components/provider-campaign-studio";
@@ -15,6 +16,8 @@ import { getReviewerContactMethods, mergeProfileData, type ReviewerAvailability 
 import { normalizeContactRequestData } from "@/lib/contact-requests";
 import { buildContactMethodsFromFields, getComparableContactMethods } from "@/lib/provider-contact";
 import { dashboardCopy, normalizeLanguage, type AppLanguage } from "@/lib/i18n";
+import { formatMembershipDate, getMembershipMeta, membershipHasAccess, normalizeMembershipStatus } from "@/lib/membership";
+import { reconcileMembershipFromSquare } from "@/lib/square-membership";
 
 type ProviderContact = {
   id: string;
@@ -301,16 +304,43 @@ export default async function DashboardPage({
       : ["Hola, soy resenadora y me gustaria colaborar con usted.", "Hola, que tipo de productos ofreces?"];
   const copy = dashboardCopy[currentUserLanguage];
 
-  const { data: membership } = await supabase.from("memberships").select("status").eq("user_id", user.id).single();
+  const { data: membership } = await supabase
+    .from("memberships")
+    .select("status, paid_at, current_period_end_at, canceled_at, last_payment_failed_at, square_customer_id, square_order_id, square_subscription_id, last_square_event_type, last_square_event_at")
+    .eq("user_id", user.id)
+    .single();
   const { data: kyc } = await supabase.from("kyc_checks").select("status, review_note").eq("user_id", user.id).single();
 
-  const membershipStatus = PAYMENT_TEST_MODE && testingMembershipStatus ? testingMembershipStatus : membership?.status || "pending_payment";
+  let membershipState = membership || null;
+  if (!PAYMENT_TEST_MODE && membershipState && normalizeMembershipStatus(membershipState.status) === "payment_processing") {
+    const admin = createAdminClient();
+    const reconciliation = await reconcileMembershipFromSquare({
+      admin,
+      userId: user.id,
+      membership: membershipState,
+    }).catch(() => null);
+
+    if (reconciliation?.updated && reconciliation.nextMembership) {
+      membershipState = {
+        ...membershipState,
+        ...reconciliation.nextMembership,
+      };
+    }
+  }
+
+  const membershipStatus =
+    PAYMENT_TEST_MODE && testingMembershipStatus ? testingMembershipStatus : membershipState?.status || "pending_payment";
   const kycStatus = KYC_TEST_MODE && testingKycStatus ? testingKycStatus : kyc?.status || "pending";
   const kycReviewNote = typeof kyc?.review_note === "string" ? kyc.review_note : null;
   const isManualNameReview =
     kycStatus === "in_review" &&
     Boolean(kycReviewNote && kycReviewNote.toLowerCase().includes("nombre verificado"));
-  const canSeeContacts = !isProvider && membershipStatus === "active" && kycStatus === "approved";
+  const membershipMeta = getMembershipMeta(membershipStatus, currentUserLanguage);
+  const membershipPeriodEnd = formatMembershipDate(membershipState?.current_period_end_at, currentUserLanguage);
+  const membershipCanceledAt = formatMembershipDate(membershipState?.canceled_at, currentUserLanguage);
+  const lastPaymentFailedAt = formatMembershipDate(membershipState?.last_payment_failed_at, currentUserLanguage);
+  const hasMembershipAccess = membershipHasAccess(membershipState);
+  const canSeeContacts = !isProvider && hasMembershipAccess && kycStatus === "approved";
   const squareStatus = typeof resolvedSearchParams.square === "string" ? resolvedSearchParams.square : null;
   const squareError = typeof resolvedSearchParams.square_error === "string" ? resolvedSearchParams.square_error : null;
   const veriffStatus = typeof resolvedSearchParams.veriff === "string" ? resolvedSearchParams.veriff : null;
@@ -881,7 +911,18 @@ export default async function DashboardPage({
               </section>
             ) : null}
 
-            {membershipStatus !== "active" ? (
+            {hasMembershipAccess && (membershipStatus === "payment_failed" || membershipStatus === "canceled") ? (
+              <section className="rounded-[1.6rem] border border-[#f1d6c8] bg-[#fff8f3] p-5">
+                <p className="text-sm font-bold text-[#131316]">{membershipMeta.label}</p>
+                <p className="mt-2 text-sm text-[#62564a]">{membershipMeta.detail}</p>
+                {membershipPeriodEnd ? <p className="mt-2 text-sm text-[#62564a]">{copy.membershipPeriodEnds}: {membershipPeriodEnd}</p> : null}
+                <a href="/api/square/checkout" className="btn-primary mt-4">
+                  {copy.renewWithSquare}
+                </a>
+              </section>
+            ) : null}
+
+            {!hasMembershipAccess ? (
               <section className="rounded-[1.8rem] border border-[#f0d7ca] bg-[linear-gradient(180deg,#fff7f3_0%,#ffffff_100%)] p-5">
                 <div className="flex items-center gap-3">
                   <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-[#ff6b35] text-white">
@@ -899,24 +940,39 @@ export default async function DashboardPage({
                   </>
                 ) : (
                   <>
-                    <p className="mt-1 text-sm text-[#62626d]">{copy.squareBody}</p>
-                    {squareStatus === "processing" ? (
+                    <p className="mt-1 text-sm text-[#62626d]">
+                      {membershipStatus === "payment_failed"
+                        ? copy.squarePaymentFailedBody
+                        : membershipStatus === "canceled"
+                          ? copy.squareCanceledBody
+                          : membershipStatus === "payment_processing"
+                            ? copy.squareDelayedBody
+                            : copy.squareBody}
+                    </p>
+                    {squareStatus === "processing" || membershipStatus === "payment_processing" ? (
                       <p className="mt-3 rounded-2xl border border-[#f6d1c0] bg-[#fff4ed] px-4 py-3 text-sm font-semibold text-[#c64b1e]">
                         {copy.squareProcessing}
                       </p>
                     ) : null}
+                    <div className="mt-3 rounded-[1.2rem] border border-[#f1e3d9] bg-[#fffaf7] px-4 py-3 text-sm text-[#62564a]">
+                      <p className="font-semibold text-[#131316]">{membershipMeta.label}</p>
+                      <p className="mt-1">{membershipMeta.detail}</p>
+                      {membershipPeriodEnd ? <p className="mt-2">{copy.membershipPeriodEnds}: {membershipPeriodEnd}</p> : null}
+                      {membershipCanceledAt ? <p className="mt-1">{copy.membershipCanceledAt}: {membershipCanceledAt}</p> : null}
+                      {lastPaymentFailedAt ? <p className="mt-1">{copy.paymentIssueDetectedAt}: {lastPaymentFailedAt}</p> : null}
+                    </div>
                     {squareError ? (
                       <p className="mt-3 rounded-2xl border border-[#f2d7d7] bg-[#fff7f7] px-4 py-3 text-sm font-semibold text-red-600">{squareError}</p>
                     ) : null}
                     <a href="/api/square/checkout" className="btn-primary mt-3">
-                      {copy.payWithSquare}
+                      {membershipStatus === "pending_payment" || membershipStatus === "payment_processing" ? copy.payWithSquare : copy.renewWithSquare}
                     </a>
                   </>
                 )}
               </section>
             ) : null}
 
-            {membershipStatus === "active" && kycStatus !== "approved" ? (
+            {hasMembershipAccess && kycStatus !== "approved" ? (
               <section className="rounded-[1.8rem] border border-[#dfe9df] bg-[linear-gradient(180deg,#f8fff8_0%,#ffffff_100%)] p-5">
                 <div className="flex items-center gap-3">
                   <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-[#1f7a4d] text-white">
@@ -999,7 +1055,8 @@ export default async function DashboardPage({
               <div className="mt-5 grid gap-3 sm:grid-cols-2">
                 <article className="rounded-[1.4rem] border border-white/70 bg-white/90 p-4">
                   <p className="text-sm font-semibold text-[#131316]">{copy.paymentActive}</p>
-                  <p className="mt-1 text-sm text-[#62626d]">{copy.currentStatus}: {membershipStatus}</p>
+                  <p className="mt-1 text-sm text-[#62626d]">{copy.currentStatus}: {membershipMeta.label}</p>
+                  {membershipPeriodEnd ? <p className="mt-1 text-sm text-[#62626d]">{copy.membershipPeriodEnds}: {membershipPeriodEnd}</p> : null}
                 </article>
                 <article className="rounded-[1.4rem] border border-white/70 bg-white/90 p-4">
                   <p className="text-sm font-semibold text-[#131316]">{copy.idStatus}</p>

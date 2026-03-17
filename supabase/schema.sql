@@ -28,13 +28,31 @@ check (preferred_language in ('es', 'en'));
 
 create table if not exists public.memberships (
   user_id uuid primary key references public.profiles(id) on delete cascade,
-  status text default 'pending_payment' check (status in ('pending_payment', 'paid', 'active', 'suspended')),
+  status text default 'pending_payment' check (status in ('pending_payment', 'payment_processing', 'active', 'payment_failed', 'canceled', 'suspended')),
   square_customer_id text,
+  square_order_id text,
   square_subscription_id text,
   paid_at timestamptz,
+  current_period_end_at timestamptz,
+  canceled_at timestamptz,
+  last_payment_failed_at timestamptz,
+  last_square_event_type text,
+  last_square_event_at timestamptz,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
+
+alter table public.memberships add column if not exists square_order_id text;
+alter table public.memberships add column if not exists current_period_end_at timestamptz;
+alter table public.memberships add column if not exists canceled_at timestamptz;
+alter table public.memberships add column if not exists last_payment_failed_at timestamptz;
+alter table public.memberships add column if not exists last_square_event_type text;
+alter table public.memberships add column if not exists last_square_event_at timestamptz;
+update public.memberships set status = 'active' where status = 'paid';
+alter table public.memberships drop constraint if exists memberships_status_check;
+alter table public.memberships
+add constraint memberships_status_check
+check (status in ('pending_payment', 'payment_processing', 'active', 'payment_failed', 'canceled', 'suspended'));
 
 create table if not exists public.kyc_checks (
   user_id uuid primary key references public.profiles(id) on delete cascade,

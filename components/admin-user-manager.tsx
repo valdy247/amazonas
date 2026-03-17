@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useDeferredValue, useMemo, useState } from "react";
+import { formatMembershipDate } from "@/lib/membership";
 import {
   sendPasswordRecoveryForUserAction,
   updateMemberStatus,
@@ -14,6 +15,12 @@ type MemberRow = {
   email: string | null;
   role: string | null;
   membershipStatus: string;
+  membershipCurrentPeriodEndAt?: string | null;
+  membershipCanceledAt?: string | null;
+  membershipLastPaymentFailedAt?: string | null;
+  membershipSquareCustomerId?: string | null;
+  membershipSquareOrderId?: string | null;
+  membershipSquareSubscriptionId?: string | null;
   kycStatus: string;
   kycReferenceId?: string | null;
   kycVerifiedFullName?: string | null;
@@ -48,8 +55,12 @@ function getMembershipMeta(status: string) {
   switch (status) {
     case "active":
       return { label: "Activa", className: "bg-[#e8f7f0] text-[#177a52]" };
-    case "paid":
-      return { label: "Pagada", className: "bg-[#fff3dc] text-[#b77212]" };
+    case "payment_processing":
+      return { label: "Validando pago", className: "bg-[#fff3dc] text-[#b77212]" };
+    case "payment_failed":
+      return { label: "Cobro fallido", className: "bg-[#fff4e8] text-[#b55a10]" };
+    case "canceled":
+      return { label: "Cancelada", className: "bg-[#f3efe9] text-[#62564a]" };
     case "suspended":
       return { label: "Suspendida", className: "bg-[#fff1f1] text-[#c24d3a]" };
     default:
@@ -210,6 +221,30 @@ export function AdminUserManager({ members }: AdminUserManagerProps) {
                       <span className="font-semibold text-[#131316]">User ID:</span> {member.id}
                     </p>
                     <p>
+                      <span className="font-semibold text-[#131316]">Customer ID:</span>{" "}
+                      {member.membershipSquareCustomerId || "Sin customer"}
+                    </p>
+                    <p>
+                      <span className="font-semibold text-[#131316]">Order ID:</span>{" "}
+                      {member.membershipSquareOrderId || "Sin order"}
+                    </p>
+                    <p>
+                      <span className="font-semibold text-[#131316]">Subscription ID:</span>{" "}
+                      {member.membershipSquareSubscriptionId || "Sin subscription"}
+                    </p>
+                    <p>
+                      <span className="font-semibold text-[#131316]">Fin de periodo:</span>{" "}
+                      {formatMembershipDate(member.membershipCurrentPeriodEndAt, "es") || "Sin fecha"}
+                    </p>
+                    <p>
+                      <span className="font-semibold text-[#131316]">Cancelada en:</span>{" "}
+                      {formatMembershipDate(member.membershipCanceledAt, "es") || "No cancelada"}
+                    </p>
+                    <p>
+                      <span className="font-semibold text-[#131316]">Ultimo fallo de cobro:</span>{" "}
+                      {formatMembershipDate(member.membershipLastPaymentFailedAt, "es") || "Sin fallos"}
+                    </p>
+                    <p>
                       <span className="font-semibold text-[#131316]">Referencia KYC:</span>{" "}
                       {member.kycReferenceId || "Sin referencia"}
                     </p>
@@ -235,8 +270,10 @@ export function AdminUserManager({ members }: AdminUserManagerProps) {
                         <span className="font-semibold text-[#131316]">Membresia</span>
                         <select className="input" name="membership_status" defaultValue={member.membershipStatus}>
                           <option value="pending_payment">Pago pendiente</option>
-                          <option value="paid">Pagada</option>
+                          <option value="payment_processing">Validando pago</option>
                           <option value="active">Activa</option>
+                          <option value="payment_failed">Cobro fallido</option>
+                          <option value="canceled">Cancelada</option>
                           <option value="suspended">Suspendida</option>
                         </select>
                       </label>

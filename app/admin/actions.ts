@@ -440,7 +440,8 @@ export async function deleteProviderContact(formData: FormData) {
 export async function updateMemberStatus(formData: FormData) {
   const { supabase, admin, adminId } = await assertAdmin();
   const userId = String(formData.get("user_id") || "");
-  const membershipStatus = String(formData.get("membership_status") || "pending_payment");
+  const requestedMembershipStatus = String(formData.get("membership_status") || "pending_payment");
+  const membershipStatus = requestedMembershipStatus === "paid" ? "active" : requestedMembershipStatus;
   const kycStatus = String(formData.get("kyc_status") || "pending");
   const kycReviewNote = String(formData.get("kyc_review_note") || "").trim();
 
@@ -452,6 +453,9 @@ export async function updateMemberStatus(formData: FormData) {
     user_id: userId,
     status: membershipStatus,
     paid_at: membershipStatus === "active" ? new Date().toISOString() : null,
+    last_payment_failed_at: membershipStatus === "payment_failed" ? new Date().toISOString() : null,
+    canceled_at: membershipStatus === "canceled" ? new Date().toISOString() : null,
+    updated_at: new Date().toISOString(),
   });
 
   await admin.from("kyc_checks").upsert({

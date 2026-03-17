@@ -561,9 +561,16 @@ export const dashboardCopy = {
       "Square esta deshabilitado durante pruebas. Puedes marcar manualmente tu acceso para seguir validando el flujo.",
     squareBody:
       "Usa Square para pagar tu acceso. Cuando Square confirme el pago, tu membresia se activara automaticamente.",
+    squareDelayedBody:
+      "Tu checkout ya fue iniciado y estamos esperando la confirmacion final de Square. Si el webhook se retrasa, volveremos a comprobar el estado automaticamente cuando entres al panel.",
+    squarePaymentFailedBody:
+      "Square reporto un problema con la renovacion o con el ultimo cobro. Revisa tu metodo de pago y vuelve a intentar activar tu membresia.",
+    squareCanceledBody:
+      "Tu suscripcion fue cancelada. Si tu periodo actual ya estaba pagado, respetaremos el acceso hasta su fecha de fin y luego podras renovar manualmente.",
     squareProcessing:
       "Regresaste desde Square. Estamos validando tu pago y activaremos tu membresia en cuanto llegue el webhook.",
     payWithSquare: "Pagar con Square",
+    renewWithSquare: "Renovar con Square",
     idVerificationTitle: "Verificacion de ID",
     stepTwo: "Paso 2 del recorrido",
     kycTestingBody:
@@ -588,6 +595,9 @@ export const dashboardCopy = {
     paymentActive: "1. Pago activo",
     idStatus: "2. Verificacion de ID",
     currentStatus: "Estado actual",
+    membershipPeriodEnds: "Fin del periodo actual",
+    membershipCanceledAt: "Cancelada el",
+    paymentIssueDetectedAt: "Ultimo problema de cobro",
     backHome: "Volver al inicio",
     activeConversations: "Conversaciones activas",
     providerMessagesDescription:
@@ -626,9 +636,16 @@ export const dashboardCopy = {
       "Square is disabled during testing. You can mark your access manually to keep validating the flow.",
     squareBody:
       "Use Square to pay for your access. As soon as Square confirms the payment, your membership will activate automatically.",
+    squareDelayedBody:
+      "Your checkout already started and we are waiting for Square's final confirmation. If the webhook is delayed, we will check the status again automatically when you open the dashboard.",
+    squarePaymentFailedBody:
+      "Square reported a problem with the renewal or latest charge. Review your payment method and try activating your membership again.",
+    squareCanceledBody:
+      "Your subscription was canceled. If your current period was already paid, we will honor access until its end date and then you can renew manually.",
     squareProcessing:
       "You returned from Square. We are validating your payment and will activate your membership as soon as the webhook arrives.",
     payWithSquare: "Pay with Square",
+    renewWithSquare: "Renew with Square",
     idVerificationTitle: "ID verification",
     stepTwo: "Step 2 of the journey",
     kycTestingBody:
@@ -653,6 +670,9 @@ export const dashboardCopy = {
     paymentActive: "1. Active payment",
     idStatus: "2. ID verification",
     currentStatus: "Current status",
+    membershipPeriodEnds: "Current period ends",
+    membershipCanceledAt: "Canceled on",
+    paymentIssueDetectedAt: "Latest payment issue",
     backHome: "Back to home",
     activeConversations: "Active conversations",
     providerMessagesDescription:

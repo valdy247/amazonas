@@ -32,8 +32,10 @@ export async function GET(request: NextRequest) {
     const { error: membershipError } = await admin
       .from("memberships")
       .update({
-        status: "pending_payment",
-        square_subscription_id: orderId,
+        status: "payment_processing",
+        square_order_id: orderId,
+        last_square_event_type: "checkout_started",
+        last_square_event_at: new Date().toISOString(),
       })
       .eq("user_id", user.id);
 

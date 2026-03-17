@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { normalizeMembershipStatus } from "@/lib/membership";
+import {
+  findMembershipUserIdBySquareCustomer,
+  mapSquareSubscriptionStatus,
+  updateMembershipFromSquare,
+} from "@/lib/square-membership";
 import { logWebhookAudit } from "@/lib/webhook-audit";
 import {
-  getSquareCustomer,
   getSquarePaymentStatusFromOrder,
   getSquareWebhookNotificationUrl,
   searchSquareSubscriptionByCustomer,
@@ -37,66 +42,6 @@ function extractUserIdFromNote(note?: string) {
   if (!note) return null;
   const match = note.match(/^reviewer_access:([a-f0-9-]{36})$/i);
   return match?.[1] || null;
-}
-
-async function findMembershipUserIdBySquareCustomer(input: {
-  admin: ReturnType<typeof createAdminClient>;
-  customerId: string | null;
-}) {
-  if (!input.customerId) {
-    return null;
-  }
-
-  const customer = await getSquareCustomer(input.customerId);
-
-  if (!customer.email) {
-    return null;
-  }
-
-  const normalizedEmail = customer.email.trim().toLowerCase();
-  const { data: profile } = await input.admin
-    .from("profiles")
-    .select("id")
-    .eq("email", normalizedEmail)
-    .maybeSingle();
-
-  return profile?.id || null;
-}
-
-async function activateMembership(input: {
-  admin: ReturnType<typeof createAdminClient>;
-  userId: string;
-  subscriptionId: string | null;
-  customerId: string | null;
-  status?: "pending_payment" | "active" | "suspended";
-}) {
-  const { error: membershipError } = await input.admin
-    .from("memberships")
-    .update({
-      status: input.status || "active",
-      paid_at: (input.status || "active") === "active" ? new Date().toISOString() : null,
-      square_subscription_id: input.subscriptionId,
-      square_customer_id: input.customerId,
-    })
-    .eq("user_id", input.userId);
-
-  return membershipError;
-}
-
-function mapSquareSubscriptionStatus(status?: string) {
-  switch (status) {
-    case "ACTIVE":
-      return "active" as const;
-    case "PENDING":
-      return "pending_payment" as const;
-    case "PAUSED":
-    case "CANCELED":
-    case "DEACTIVATED":
-    case "UNPAID":
-      return "suspended" as const;
-    default:
-      return null;
-  }
 }
 
 export async function POST(request: NextRequest) {
@@ -137,20 +82,37 @@ export async function POST(request: NextRequest) {
     const order = event.data?.object?.order || event.data?.object?.order_updated;
     const subscription = event.data?.object?.subscription;
     const admin = createAdminClient();
+    const eventOccurredAt = new Date().toISOString();
 
     if (payment?.status === "COMPLETED") {
       const orderId = payment.order_id || null;
       const userIdFromNote = extractUserIdFromNote(payment.note);
 
       let membershipUserId = userIdFromNote;
+      let existingMembership:
+        | {
+            user_id: string;
+            status: string | null;
+            paid_at: string | null;
+            current_period_end_at: string | null;
+            canceled_at: string | null;
+            last_payment_failed_at: string | null;
+            square_customer_id: string | null;
+            square_order_id: string | null;
+            square_subscription_id: string | null;
+            last_square_event_type: string | null;
+            last_square_event_at: string | null;
+          }
+        | null = null;
 
       if (!membershipUserId && orderId) {
         const { data: membershipRow } = await admin
           .from("memberships")
-          .select("user_id, status")
-          .eq("square_subscription_id", orderId)
+          .select("user_id, status, paid_at, current_period_end_at, canceled_at, last_payment_failed_at, square_customer_id, square_order_id, square_subscription_id, last_square_event_type, last_square_event_at")
+          .eq("square_order_id", orderId)
           .maybeSingle();
 
+        existingMembership = membershipRow || null;
         membershipUserId = membershipRow?.user_id || null;
       }
 
@@ -176,25 +138,19 @@ export async function POST(request: NextRequest) {
       const subscriptionMatch =
         payment.customer_id ? await searchSquareSubscriptionByCustomer(payment.customer_id) : null;
 
-      const membershipError = await activateMembership({
+      const membershipUpdate = await updateMembershipFromSquare({
         admin,
         userId: membershipUserId,
-        subscriptionId: subscriptionMatch?.id || orderId,
-        customerId: payment.customer_id || null,
+        previousMembership: existingMembership,
         status: subscriptionMatch ? mapSquareSubscriptionStatus(subscriptionMatch.status || undefined) || "active" : "active",
+        subscriptionId: subscriptionMatch?.id || null,
+        orderId,
+        customerId: payment.customer_id || null,
+        currentPeriodEndAt: subscriptionMatch?.paidUntilDate || subscriptionMatch?.chargedThroughDate || null,
+        canceledAt: subscriptionMatch?.canceledDate || null,
+        eventType: event.type || "payment.updated",
+        eventOccurredAt,
       });
-
-      if (membershipError) {
-        await logWebhookAudit({
-          provider: "square",
-          eventType: event.type,
-          statusCode: 500,
-          referenceId: orderId,
-          payload: event,
-          responseMessage: membershipError.message,
-        });
-        return NextResponse.json({ ok: false, message: membershipError.message }, { status: 500 });
-      }
 
       await logWebhookAudit({
         provider: "square",
@@ -202,7 +158,10 @@ export async function POST(request: NextRequest) {
         statusCode: 200,
         referenceId: subscriptionMatch?.id || orderId,
         payload: event,
-        responseMessage: "Membership activated from completed payment.",
+        responseMessage:
+          membershipUpdate.emailResult?.sent
+            ? `Membership updated from completed payment: ${normalizeMembershipStatus(membershipUpdate.nextMembership.status)}. Email sent.`
+            : `Membership updated from completed payment: ${normalizeMembershipStatus(membershipUpdate.nextMembership.status)}.${membershipUpdate.emailResult?.reason ? ` ${membershipUpdate.emailResult.reason}` : ""}`,
       });
       return NextResponse.json({ ok: true });
     }
@@ -240,8 +199,8 @@ export async function POST(request: NextRequest) {
 
       const { data: membershipRow } = await admin
         .from("memberships")
-        .select("user_id")
-        .eq("square_subscription_id", orderId)
+        .select("user_id, status, paid_at, current_period_end_at, canceled_at, last_payment_failed_at, square_customer_id, square_order_id, square_subscription_id, last_square_event_type, last_square_event_at")
+        .eq("square_order_id", orderId)
         .maybeSingle();
 
       const membershipUserId =
@@ -267,25 +226,19 @@ export async function POST(request: NextRequest) {
         ? await searchSquareSubscriptionByCustomer(payment.customerId)
         : null;
 
-      const membershipError = await activateMembership({
+      const membershipUpdate = await updateMembershipFromSquare({
         admin,
         userId: membershipUserId,
-        subscriptionId: subscriptionMatch?.id || orderId,
+        previousMembership: membershipRow || null,
+        subscriptionId: subscriptionMatch?.id || null,
+        orderId,
         customerId: payment.customerId,
         status: subscriptionMatch ? mapSquareSubscriptionStatus(subscriptionMatch.status || undefined) || "active" : "active",
+        currentPeriodEndAt: subscriptionMatch?.paidUntilDate || subscriptionMatch?.chargedThroughDate || null,
+        canceledAt: subscriptionMatch?.canceledDate || null,
+        eventType: event.type || "order.updated",
+        eventOccurredAt,
       });
-
-      if (membershipError) {
-        await logWebhookAudit({
-          provider: "square",
-          eventType: event.type,
-          statusCode: 500,
-          referenceId: orderId,
-          payload: event,
-          responseMessage: membershipError.message,
-        });
-        return NextResponse.json({ ok: false, message: membershipError.message }, { status: 500 });
-      }
 
       await logWebhookAudit({
         provider: "square",
@@ -293,7 +246,10 @@ export async function POST(request: NextRequest) {
         statusCode: 200,
         referenceId: orderId,
         payload: event,
-        responseMessage: "Membership activated from order.updated.",
+        responseMessage:
+          membershipUpdate.emailResult?.sent
+            ? `Membership updated from order.updated: ${normalizeMembershipStatus(membershipUpdate.nextMembership.status)}. Email sent.`
+            : `Membership updated from order.updated: ${normalizeMembershipStatus(membershipUpdate.nextMembership.status)}.${membershipUpdate.emailResult?.reason ? ` ${membershipUpdate.emailResult.reason}` : ""}`,
       });
       return NextResponse.json({ ok: true, source: "order.updated" });
     }
@@ -317,7 +273,7 @@ export async function POST(request: NextRequest) {
 
       const { data: membershipRow } = await admin
         .from("memberships")
-        .select("user_id")
+        .select("user_id, status, paid_at, current_period_end_at, canceled_at, last_payment_failed_at, square_customer_id, square_order_id, square_subscription_id, last_square_event_type, last_square_event_at")
         .eq("square_customer_id", customerId)
         .maybeSingle();
 
@@ -340,27 +296,18 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ ok: false, message: "No membership matched this Square subscription." }, { status: 404 });
       }
 
-      const { error: membershipError } = await admin
-        .from("memberships")
-        .update({
-          status: membershipStatus,
-          square_subscription_id: subscriptionId,
-          square_customer_id: customerId,
-          paid_at: membershipStatus === "active" ? new Date().toISOString() : null,
-        })
-        .eq("user_id", membershipUserId);
-
-      if (membershipError) {
-        await logWebhookAudit({
-          provider: "square",
-          eventType: event.type,
-          statusCode: 500,
-          referenceId: subscriptionId,
-          payload: event,
-          responseMessage: membershipError.message,
-        });
-        return NextResponse.json({ ok: false, message: membershipError.message }, { status: 500 });
-      }
+      const membershipUpdate = await updateMembershipFromSquare({
+        admin,
+        userId: membershipUserId,
+        previousMembership: membershipRow || null,
+        status: membershipStatus,
+        subscriptionId,
+        customerId,
+        currentPeriodEndAt: subscription?.charged_through_date || null,
+        canceledAt: subscription?.canceled_date || null,
+        eventType: event.type || "subscription.updated",
+        eventOccurredAt,
+      });
 
       await logWebhookAudit({
         provider: "square",
@@ -368,7 +315,10 @@ export async function POST(request: NextRequest) {
         statusCode: 200,
         referenceId: subscriptionId,
         payload: event,
-        responseMessage: `Membership updated from subscription event: ${membershipStatus}.`,
+        responseMessage:
+          membershipUpdate.emailResult?.sent
+            ? `Membership updated from subscription event: ${membershipStatus}. Email sent.`
+            : `Membership updated from subscription event: ${membershipStatus}.${membershipUpdate.emailResult?.reason ? ` ${membershipUpdate.emailResult.reason}` : ""}`,
       });
       return NextResponse.json({ ok: true, source: "subscription" });
     }

@@ -22,6 +22,12 @@ type ProfileRow = {
 type MembershipRow = {
   user_id: string;
   status: string;
+  current_period_end_at?: string | null;
+  canceled_at?: string | null;
+  last_payment_failed_at?: string | null;
+  square_customer_id?: string | null;
+  square_order_id?: string | null;
+  square_subscription_id?: string | null;
 };
 
 type KycRow = {
@@ -122,18 +128,24 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     { count: approvedKycCount },
     { count: kycInReviewCount },
     { count: pendingPaymentCount },
+    { count: processingPaymentCount },
+    { count: failedPaymentCount },
+    { count: canceledMembershipCount },
     { count: chatThreadsCount },
     messageThreadsResult,
     { count: supportOpenCount },
     { count: supportResolvedCount },
     webhookLogResult,
   ] = await Promise.all([
-    supabase.from("memberships").select("user_id, status").in("user_id", memberIds),
+    supabase.from("memberships").select("user_id, status, current_period_end_at, canceled_at, last_payment_failed_at, square_customer_id, square_order_id, square_subscription_id").in("user_id", memberIds),
     supabase.from("kyc_checks").select("user_id, status, reference_id, verified_full_name, review_note, reviewed_at").in("user_id", memberIds),
     supabase.from("memberships").select("*", { count: "exact", head: true }).eq("status", "active"),
     supabase.from("kyc_checks").select("*", { count: "exact", head: true }).eq("status", "approved"),
     supabase.from("kyc_checks").select("*", { count: "exact", head: true }).eq("status", "in_review"),
     supabase.from("memberships").select("*", { count: "exact", head: true }).eq("status", "pending_payment"),
+    supabase.from("memberships").select("*", { count: "exact", head: true }).eq("status", "payment_processing"),
+    supabase.from("memberships").select("*", { count: "exact", head: true }).eq("status", "payment_failed"),
+    supabase.from("memberships").select("*", { count: "exact", head: true }).eq("status", "canceled"),
     supabase.from("reviewer_contact_requests").select("*", { count: "exact", head: true }),
     supabase.from("request_messages").select("request_id"),
     supabase.from("support_threads").select("*", { count: "exact", head: true }).in("status", ["open", "in_progress"]),
@@ -145,7 +157,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       .limit(40),
   ]);
 
-  const membershipByUser = new Map((memberships as MembershipRow[] | null)?.map((item) => [item.user_id, item.status]) ?? []);
+  const membershipByUser = new Map((memberships as MembershipRow[] | null)?.map((item) => [item.user_id, item]) ?? []);
   const kycByUser = new Map((kycRows as KycRow[] | null)?.map((item) => [item.user_id, item]) ?? []);
   const reviewerCount = (members || []).filter((member) => member.role === "reviewer" || member.role === "tester").length;
   const providerCount = (members || []).filter((member) => member.role === "provider").length;
@@ -159,7 +171,10 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     full_name: member.full_name || "",
     email: member.email || "",
     role: member.role || "",
-    membership_status: membershipByUser.get(member.id) || "pending_payment",
+    membership_status: membershipByUser.get(member.id)?.status || "pending_payment",
+    membership_period_end_at: membershipByUser.get(member.id)?.current_period_end_at || "",
+    membership_canceled_at: membershipByUser.get(member.id)?.canceled_at || "",
+    membership_last_payment_failed_at: membershipByUser.get(member.id)?.last_payment_failed_at || "",
     kyc_status: kycByUser.get(member.id)?.status || "pending",
     kyc_reference_id: kycByUser.get(member.id)?.reference_id || "",
     verified_full_name: kycByUser.get(member.id)?.verified_full_name || "",
@@ -338,7 +353,13 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                   full_name: member.full_name,
                   email: member.email,
                   role: member.role,
-                  membershipStatus: membershipByUser.get(member.id) || "pending_payment",
+                  membershipStatus: membershipByUser.get(member.id)?.status || "pending_payment",
+                  membershipCurrentPeriodEndAt: membershipByUser.get(member.id)?.current_period_end_at || null,
+                  membershipCanceledAt: membershipByUser.get(member.id)?.canceled_at || null,
+                  membershipLastPaymentFailedAt: membershipByUser.get(member.id)?.last_payment_failed_at || null,
+                  membershipSquareCustomerId: membershipByUser.get(member.id)?.square_customer_id || null,
+                  membershipSquareOrderId: membershipByUser.get(member.id)?.square_order_id || null,
+                  membershipSquareSubscriptionId: membershipByUser.get(member.id)?.square_subscription_id || null,
                   kycStatus: kycByUser.get(member.id)?.status || "pending",
                   kycReferenceId: kycByUser.get(member.id)?.reference_id || null,
                   kycVerifiedFullName: kycByUser.get(member.id)?.verified_full_name || null,
@@ -373,7 +394,10 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                 <MetricCard title="Resenadores" value={reviewerCount} body="Perfiles visibles de resenadores en la lista actual." />
                 <MetricCard title="Providers" value={providerCount} body="Perfiles visibles de providers en la lista actual." />
                 <MetricCard title="Membresias activas" value={activeMembersCount || 0} body="Usuarios con acceso completo por pago." />
-                <MetricCard title="Pago pendiente" value={pendingPaymentCount || 0} body="Usuarios que aun no completan la membresia." />
+                <MetricCard title="Pago pendiente" value={pendingPaymentCount || 0} body="Usuarios que aun no inician o completan el primer pago." />
+                <MetricCard title="Validando pago" value={processingPaymentCount || 0} body="Usuarios esperando confirmacion final de Square." />
+                <MetricCard title="Cobro fallido" value={failedPaymentCount || 0} body="Renovaciones o pagos con problema reciente." />
+                <MetricCard title="Canceladas" value={canceledMembershipCount || 0} body="Suscripciones canceladas desde Square." />
                 <MetricCard title="KYC aprobados" value={approvedKycCount || 0} body="Identidades validadas correctamente." />
                 <MetricCard title="KYC en revision" value={kycInReviewCount || 0} body="Casos que requieren mirada manual." />
                 <MetricCard title="Aprobacion KYC" value={`${kycApprovalRate}%`} body="Conversion entre aprobados y casos en revision." />

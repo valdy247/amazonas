@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { membershipHasAccess } from "@/lib/membership";
 import { createVeriffSession } from "@/lib/veriff";
 
 function splitName(fullName: string | null | undefined) {
@@ -37,8 +38,12 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL("/dashboard", origin));
   }
 
-  const { data: membership } = await supabase.from("memberships").select("status").eq("user_id", user.id).maybeSingle();
-  if (membership?.status !== "active") {
+  const { data: membership } = await supabase
+    .from("memberships")
+    .select("status, current_period_end_at")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (!membershipHasAccess(membership)) {
     return NextResponse.redirect(new URL("/dashboard?veriff_error=Activa%20tu%20membresia%20antes%20de%20verificarte.", origin));
   }
 
