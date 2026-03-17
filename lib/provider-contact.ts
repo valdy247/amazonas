@@ -47,6 +47,44 @@ function toHref(raw: string) {
   return `https://${value}`;
 }
 
+function toLabeledHref(raw: string, label?: string | null) {
+  const value = raw.trim();
+  const normalizedLabel = String(label || "").trim().toLowerCase();
+
+  if (!value) {
+    return null;
+  }
+
+  if ((normalizedLabel.includes("facebook") || normalizedLabel.includes("messenger")) && /^share\//i.test(value)) {
+    return `https://facebook.com/${value.replace(/^\/+/, "")}`;
+  }
+
+  if (normalizedLabel.includes("facebook") && /^profile\.php\?/i.test(value)) {
+    return `https://facebook.com/${value.replace(/^\/+/, "")}`;
+  }
+
+  return toHref(value);
+}
+
+function recoverSpecialSocialHref(raw: string, label?: string | null) {
+  const value = raw.trim();
+  const normalizedLabel = String(label || "").trim().toLowerCase();
+
+  if (!value) {
+    return null;
+  }
+
+  if ((normalizedLabel.includes("facebook") || normalizedLabel.includes("messenger")) && /^share\//i.test(value)) {
+    return `https://facebook.com/${value.replace(/^\/+/, "")}`;
+  }
+
+  if (normalizedLabel.includes("facebook") && /^profile\.php\?/i.test(value)) {
+    return `https://facebook.com/${value.replace(/^\/+/, "")}`;
+  }
+
+  return null;
+}
+
 function isLikelyDirectLink(value: string) {
   const trimmed = value.trim();
   return (
@@ -69,8 +107,10 @@ export function parseContactMethods(contactMethods?: string | null, fallbackUrl?
     const requestedLabel = right ? left.trim() : "";
     const copyMode = /^copy:/i.test(target);
     const rawValue = copyMode ? target.replace(/^copy:/i, "").trim() : target;
-    const directCopyHref = copyMode && isLikelyDirectLink(rawValue) ? toHref(rawValue) : null;
-    const href = copyMode ? directCopyHref : toHref(rawValue);
+    const directCopyHref = copyMode
+      ? recoverSpecialSocialHref(rawValue, requestedLabel) || (isLikelyDirectLink(rawValue) ? toHref(rawValue) : null)
+      : null;
+    const href = copyMode ? directCopyHref : toLabeledHref(rawValue, requestedLabel);
     const derivedLabel = href ? labelFromUrl(href) : "";
     const label = derivedLabel === "WhatsApp" ? "WhatsApp" : requestedLabel || derivedLabel || "Enlace";
 
@@ -85,8 +125,8 @@ export function parseContactMethods(contactMethods?: string | null, fallbackUrl?
   });
 
   if (!methods.length) {
-    const fallbackHref = toHref(String(fallbackUrl || ""));
-    const networkHref = toHref(String(fallbackNetwork || ""));
+    const fallbackHref = toLabeledHref(String(fallbackUrl || ""), fallbackNetwork);
+    const networkHref = toLabeledHref(String(fallbackNetwork || ""), fallbackNetwork);
     const href = fallbackHref || networkHref;
 
     if (href) {
