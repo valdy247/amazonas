@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { logWebhookAudit } from "@/lib/webhook-audit";
 import {
+  getSquareCustomer,
   getSquarePaymentStatusFromOrder,
   getSquareWebhookNotificationUrl,
   searchSquareSubscriptionByCustomer,
@@ -36,6 +37,30 @@ function extractUserIdFromNote(note?: string) {
   if (!note) return null;
   const match = note.match(/^reviewer_access:([a-f0-9-]{36})$/i);
   return match?.[1] || null;
+}
+
+async function findMembershipUserIdBySquareCustomer(input: {
+  admin: ReturnType<typeof createAdminClient>;
+  customerId: string | null;
+}) {
+  if (!input.customerId) {
+    return null;
+  }
+
+  const customer = await getSquareCustomer(input.customerId);
+
+  if (!customer.email) {
+    return null;
+  }
+
+  const normalizedEmail = customer.email.trim().toLowerCase();
+  const { data: profile } = await input.admin
+    .from("profiles")
+    .select("id")
+    .eq("email", normalizedEmail)
+    .maybeSingle();
+
+  return profile?.id || null;
 }
 
 async function activateMembership(input: {
@@ -130,6 +155,13 @@ export async function POST(request: NextRequest) {
       }
 
       if (!membershipUserId) {
+        membershipUserId = await findMembershipUserIdBySquareCustomer({
+          admin,
+          customerId: payment.customer_id || null,
+        });
+      }
+
+      if (!membershipUserId) {
         await logWebhookAudit({
           provider: "square",
           eventType: event.type,
@@ -212,7 +244,14 @@ export async function POST(request: NextRequest) {
         .eq("square_subscription_id", orderId)
         .maybeSingle();
 
-      if (!membershipRow?.user_id) {
+      const membershipUserId =
+        membershipRow?.user_id ||
+        (await findMembershipUserIdBySquareCustomer({
+          admin,
+          customerId: payment.customerId,
+        }));
+
+      if (!membershipUserId) {
         await logWebhookAudit({
           provider: "square",
           eventType: event.type,
@@ -230,7 +269,7 @@ export async function POST(request: NextRequest) {
 
       const membershipError = await activateMembership({
         admin,
-        userId: membershipRow.user_id,
+        userId: membershipUserId,
         subscriptionId: subscriptionMatch?.id || orderId,
         customerId: payment.customerId,
         status: subscriptionMatch ? mapSquareSubscriptionStatus(subscriptionMatch.status || undefined) || "active" : "active",
@@ -282,7 +321,14 @@ export async function POST(request: NextRequest) {
         .eq("square_customer_id", customerId)
         .maybeSingle();
 
-      if (!membershipRow?.user_id) {
+      const membershipUserId =
+        membershipRow?.user_id ||
+        (await findMembershipUserIdBySquareCustomer({
+          admin,
+          customerId,
+        }));
+
+      if (!membershipUserId) {
         await logWebhookAudit({
           provider: "square",
           eventType: event.type,
@@ -302,7 +348,7 @@ export async function POST(request: NextRequest) {
           square_customer_id: customerId,
           paid_at: membershipStatus === "active" ? new Date().toISOString() : null,
         })
-        .eq("user_id", membershipRow.user_id);
+        .eq("user_id", membershipUserId);
 
       if (membershipError) {
         await logWebhookAudit({

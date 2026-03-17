@@ -245,6 +245,40 @@ export async function searchSquareSubscriptionByCustomer(customerId: string) {
   };
 }
 
+export async function getSquareCustomer(customerId: string) {
+  const accessToken = getSquareAccessToken();
+  const response = await fetch(`${getSquareApiBaseUrl()}/v2/customers/${customerId}`, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+      "Square-Version": "2025-10-16",
+    },
+    cache: "no-store",
+  });
+
+  const payload = (await response.json()) as {
+    customer?: {
+      id?: string;
+      email_address?: string;
+      phone_number?: string;
+      given_name?: string;
+      family_name?: string;
+    };
+  };
+
+  if (!response.ok) {
+    throw new Error(`Square customer lookup failed: ${JSON.stringify(payload)}`);
+  }
+
+  return {
+    id: payload.customer?.id || customerId,
+    email: payload.customer?.email_address || null,
+    phone: payload.customer?.phone_number || null,
+    givenName: payload.customer?.given_name || null,
+    familyName: payload.customer?.family_name || null,
+  };
+}
+
 export async function getSquarePaymentStatusFromOrder(input: {
   orderId: string;
   locationId?: string | null;
