@@ -35,7 +35,7 @@ export async function POST(request: Request) {
     const category = typeof payload.category === "string" ? payload.category : "";
 
     if (!reviewerIds.length) {
-      return NextResponse.json({ error: "No hay destinatarias para esta campana." }, { status: 400 });
+      return NextResponse.json({ error: "No hay destinatarias para esta campaña." }, { status: 400 });
     }
 
     if (!message) {
@@ -48,7 +48,7 @@ export async function POST(request: Request) {
     } = await supabase.auth.getUser();
 
     if (!user) {
-      return NextResponse.json({ error: "No se pudo validar tu sesion." }, { status: 401 });
+      return NextResponse.json({ error: "No se pudo validar tu sesión." }, { status: 401 });
     }
 
     const rateLimitError = await rejectRateLimited({
@@ -57,7 +57,7 @@ export async function POST(request: Request) {
       identifierParts: [user.id],
       limit: 4,
       windowSeconds: 300,
-      message: "Estas enviando campanas demasiado rapido. Espera unos minutos.",
+      message: "Estás enviando campañas demasiado rápido. Espera unos minutos.",
     });
     if (rateLimitError) {
       return rateLimitError;
@@ -71,7 +71,7 @@ export async function POST(request: Request) {
       .single();
 
     if (!providerProfile || providerProfile.role !== "provider") {
-      return NextResponse.json({ error: "Solo los proveedores pueden enviar campanas." }, { status: 403 });
+      return NextResponse.json({ error: "Solo los proveedores pueden enviar campañas." }, { status: 403 });
     }
 
     const providerProfileData = mergeProfileData(providerProfile.profile_data);
@@ -97,7 +97,7 @@ export async function POST(request: Request) {
     const eligibleReviewerIds = eligibleReviewers.map((row) => row.id);
 
     if (!eligibleReviewerIds.length) {
-      return NextResponse.json({ error: "No hay resenadoras disponibles para esta campana." }, { status: 400 });
+      return NextResponse.json({ error: "No hay reseñadoras disponibles para esta campaña." }, { status: 400 });
     }
 
     const { data: existingRequests } = await admin
@@ -248,7 +248,7 @@ export async function POST(request: Request) {
       },
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "No se pudo enviar la campana.";
+    const message = error instanceof Error ? error.message : "No se pudo enviar la campaña.";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

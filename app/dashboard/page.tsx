@@ -315,7 +315,7 @@ export default async function DashboardPage({
   const reviewerQuickReplies =
     currentUserLanguage === "en"
       ? ["Hi, I am a reviewer and I would love to collaborate with you.", "Hi, what kind of products do you offer?"]
-      : ["Hola, soy resenadora y me gustaria colaborar con usted.", "Hola, que tipo de productos ofreces?"];
+      : ["Hola, soy reseñadora y me gustaría colaborar con usted.", "Hola, ¿qué tipo de productos ofreces?"];
   const copy = dashboardCopy[currentUserLanguage];
 
   const { data: membership } = await supabase
@@ -844,7 +844,7 @@ export default async function DashboardPage({
   const hasUnreadMessages = unreadConversationCount > 0;
   const menuItems = [
     { href: "/dashboard", label: copy.home },
-    isProvider ? { href: "/dashboard?section=reviewers", label: currentUserLanguage === "en" ? "Find reviewers" : "Buscar resenadores" } : null,
+    isProvider ? { href: "/dashboard?section=reviewers", label: currentUserLanguage === "en" ? "Find reviewers" : "Buscar reseñadores" } : null,
     !isProvider ? { href: "/dashboard?section=contacts", label: copy.providerContacts, locked: !canSeeContacts } : null,
     { href: "/dashboard?section=support", label: currentUserLanguage === "en" ? "Support" : "Soporte" },
     { href: "/profile", label: currentUserLanguage === "en" ? "Edit profile" : "Editar perfil" },

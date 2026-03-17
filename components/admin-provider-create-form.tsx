@@ -33,7 +33,7 @@ export function AdminProviderCreateForm({ whatsappPrefixOptions }: AdminProvider
         <div className="rounded-[1.35rem] border border-[#eadfd6] bg-[#fcfaf7] p-3">
           <div>
             <p className="text-sm font-semibold text-[#131316]">WhatsApp</p>
-            <p className="mt-1 text-xs text-[#62626d]">Selecciona el pais y escribe el numero sin espacios para dar soporte mundial.</p>
+            <p className="mt-1 text-xs text-[#62626d]">Selecciona el país y escribe el número sin espacios para dar soporte mundial.</p>
           </div>
           <div className="mt-3 grid gap-2 sm:grid-cols-[minmax(0,220px)_1fr]">
             <WhatsappCountrySelect name="whatsapp_prefix" options={whatsappPrefixOptions} defaultValue="us:+1" />

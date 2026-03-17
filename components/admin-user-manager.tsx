@@ -105,7 +105,7 @@ function AdminAccountActions({ member }: { member: MemberRow }) {
         <input type="hidden" name="user_id" value={member.id} />
         <input type="hidden" name="email" value={member.email || ""} />
         <p className="text-sm font-semibold text-[#131316]">Recuperacion</p>
-        <p className="text-xs text-[#62626d]">Envia un correo para que el usuario cambie su contrasena.</p>
+        <p className="text-xs text-[#62626d]">Envía un correo para que el usuario cambie su contraseña.</p>
         <button className="btn-secondary" type="submit" disabled={!member.email || recoveryPending}>
           {recoveryPending ? "Enviando..." : "Enviar recuperacion"}
         </button>
@@ -260,7 +260,7 @@ export function AdminUserManager({ members, initialQuery = "" }: AdminUserManage
             <option value="all">Todos los roles</option>
             <option value="admin">Admin</option>
             <option value="provider">Provider</option>
-            <option value="reviewer">Resenador</option>
+            <option value="reviewer">Reseñador</option>
             <option value="tester">Tester</option>
           </select>
           <select className="input" value={membershipFilter} onChange={(event) => setMembershipFilter(event.target.value)}>

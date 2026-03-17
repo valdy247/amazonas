@@ -122,7 +122,7 @@ export function ReviewerOpportunities({ opportunities }: ReviewerOpportunitiesPr
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <h3 className="font-bold">{item.providerName}</h3>
-                  <p className="mt-1 text-sm text-[#62626d]">{item.providerCountry || "Sin pais"} · {new Date(item.createdAt).toLocaleDateString()}</p>
+                  <p className="mt-1 text-sm text-[#62626d]">{item.providerCountry || "Sin país"} · {new Date(item.createdAt).toLocaleDateString()}</p>
                 </div>
                 <span className="rounded-full bg-[#fcf3ea] px-3 py-1 text-xs font-semibold text-[#62564a]">{getRequestStatusLabel(item.status)}</span>
               </div>

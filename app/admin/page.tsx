@@ -384,7 +384,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       pushHistory(request.provider_id, {
         id: `request-provider-${request.id}`,
         type: "chat",
-        title: "Chat con resenador",
+        title: "Chat con reseñador",
         body,
         at: getLatestAt(request.last_activity_at, request.created_at, requestMessages.at(-1)?.created_at),
       });
@@ -622,7 +622,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
 
               <div className="mt-4 grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
                 <MetricCard title="Proveedores" value={contacts.length} body="Contactos cargados en el sistema." />
-                <MetricCard title="Resenadores" value={reviewerCount} body="Perfiles visibles de resenadores en la lista actual." />
+                <MetricCard title="Reseñadores" value={reviewerCount} body="Perfiles visibles de reseñadores en la lista actual." />
                 <MetricCard title="Providers" value={providerCount} body="Perfiles visibles de providers en la lista actual." />
                 <MetricCard title="Membresias activas" value={activeMembersCount || 0} body="Usuarios con acceso completo por pago." />
                 <MetricCard title="Pago pendiente" value={pendingPaymentCount || 0} body="Usuarios que aun no inician o completan el primer pago." />
@@ -632,7 +632,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                 <MetricCard title="KYC aprobados" value={approvedKycCount || 0} body="Identidades validadas correctamente." />
                 <MetricCard title="KYC en revision" value={kycInReviewCount || 0} body="Casos que requieren mirada manual." />
                 <MetricCard title="Aprobacion KYC" value={`${kycApprovalRate}%`} body="Conversion entre aprobados y casos en revision." />
-                <MetricCard title="Hilos iniciados" value={chatThreadsCount || 0} body="Contactos entre providers y resenadores." />
+                <MetricCard title="Hilos iniciados" value={chatThreadsCount || 0} body="Contactos entre providers y reseñadores." />
                 <MetricCard title="Chats activos" value={chatsStartedCount} body="Conversaciones con al menos un mensaje." />
                 <MetricCard title="Soporte abierto" value={supportOpenCount || 0} body="Casos que siguen pendientes o en proceso." />
                 <MetricCard title="Resolucion soporte" value={`${supportResolutionRate}%`} body="Casos resueltos frente a abiertos." />
