@@ -12,9 +12,9 @@ import { createClient } from "@/lib/supabase/server";
 function inferDraftFromSource(source: ProviderImportSource, value: string) {
   switch (source) {
     case "messenger":
-      return { messenger: value, preview: value.replace(/^https?:\/\/(www\.)?m\.me\//i, "") };
+      return { messenger: value, preview: value };
     case "facebook":
-      return { messenger: value, preview: value.replace(/^https?:\/\/(www\.)?facebook\.com\//i, "") };
+      return { facebook: value, preview: value };
     case "instagram":
       return { instagram: value, preview: value.replace(/^https?:\/\/(www\.)?instagram\.com\//i, "") };
     case "whatsapp":

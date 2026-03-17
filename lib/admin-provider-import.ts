@@ -14,6 +14,7 @@ export type ProviderImportDraft = {
   whatsapp?: string | null;
   instagram?: string | null;
   messenger?: string | null;
+  facebook?: string | null;
   notes?: string | null;
   isVerified?: boolean;
 };
@@ -49,7 +50,7 @@ export function normalizeImportedContactValue(source: ProviderImportSource, raw:
         .replace(/^messages?\//i, "")
         .replace(/^profile\.php\?id=/i, "")
         .trim();
-      return cleaned ? `https://m.me/${cleaned}` : "";
+      return cleaned;
     }
     case "facebook": {
       const cleaned = value
@@ -57,7 +58,7 @@ export function normalizeImportedContactValue(source: ProviderImportSource, raw:
         .replace(/^@/, "")
         .replace(/\/+$/, "")
         .trim();
-      return cleaned ? `https://facebook.com/${cleaned}` : "";
+      return cleaned;
     }
     case "instagram": {
       const cleaned = value
@@ -86,9 +87,10 @@ export async function findDuplicateProviderContact(
     email?: string;
     instagram?: string;
     messenger?: string;
+    facebook?: string;
   }
 ) {
-  const requestedMethods = [input.whatsapp, input.instagram, input.messenger]
+  const requestedMethods = [input.whatsapp, input.instagram, input.messenger, input.facebook]
     .map((value) => normalizeContactValue(value))
     .filter(Boolean);
   const normalizedEmail = normalizeEmail(input.email);
@@ -135,6 +137,7 @@ export async function findDuplicateProviderContact(
       normalizeContactValue(profileData.contact.whatsapp),
       normalizeContactValue(profileData.contact.instagram),
       normalizeContactValue(profileData.contact.messenger),
+      normalizeContactValue((profileData.contact as { facebook?: string }).facebook),
     ].filter(Boolean);
 
     if (normalizedEmail && normalizeEmail(profile.email) === normalizedEmail) {
@@ -160,9 +163,10 @@ export async function createProviderContactRecord(
   const whatsapp = String(input.whatsapp || "").trim();
   const instagram = String(input.instagram || "").trim();
   const messenger = String(input.messenger || "").trim();
+  const facebook = String(input.facebook || "").trim();
   const notes = String(input.notes || "").trim();
-  const contactMethods = buildContactMethodsFromFields({ whatsapp, instagram, messenger });
-  const methodCount = [whatsapp, instagram, messenger].filter(Boolean).length;
+  const contactMethods = buildContactMethodsFromFields({ whatsapp, instagram, messenger, facebook });
+  const methodCount = [whatsapp, instagram, messenger, facebook].filter(Boolean).length;
 
   if (!methodCount) {
     throw new Error("Debes agregar al menos un metodo de contacto.");
@@ -173,6 +177,7 @@ export async function createProviderContactRecord(
     email,
     instagram,
     messenger,
+    facebook,
   });
 
   if (duplicateMessage) {
@@ -181,7 +186,7 @@ export async function createProviderContactRecord(
 
   const safeTitle = await getNextProviderAlias(admin);
   const safeUrl = getPrimaryContactUrl(contactMethods) || "#";
-  const primaryNetwork = whatsapp ? "WhatsApp" : instagram ? "Instagram" : messenger ? "Messenger" : "";
+  const primaryNetwork = whatsapp ? "WhatsApp" : instagram ? "Instagram" : messenger ? "Messenger" : facebook ? "Facebook" : "";
 
   const payloads = [
     {

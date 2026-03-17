@@ -48,10 +48,11 @@ export function AdminProviderCreateForm({ whatsappPrefixOptions }: AdminProvider
             />
           </div>
         </div>
-        <input className="input" name="instagram" placeholder="Instagram. Ej: instagram.com/usuario o https://instagram.com/usuario" spellCheck={false} autoCorrect="off" autoCapitalize="off" />
-        <input className="input" name="messenger" placeholder="Messenger. Ej: m.me/usuario o https://m.me/usuario" spellCheck={false} autoCorrect="off" autoCapitalize="off" />
+        <input className="input" name="instagram" placeholder="Instagram. Ej: instagram.com/usuario o usuario" spellCheck={false} autoCorrect="off" autoCapitalize="off" />
+        <input className="input" name="messenger" placeholder="Messenger username o enlace" spellCheck={false} autoCorrect="off" autoCapitalize="off" />
+        <input className="input" name="facebook" placeholder="Facebook username o enlace" spellCheck={false} autoCorrect="off" autoCapitalize="off" />
         <textarea className="input min-h-24" name="notes" placeholder="Notas" spellCheck={false} autoCorrect="off" autoCapitalize="off" />
-        <p className="text-xs text-[#62626d]">Debes completar al menos uno: WhatsApp, Instagram o Messenger.</p>
+        <p className="text-xs text-[#62626d]">Debes completar al menos uno: WhatsApp, Instagram, Messenger o Facebook.</p>
         <label className="flex items-center gap-2 text-sm text-[#62626d]">
           <input type="checkbox" name="is_verified" />
           <span>Marcar como verificado</span>

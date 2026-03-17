@@ -37,8 +37,9 @@ function buildDraftFromSource(source: ProviderImportSource, rawValue: string) {
 
   switch (source) {
     case "messenger":
-    case "facebook":
       return { messenger: value };
+    case "facebook":
+      return { facebook: value };
     case "instagram":
       return { instagram: value };
     case "whatsapp":

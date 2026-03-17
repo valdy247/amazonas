@@ -76,6 +76,7 @@ async function assertUniqueProviderContact({
   email,
   instagram,
   messenger,
+  facebook,
 }: {
   supabase: Awaited<ReturnType<typeof createClient>>;
   contactId?: number;
@@ -83,8 +84,9 @@ async function assertUniqueProviderContact({
   email?: string;
   instagram?: string;
   messenger?: string;
+  facebook?: string;
 }) {
-  const requestedMethods = [whatsapp, instagram, messenger].map((value) => normalizeContactValue(value)).filter(Boolean);
+  const requestedMethods = [whatsapp, instagram, messenger, facebook].map((value) => normalizeContactValue(value)).filter(Boolean);
   const normalizedEmail = normalizeEmail(email);
 
   if (!requestedMethods.length && !normalizedEmail) {
@@ -128,6 +130,7 @@ async function assertUniqueProviderContact({
       normalizeContactValue(profileData.contact.whatsapp),
       normalizeContactValue(profileData.contact.instagram),
       normalizeContactValue(profileData.contact.messenger),
+      normalizeContactValue((profileData.contact as { facebook?: string }).facebook),
     ].filter(Boolean);
 
     if (normalizedEmail && normalizeEmail(profile.email) === normalizedEmail) {
@@ -153,10 +156,11 @@ async function performCreateProviderContact(formData: FormData) {
   const whatsapp = `${whatsappPrefix}${whatsappNumber}`.trim();
   const instagram = String(formData.get("instagram") || "").trim();
   const messenger = String(formData.get("messenger") || "").trim();
+  const facebook = String(formData.get("facebook") || "").trim();
   const notes = String(formData.get("notes") || "").trim();
   const isVerified = String(formData.get("is_verified") || "") === "on";
-  const contactMethods = buildContactMethodsFromFields({ whatsapp, instagram, messenger });
-  const methodCount = [whatsapp, instagram, messenger].filter(Boolean).length;
+  const contactMethods = buildContactMethodsFromFields({ whatsapp, instagram, messenger, facebook });
+  const methodCount = [whatsapp, instagram, messenger, facebook].filter(Boolean).length;
 
   if (!methodCount) {
     throw new Error("Debes agregar al menos un metodo de contacto.");
@@ -168,11 +172,12 @@ async function performCreateProviderContact(formData: FormData) {
     email,
     instagram,
     messenger,
+    facebook,
   });
 
   const safeTitle = await getNextProviderAlias(supabase);
   const safeUrl = getPrimaryContactUrl(contactMethods) || "#";
-  const primaryNetwork = whatsapp ? "WhatsApp" : instagram ? "Instagram" : messenger ? "Messenger" : "";
+  const primaryNetwork = whatsapp ? "WhatsApp" : instagram ? "Instagram" : messenger ? "Messenger" : facebook ? "Facebook" : "";
 
   const payloads = [
     {
@@ -271,11 +276,12 @@ export async function updateProviderContact(formData: FormData) {
   const whatsapp = `${whatsappPrefix}${whatsappNumber}`.trim();
   const instagram = String(formData.get("instagram") || "").trim();
   const messenger = String(formData.get("messenger") || "").trim();
+  const facebook = String(formData.get("facebook") || "").trim();
   const notes = String(formData.get("notes") || "").trim();
   const isVerified = String(formData.get("is_verified") || "") === "on";
   const isActive = String(formData.get("is_active") || "") === "on";
-  const contactMethods = buildContactMethodsFromFields({ whatsapp, instagram, messenger });
-  const methodCount = [whatsapp, instagram, messenger].filter(Boolean).length;
+  const contactMethods = buildContactMethodsFromFields({ whatsapp, instagram, messenger, facebook });
+  const methodCount = [whatsapp, instagram, messenger, facebook].filter(Boolean).length;
 
   if (!Number.isFinite(contactId) || contactId <= 0) {
     throw new Error("Contacto invalido.");
@@ -292,11 +298,12 @@ export async function updateProviderContact(formData: FormData) {
     email,
     instagram,
     messenger,
+    facebook,
   });
 
   const safeTitle = formatProviderAlias(contactId);
   const safeUrl = getPrimaryContactUrl(contactMethods) || "#";
-  const primaryNetwork = whatsapp ? "WhatsApp" : instagram ? "Instagram" : messenger ? "Messenger" : "";
+  const primaryNetwork = whatsapp ? "WhatsApp" : instagram ? "Instagram" : messenger ? "Messenger" : facebook ? "Facebook" : "";
 
   const payloads = [
     {

@@ -1,6 +1,8 @@
 export type ContactMethod = {
   label: string;
-  href: string;
+  value: string;
+  href?: string;
+  mode: "link" | "copy";
 };
 
 export function normalizeWhatsappPrefix(value?: string | null) {
@@ -44,6 +46,10 @@ function toHref(raw: string) {
   return `https://${value}`;
 }
 
+function isLikelyDirectLink(value: string) {
+  return /^https?:\/\//i.test(value) || /^\+?\d{7,15}$/.test(value.replace(/[^\d+]/g, ""));
+}
+
 export function parseContactMethods(contactMethods?: string | null, fallbackUrl?: string | null, fallbackNetwork?: string | null) {
   const methods: ContactMethod[] = [];
   const rawLines = String(contactMethods || "")
@@ -54,17 +60,21 @@ export function parseContactMethods(contactMethods?: string | null, fallbackUrl?
   rawLines.forEach((line) => {
     const [left, right] = line.includes("|") ? line.split("|", 2) : line.includes(":") ? line.split(":", 2) : ["", line];
     const target = right ? right.trim() : left.trim();
-    const href = toHref(target);
-
-    if (!href) return;
-
-    const derivedLabel = labelFromUrl(href);
     const requestedLabel = right ? left.trim() : "";
-    const label =
-      derivedLabel === "WhatsApp"
-        ? "WhatsApp"
-        : requestedLabel || derivedLabel;
-    methods.push({ label, href });
+    const copyMode = /^copy:/i.test(target);
+    const rawValue = copyMode ? target.replace(/^copy:/i, "").trim() : target;
+    const href = copyMode ? null : toHref(rawValue);
+    const derivedLabel = href ? labelFromUrl(href) : "";
+    const label = derivedLabel === "WhatsApp" ? "WhatsApp" : requestedLabel || derivedLabel || "Enlace";
+
+    if (!rawValue) return;
+
+    if (copyMode || !href) {
+      methods.push({ label, value: rawValue, mode: "copy" });
+      return;
+    }
+
+    methods.push({ label, value: rawValue, href, mode: "link" });
   });
 
   if (!methods.length) {
@@ -75,7 +85,9 @@ export function parseContactMethods(contactMethods?: string | null, fallbackUrl?
     if (href) {
       methods.push({
         label: labelFromUrl(href) === "WhatsApp" ? "WhatsApp" : fallbackNetwork || labelFromUrl(href),
+        value: href,
         href,
+        mode: "link",
       });
     }
   }
@@ -85,30 +97,49 @@ export function parseContactMethods(contactMethods?: string | null, fallbackUrl?
 
 export function getPrimaryContactUrl(contactMethods?: string | null, fallbackUrl?: string | null) {
   const methods = parseContactMethods(contactMethods, fallbackUrl);
-  return methods[0]?.href || fallbackUrl || "#";
+  return methods.find((method) => method.mode === "link")?.href || fallbackUrl || "#";
 }
 
 export function buildContactMethodsFromFields({
   whatsapp,
   instagram,
   messenger,
+  facebook,
 }: {
   whatsapp?: string | null;
   instagram?: string | null;
   messenger?: string | null;
+  facebook?: string | null;
 }) {
+  const trimmedMessenger = messenger?.trim() || "";
+  const trimmedFacebook = facebook?.trim() || "";
   const rows = [
     whatsapp?.trim() ? `WhatsApp|${whatsapp.trim()}` : null,
     instagram?.trim() ? `Instagram|${instagram.trim()}` : null,
-    messenger?.trim() ? `Messenger|${messenger.trim()}` : null,
+    trimmedMessenger ? `Messenger|${isLikelyDirectLink(trimmedMessenger) ? trimmedMessenger : `copy:${trimmedMessenger}`}` : null,
+    trimmedFacebook ? `Facebook|${isLikelyDirectLink(trimmedFacebook) ? trimmedFacebook : `copy:${trimmedFacebook}`}` : null,
   ].filter(Boolean);
 
   return rows.join("\n");
 }
 
 export function normalizeContactValue(raw?: string | null) {
-  const href = toHref(String(raw || ""));
-  return href ? href.toLowerCase() : "";
+  const value = String(raw || "").trim();
+
+  if (!value) {
+    return "";
+  }
+
+  if (/^copy:/i.test(value)) {
+    return value.replace(/^copy:/i, "").trim().toLowerCase();
+  }
+
+  if (!/^https?:\/\//i.test(value) && /\s/.test(value)) {
+    return value.toLowerCase();
+  }
+
+  const href = toHref(value);
+  return href ? href.toLowerCase() : value.toLowerCase();
 }
 
 export function getComparableContactMethods(contactMethods?: string | null, fallbackUrl?: string | null, fallbackNetwork?: string | null) {
@@ -122,10 +153,12 @@ export function getContactFieldValues(contactMethods?: string | null, fallbackUr
   let whatsapp = "";
   let instagram = "";
   let messenger = "";
+  let facebook = "";
 
   methods.forEach((method) => {
-    const href = method.href.trim();
+    const href = method.href?.trim() || "";
     const label = method.label.toLowerCase();
+    const value = method.value.trim();
 
     if (!whatsapp && (label.includes("whatsapp") || href.includes("wa.me/"))) {
       const match = href.match(/wa\.me\/(\d+)/i);
@@ -134,14 +167,19 @@ export function getContactFieldValues(contactMethods?: string | null, fallbackUr
     }
 
     if (!instagram && (label.includes("instagram") || href.includes("instagram.com"))) {
-      instagram = href;
+      instagram = href || value;
       return;
     }
 
     if (!messenger && (label.includes("messenger") || href.includes("m.me/") || href.includes("facebook.com"))) {
-      messenger = href;
+      messenger = href || value;
+      return;
+    }
+
+    if (!facebook && label.includes("facebook")) {
+      facebook = href || value;
     }
   });
 
-  return { whatsapp, instagram, messenger };
+  return { whatsapp, instagram, messenger, facebook };
 }

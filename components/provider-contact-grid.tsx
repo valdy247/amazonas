@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
-import { ArrowUpRight, CircleX, MessageCircleMore } from "lucide-react";
+import { ArrowUpRight, CircleX, Copy, MessageCircleMore } from "lucide-react";
 import { parseContactMethods } from "@/lib/provider-contact";
 import { createClient } from "@/lib/supabase/client";
 import { normalizeLanguage, providerContactsCopy, type AppLanguage } from "@/lib/i18n";
@@ -30,6 +30,7 @@ export function ProviderContactGrid({ contacts, initialContactedIds, language }:
   const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"pending" | "contacted">("pending");
   const [error, setError] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const contactedStorageKey = "provider-contacted";
   const [contactedIds, setContactedIds] = useState<string[]>(() => {
@@ -110,8 +111,9 @@ export function ProviderContactGrid({ contacts, initialContactedIds, language }:
     }
   }
 
-  function openMethod(contact: ProviderContact, href: string) {
+  function openMethod(contact: ProviderContact, method: (typeof methods)[number], href?: string) {
     setError(null);
+    setFeedback(null);
 
     startTransition(async () => {
       if (contact.history_id) {
@@ -140,6 +142,21 @@ export function ProviderContactGrid({ contacts, initialContactedIds, language }:
 
       markAsContacted(contact.id);
       setSelectedContactId(null);
+
+      if (method.mode === "copy") {
+        try {
+          await navigator.clipboard.writeText(method.value);
+          setFeedback(`${method.label}: ${method.value}`);
+        } catch {
+          setError(copy.sessionError);
+        }
+        return;
+      }
+
+      if (!href) {
+        setError(copy.sessionError);
+        return;
+      }
 
       if (href.startsWith("tel:")) {
         window.location.href = href;
@@ -216,6 +233,7 @@ export function ProviderContactGrid({ contacts, initialContactedIds, language }:
       ) : null}
 
       {error ? <p className="mt-3 text-sm font-semibold text-red-600">{error}</p> : null}
+      {feedback ? <p className="mt-3 text-sm font-semibold text-[#177a52]">Copiado: {feedback}</p> : null}
 
       {selectedContact ? (
         <div className="fixed inset-0 z-30 bg-[#131316]/45 p-4 backdrop-blur-sm">
@@ -238,9 +256,15 @@ export function ProviderContactGrid({ contacts, initialContactedIds, language }:
             <div className="mt-5 grid gap-3">
               {methods.map((method) => (
                 <button
-                  key={`${selectedContact.id}-${method.label}-${method.href}`}
+                  key={`${selectedContact.id}-${method.label}-${method.value}`}
                   type="button"
-                  onClick={() => openMethod(selectedContact, buildMethodHref(method.label, method.href))}
+                  onClick={() =>
+                    openMethod(
+                      selectedContact,
+                      method,
+                      method.mode === "link" && method.href ? buildMethodHref(method.label, method.href) : undefined
+                    )
+                  }
                   disabled={isPending}
                   className="inline-flex items-center justify-between rounded-[1.4rem] border border-[#ebdfd2] bg-[#fcfaf7] px-4 py-4 text-left"
                 >
@@ -253,7 +277,11 @@ export function ProviderContactGrid({ contacts, initialContactedIds, language }:
                       <span className="block font-semibold">{method.label}</span>
                     </span>
                   </span>
-                  <ArrowUpRight className="h-4 w-4 text-[#dc4f1f]" />
+                  {method.mode === "copy" ? (
+                    <Copy className="h-4 w-4 text-[#dc4f1f]" />
+                  ) : (
+                    <ArrowUpRight className="h-4 w-4 text-[#dc4f1f]" />
+                  )}
                 </button>
               ))}
             </div>

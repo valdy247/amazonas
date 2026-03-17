@@ -46,6 +46,7 @@ export function AdminProviderManager({ contacts, whatsappPrefixOptions }: AdminP
         methods.whatsapp,
         methods.instagram,
         methods.messenger,
+        methods.facebook,
         contact.is_active ? "activo" : "inactivo",
         contact.is_verified ? "verificado" : "sin verificar",
       ]
@@ -145,6 +146,7 @@ export function AdminProviderManager({ contacts, whatsappPrefixOptions }: AdminP
                     </div>
                     <input className="input" name="instagram" defaultValue={methods.instagram} placeholder="Instagram" />
                     <input className="input" name="messenger" defaultValue={methods.messenger} placeholder="Messenger" />
+                    <input className="input" name="facebook" defaultValue={methods.facebook} placeholder="Facebook" />
                     <textarea className="input min-h-24" name="notes" defaultValue={contact.notes || ""} placeholder="Notas" />
                     <div className="flex flex-wrap gap-4 text-sm text-[#62626d]">
                       <label className="flex items-center gap-2">

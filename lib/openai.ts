@@ -193,9 +193,9 @@ export async function extractProviderContactsFromImage(input: {
           : "email";
   const extractionRule =
     input.source === "messenger"
-      ? "Extract only Messenger usernames or direct Messenger handles visible in the screenshot. Return usernames only, without labels, @ symbols, or full URLs when possible."
+      ? "Extract visible Messenger conversation names, usernames, or profile identifiers from the screenshot. Use one value per visible row. Ignore timestamps, snippets like 'You:' and app chrome. Return only the visible contact identifier text."
       : input.source === "facebook"
-        ? "Extract only Facebook usernames or profile handles visible in the screenshot. Return usernames only, without labels, @ symbols, or full URLs when possible."
+        ? "Extract visible Facebook profile names, usernames, or profile identifiers from the screenshot. Ignore timestamps, snippets, and app chrome. Return only the visible contact identifier text."
       : input.source === "instagram"
         ? "Extract only Instagram usernames visible in the screenshot. Return usernames only, without labels, @ symbols, or full URLs when possible."
         : input.source === "whatsapp"
