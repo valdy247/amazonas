@@ -446,7 +446,17 @@ export async function updateMemberStatus(formData: FormData) {
   const kycReviewNote = String(formData.get("kyc_review_note") || "").trim();
 
   if (!userId) {
-    throw new Error("Usuario inválido");
+    throw new Error("Usuario invalido");
+  }
+
+  const { data: existingMembership, error: existingMembershipError } = await admin
+    .from("memberships")
+    .select("square_customer_id, square_order_id, square_subscription_id, created_at")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (existingMembershipError) {
+    throw new Error(existingMembershipError.message || "No se pudo leer la membresia actual.");
   }
 
   const now = new Date();
@@ -455,22 +465,40 @@ export async function updateMemberStatus(formData: FormData) {
       ? new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString()
       : null;
 
-  await admin.from("memberships").upsert({
-    user_id: userId,
-    status: membershipStatus,
-    paid_at: membershipStatus === "active" ? now.toISOString() : null,
-    current_period_end_at: currentPeriodEndAt,
-    last_payment_failed_at: membershipStatus === "payment_failed" ? now.toISOString() : null,
-    canceled_at: membershipStatus === "canceled" ? now.toISOString() : null,
-    updated_at: now.toISOString(),
-  });
+  const { error: membershipError } = await admin.from("memberships").upsert(
+    {
+      user_id: userId,
+      status: membershipStatus,
+      paid_at: membershipStatus === "active" ? now.toISOString() : null,
+      current_period_end_at: currentPeriodEndAt,
+      last_payment_failed_at: membershipStatus === "payment_failed" ? now.toISOString() : null,
+      canceled_at: membershipStatus === "canceled" ? now.toISOString() : null,
+      square_customer_id: existingMembership?.square_customer_id || null,
+      square_order_id: existingMembership?.square_order_id || null,
+      square_subscription_id: existingMembership?.square_subscription_id || null,
+      created_at: existingMembership?.created_at || now.toISOString(),
+      updated_at: now.toISOString(),
+    },
+    { onConflict: "user_id" }
+  );
 
-  await admin.from("kyc_checks").upsert({
-    user_id: userId,
-    status: kycStatus,
-    review_note: kycReviewNote || null,
-    reviewed_at: new Date().toISOString(),
-  });
+  if (membershipError) {
+    throw new Error(membershipError.message || "No se pudo actualizar la membresia.");
+  }
+
+  const { error: kycError } = await admin.from("kyc_checks").upsert(
+    {
+      user_id: userId,
+      status: kycStatus,
+      review_note: kycReviewNote || null,
+      reviewed_at: now.toISOString(),
+    },
+    { onConflict: "user_id" }
+  );
+
+  if (kycError) {
+    throw new Error(kycError.message || "No se pudo actualizar el KYC.");
+  }
 
   await logAdminAction({
     supabase,
@@ -636,3 +664,4 @@ export async function updateUserEmailAction(
     };
   }
 }
+
