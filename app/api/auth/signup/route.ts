@@ -26,6 +26,7 @@ export async function POST(request: Request) {
     const result = await callSupabaseAuth("/auth/v1/signup", {
       email,
       password,
+      emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || new URL(request.url).origin}/auth/callback`,
       data: body.data || {},
     });
 

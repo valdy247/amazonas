@@ -23,7 +23,9 @@ export const authCopy = {
   es: {
     signupTitle: "Crear cuenta",
     signinTitle: "Iniciar sesion",
-    createdOk: "Tu cuenta se ha creado satisfactoriamente. Ahora inicia sesion.",
+    createdOk: "Tu cuenta fue creada. Revisa tu correo y confirma tu email antes de iniciar sesion.",
+    confirmedOk: "Tu correo fue verificado correctamente. Ya puedes entrar.",
+    confirmError: "No pudimos confirmar tu correo. Intenta abrir de nuevo el enlace desde tu email.",
     identityTitle: "Revisa bien tu informacion antes de continuar",
     identityBody:
       "Tu identidad sera validada mas adelante con un documento oficial. Es importante que escribas tu nombre y apellidos tal como aparecen en tu documento para evitar retrasos en la verificacion.",
@@ -62,7 +64,9 @@ export const authCopy = {
   en: {
     signupTitle: "Create account",
     signinTitle: "Sign in",
-    createdOk: "Your account has been created successfully. Now sign in.",
+    createdOk: "Your account was created. Check your email and confirm it before signing in.",
+    confirmedOk: "Your email was verified successfully. You can sign in now.",
+    confirmError: "We could not confirm your email. Try opening the link from your inbox again.",
     identityTitle: "Review your information carefully before continuing",
     identityBody:
       "Your identity will be verified later with an official document. It is important to enter your first and last name exactly as they appear on your document to avoid delays.",

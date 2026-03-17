@@ -26,6 +26,8 @@ export function AuthForm() {
 
   const mode = useMemo(() => (params.get("mode") === "signup" ? "signup" : "signin"), [params]);
   const createdOk = params.get("created") === "1";
+  const confirmedOk = params.get("confirmed") === "1";
+  const confirmError = params.get("confirm_error") === "1";
   const copy = authCopy[preferredLanguage];
 
   function humanizeAuthError(raw: string) {
@@ -87,11 +89,6 @@ export function AuthForm() {
           return;
         }
 
-        if (!json.data?.user?.id) {
-          setError(copy.createConfirmFailed);
-          return;
-        }
-
         formElement.reset();
         router.replace(`/auth?mode=signin&created=1&email=${encodeURIComponent(email)}`);
         return;
@@ -146,6 +143,12 @@ export function AuthForm() {
         <p className="rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
           {copy.createdOk}
         </p>
+      ) : null}
+      {confirmedOk ? (
+        <p className="rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{copy.confirmedOk}</p>
+      ) : null}
+      {confirmError ? (
+        <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{copy.confirmError}</p>
       ) : null}
 
       {mode === "signup" ? (
