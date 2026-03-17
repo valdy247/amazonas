@@ -339,8 +339,8 @@ export default async function DashboardPage({
   const membershipPeriodEnd = formatMembershipDate(membershipState?.current_period_end_at, currentUserLanguage);
   const membershipCanceledAt = formatMembershipDate(membershipState?.canceled_at, currentUserLanguage);
   const lastPaymentFailedAt = formatMembershipDate(membershipState?.last_payment_failed_at, currentUserLanguage);
-  const hasMembershipAccess = membershipHasAccess(membershipState);
-  const canSeeContacts = !isProvider && hasMembershipAccess && kycStatus === "approved";
+  const hasMembershipAccess = isAdmin || membershipHasAccess(membershipState);
+  const canSeeContacts = isAdmin || (!isProvider && hasMembershipAccess && kycStatus === "approved");
   const squareStatus = typeof resolvedSearchParams.square === "string" ? resolvedSearchParams.square : null;
   const squareError = typeof resolvedSearchParams.square_error === "string" ? resolvedSearchParams.square_error : null;
   const veriffStatus = typeof resolvedSearchParams.veriff === "string" ? resolvedSearchParams.veriff : null;
@@ -911,7 +911,7 @@ export default async function DashboardPage({
               </section>
             ) : null}
 
-            {hasMembershipAccess && (membershipStatus === "payment_failed" || membershipStatus === "canceled") ? (
+            {!isAdmin && hasMembershipAccess && (membershipStatus === "payment_failed" || membershipStatus === "canceled") ? (
               <section className="rounded-[1.6rem] border border-[#f1d6c8] bg-[#fff8f3] p-5">
                 <p className="text-sm font-bold text-[#131316]">{membershipMeta.label}</p>
                 <p className="mt-2 text-sm text-[#62564a]">{membershipMeta.detail}</p>
@@ -922,7 +922,7 @@ export default async function DashboardPage({
               </section>
             ) : null}
 
-            {!hasMembershipAccess ? (
+            {!isAdmin && !hasMembershipAccess ? (
               <section className="rounded-[1.8rem] border border-[#f0d7ca] bg-[linear-gradient(180deg,#fff7f3_0%,#ffffff_100%)] p-5">
                 <div className="flex items-center gap-3">
                   <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-[#ff6b35] text-white">
@@ -972,7 +972,7 @@ export default async function DashboardPage({
               </section>
             ) : null}
 
-            {hasMembershipAccess && kycStatus !== "approved" ? (
+            {!isAdmin && hasMembershipAccess && kycStatus !== "approved" ? (
               <section className="rounded-[1.8rem] border border-[#dfe9df] bg-[linear-gradient(180deg,#f8fff8_0%,#ffffff_100%)] p-5">
                 <div className="flex items-center gap-3">
                   <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-[#1f7a4d] text-white">

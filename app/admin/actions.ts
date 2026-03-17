@@ -449,13 +449,20 @@ export async function updateMemberStatus(formData: FormData) {
     throw new Error("Usuario inválido");
   }
 
+  const now = new Date();
+  const currentPeriodEndAt =
+    membershipStatus === "active"
+      ? new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString()
+      : null;
+
   await admin.from("memberships").upsert({
     user_id: userId,
     status: membershipStatus,
-    paid_at: membershipStatus === "active" ? new Date().toISOString() : null,
-    last_payment_failed_at: membershipStatus === "payment_failed" ? new Date().toISOString() : null,
-    canceled_at: membershipStatus === "canceled" ? new Date().toISOString() : null,
-    updated_at: new Date().toISOString(),
+    paid_at: membershipStatus === "active" ? now.toISOString() : null,
+    current_period_end_at: currentPeriodEndAt,
+    last_payment_failed_at: membershipStatus === "payment_failed" ? now.toISOString() : null,
+    canceled_at: membershipStatus === "canceled" ? now.toISOString() : null,
+    updated_at: now.toISOString(),
   });
 
   await admin.from("kyc_checks").upsert({
