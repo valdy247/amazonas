@@ -152,12 +152,28 @@ async function detectStructuredAvatarBoxes(file: File, source: ProviderImportSou
   const selected = peaks
     .sort((left, right) => left.y - right.y)
     .slice(0, expectedCount)
-    .map((peak) => ({
-      x: Math.max(0, Math.min(1, (centerX - half) / width)),
-      y: Math.max(0, Math.min(1, (peak.y - half) / height)),
-      w: Math.max(0, Math.min(1, avatarSize / width)),
-      h: Math.max(0, Math.min(1, avatarSize / height)),
-    }));
+    .map((peak) => {
+      if (source === "messenger" || source === "facebook") {
+        const stripX = Math.max(0, centerX - half * 1.25);
+        const stripY = Math.max(0, peak.y - half * 0.62);
+        const stripW = Math.min(width - stripX, avatarSize * 4.2);
+        const stripH = Math.min(height - stripY, avatarSize * 1.04);
+
+        return {
+          x: Math.max(0, Math.min(1, stripX / width)),
+          y: Math.max(0, Math.min(1, stripY / height)),
+          w: Math.max(0, Math.min(1, stripW / width)),
+          h: Math.max(0, Math.min(1, stripH / height)),
+        };
+      }
+
+      return {
+        x: Math.max(0, Math.min(1, (centerX - half) / width)),
+        y: Math.max(0, Math.min(1, (peak.y - half) / height)),
+        w: Math.max(0, Math.min(1, avatarSize / width)),
+        h: Math.max(0, Math.min(1, avatarSize / height)),
+      };
+    });
 
   return selected;
 }
@@ -206,10 +222,10 @@ async function cropAvatarDataUrl(
     }
 
     if (socialCrop) {
-      const stripX = Math.max(0, Math.min(sourceX - sourceSize * 0.14, image.width - sourceSize * 4.34));
-      const stripY = Math.max(0, Math.min(sourceY - sourceSize * 0.02, image.height - sourceSize * 1.04));
-      const stripW = Math.max(sourceSize * 3.94, Math.min(image.width - stripX, sourceSize * 4.34));
-      const stripH = Math.max(sourceSize * 0.98, Math.min(image.height - stripY, sourceSize * 1.04));
+      const stripX = Math.max(0, Math.round(rawX));
+      const stripY = Math.max(0, Math.round(rawY));
+      const stripW = Math.max(24, Math.min(image.width - stripX, Math.round(rawW)));
+      const stripH = Math.max(24, Math.min(image.height - stripY, Math.round(rawH)));
 
       context.drawImage(image, stripX, stripY, stripW, stripH, 0, 0, socialWidth, socialHeight);
     } else {
@@ -282,7 +298,10 @@ export function AdminProviderImportStudio() {
 
                 return Promise.all(
                   fileRows.map(async (row, rowIndex) => {
-                    const effectiveBox = scriptBoxes[rowIndex] || row.avatarBox || null;
+                    const effectiveBox =
+                      row.source === "messenger" || row.source === "facebook"
+                        ? scriptBoxes[rowIndex] || null
+                        : row.avatarBox || scriptBoxes[rowIndex] || null;
 
                     return {
                       ...row,
