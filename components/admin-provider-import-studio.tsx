@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { CompactSelect } from "@/components/compact-select";
 
 type ProviderImportSource = "messenger" | "facebook" | "instagram" | "whatsapp" | "email";
 
@@ -186,24 +187,13 @@ export function AdminProviderImportStudio() {
       <div className="mt-4 grid gap-3">
         <div className="rounded-[1.3rem] border border-[#eadfd6] bg-[#fcfaf7] p-4">
           <p className="text-sm font-semibold text-[#131316]">1. De donde vienen las capturas</p>
-          <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
-            {SOURCE_OPTIONS.map((option) => {
-              const isActive = option.value === source;
-              return (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => setSource(option.value)}
-                  className={`rounded-[1.2rem] border px-4 py-5 text-left transition ${
-                    isActive
-                      ? "border-[#ff6b35] bg-[linear-gradient(180deg,#fff3ec_0%,#fffaf7_100%)] shadow-[0_16px_32px_rgba(255,107,53,0.12)]"
-                      : "border-[#eadfd6] bg-white hover:border-[#d7c8bb]"
-                  }`}
-                >
-                  <p className="text-center font-semibold text-[#131316]">{option.label}</p>
-                </button>
-              );
-            })}
+          <div className="mt-3">
+            <CompactSelect
+              value={source}
+              options={SOURCE_OPTIONS}
+              onChange={(value) => setSource(value as ProviderImportSource)}
+              placeholder="Selecciona una fuente"
+            />
           </div>
         </div>
 
