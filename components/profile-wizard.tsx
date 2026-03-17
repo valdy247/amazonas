@@ -420,7 +420,58 @@ export function ProfileWizard({ initialValues, email, language, roleLocked = fal
                       />
                     </div>
                   </div>
-                ) : null}
+                ) : (
+                  <div className="mt-4">
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <p className="text-sm font-semibold text-[#131316]">{copy.productMap}</p>
+                        <p className="mt-1 text-sm text-[#62626d]">{copy.productMapBody}</p>
+                      </div>
+                      <div className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-2 text-xs font-semibold text-[#dc4f1f] shadow-sm">
+                        <Compass className="h-4 w-4" />
+                        {values.interests.length} {copy.selected}
+                      </div>
+                    </div>
+
+                    <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                      <button
+                        type="button"
+                        onClick={toggleAllInterests}
+                        className={`col-span-full rounded-[1.25rem] border px-4 py-3 text-left text-sm font-semibold transition ${
+                          values.interests.length === INTEREST_OPTIONS.length
+                            ? "border-[#ff6b35] bg-[linear-gradient(135deg,#ff6b35_0%,#ff8b5e_100%)] text-white shadow-[0_14px_26px_rgba(255,107,53,0.22)]"
+                            : "border-[#f3d0c1] bg-[#fff5ef] text-[#dc4f1f]"
+                        }`}
+                      >
+                        <span className="flex items-center justify-between gap-2">
+                          <span>{values.interests.length === INTEREST_OPTIONS.length ? copy.clearSelection : copy.selectAll}</span>
+                          {values.interests.length === INTEREST_OPTIONS.length ? <Check className="h-4 w-4" /> : null}
+                        </span>
+                      </button>
+                      {interestOptions.map((option) => {
+                        const active = values.interests.includes(option.value);
+
+                        return (
+                          <button
+                            key={option.value}
+                            type="button"
+                            onClick={() => toggleInterest(option.value)}
+                            className={`rounded-[1.25rem] border px-4 py-3 text-left text-sm font-semibold transition ${
+                              active
+                                ? "border-[#ff6b35] bg-[linear-gradient(135deg,#ff6b35_0%,#ff8b5e_100%)] text-white shadow-[0_14px_26px_rgba(255,107,53,0.22)]"
+                                : "border-[#ebe4db] bg-white text-[#131316]"
+                            }`}
+                          >
+                            <span className="flex items-center justify-between gap-2">
+                              <span>{option.label}</span>
+                              {active ? <Check className="h-4 w-4" /> : null}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {values.role === "reviewer" ? (
@@ -493,60 +544,58 @@ export function ProfileWizard({ initialValues, email, language, roleLocked = fal
                 ) : null}
               </div>
 
-              <div className="rounded-[1.75rem] border border-[#eadfd6] bg-[#fcfaf7] p-4">
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <p className="text-sm font-semibold text-[#131316]">
-                      {values.role === "reviewer" ? copy.interestMap : copy.productMap}
-                    </p>
-                    <p className="mt-1 text-sm text-[#62626d]">
-                      {values.role === "reviewer" ? copy.interestMapBody : copy.productMapBody}
-                    </p>
+              {values.role === "reviewer" ? (
+                <div className="rounded-[1.75rem] border border-[#eadfd6] bg-[#fcfaf7] p-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-sm font-semibold text-[#131316]">{copy.interestMap}</p>
+                      <p className="mt-1 text-sm text-[#62626d]">{copy.interestMapBody}</p>
+                    </div>
+                    <div className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-2 text-xs font-semibold text-[#dc4f1f] shadow-sm">
+                      <Compass className="h-4 w-4" />
+                      {values.interests.length} {copy.selected}
+                    </div>
                   </div>
-                  <div className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-2 text-xs font-semibold text-[#dc4f1f] shadow-sm">
-                    <Compass className="h-4 w-4" />
-                    {values.interests.length} {copy.selected}
+
+                  <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                    <button
+                      type="button"
+                      onClick={toggleAllInterests}
+                      className={`col-span-full rounded-[1.25rem] border px-4 py-3 text-left text-sm font-semibold transition ${
+                        values.interests.length === INTEREST_OPTIONS.length
+                          ? "border-[#ff6b35] bg-[linear-gradient(135deg,#ff6b35_0%,#ff8b5e_100%)] text-white shadow-[0_14px_26px_rgba(255,107,53,0.22)]"
+                          : "border-[#f3d0c1] bg-[#fff5ef] text-[#dc4f1f]"
+                      }`}
+                    >
+                      <span className="flex items-center justify-between gap-2">
+                        <span>{values.interests.length === INTEREST_OPTIONS.length ? copy.clearSelection : copy.selectAll}</span>
+                        {values.interests.length === INTEREST_OPTIONS.length ? <Check className="h-4 w-4" /> : null}
+                      </span>
+                    </button>
+                    {interestOptions.map((option) => {
+                      const active = values.interests.includes(option.value);
+
+                      return (
+                        <button
+                          key={option.value}
+                          type="button"
+                          onClick={() => toggleInterest(option.value)}
+                          className={`rounded-[1.25rem] border px-4 py-3 text-left text-sm font-semibold transition ${
+                            active
+                              ? "border-[#ff6b35] bg-[linear-gradient(135deg,#ff6b35_0%,#ff8b5e_100%)] text-white shadow-[0_14px_26px_rgba(255,107,53,0.22)]"
+                              : "border-[#ebe4db] bg-white text-[#131316]"
+                          }`}
+                        >
+                          <span className="flex items-center justify-between gap-2">
+                            <span>{option.label}</span>
+                            {active ? <Check className="h-4 w-4" /> : null}
+                          </span>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
-
-                <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
-                  <button
-                    type="button"
-                    onClick={toggleAllInterests}
-                    className={`col-span-full rounded-[1.25rem] border px-4 py-3 text-left text-sm font-semibold transition ${
-                      values.interests.length === INTEREST_OPTIONS.length
-                        ? "border-[#ff6b35] bg-[linear-gradient(135deg,#ff6b35_0%,#ff8b5e_100%)] text-white shadow-[0_14px_26px_rgba(255,107,53,0.22)]"
-                        : "border-[#f3d0c1] bg-[#fff5ef] text-[#dc4f1f]"
-                    }`}
-                  >
-                    <span className="flex items-center justify-between gap-2">
-                      <span>{values.interests.length === INTEREST_OPTIONS.length ? copy.clearSelection : copy.selectAll}</span>
-                      {values.interests.length === INTEREST_OPTIONS.length ? <Check className="h-4 w-4" /> : null}
-                    </span>
-                  </button>
-                  {interestOptions.map((option) => {
-                    const active = values.interests.includes(option.value);
-
-                    return (
-                      <button
-                        key={option.value}
-                        type="button"
-                        onClick={() => toggleInterest(option.value)}
-                        className={`rounded-[1.25rem] border px-4 py-3 text-left text-sm font-semibold transition ${
-                          active
-                            ? "border-[#ff6b35] bg-[linear-gradient(135deg,#ff6b35_0%,#ff8b5e_100%)] text-white shadow-[0_14px_26px_rgba(255,107,53,0.22)]"
-                            : "border-[#ebe4db] bg-white text-[#131316]"
-                        }`}
-                      >
-                        <span className="flex items-center justify-between gap-2">
-                          <span>{option.label}</span>
-                          {active ? <Check className="h-4 w-4" /> : null}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+              ) : null}
 
               <textarea
                 className="input min-h-28 resize-none"
