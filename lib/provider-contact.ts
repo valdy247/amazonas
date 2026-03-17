@@ -20,7 +20,8 @@ function labelFromUrl(raw: string) {
     const host = url.hostname.replace(/^www\./, "");
 
     if (host.includes("instagram")) return "Instagram";
-    if (host.includes("facebook") || host.includes("m.me") || host.includes("messenger")) return "Messenger";
+    if (host.includes("m.me") || host.includes("messenger")) return "Messenger";
+    if (host.includes("facebook")) return "Facebook";
     if (host.includes("wa.me") || host.includes("whatsapp")) return "WhatsApp";
     if (host.includes("telegram")) return "Telegram";
 
@@ -171,12 +172,12 @@ export function getContactFieldValues(contactMethods?: string | null, fallbackUr
       return;
     }
 
-    if (!messenger && (label.includes("messenger") || href.includes("m.me/") || href.includes("facebook.com"))) {
+    if (!messenger && (label.includes("messenger") || href.includes("m.me/") || href.includes("messenger.com"))) {
       messenger = href || value;
       return;
     }
 
-    if (!facebook && label.includes("facebook")) {
+    if (!facebook && (label.includes("facebook") || href.includes("facebook.com"))) {
       facebook = href || value;
     }
   });

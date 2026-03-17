@@ -50,6 +50,9 @@ export function normalizeImportedContactValue(source: ProviderImportSource, raw:
 
   switch (source) {
     case "messenger": {
+      if (/^https?:\/\//i.test(value)) {
+        return value;
+      }
       const cleaned = value
         .replace(/^https?:\/\/(www\.)?(m\.me|messenger\.com)\//i, "")
         .replace(/^@/, "")
@@ -59,6 +62,9 @@ export function normalizeImportedContactValue(source: ProviderImportSource, raw:
       return cleaned;
     }
     case "facebook": {
+      if (/^https?:\/\//i.test(value)) {
+        return value.replace(/\/+$/, "");
+      }
       const cleaned = value
         .replace(/^https?:\/\/(www\.)?facebook\.com\//i, "")
         .replace(/^@/, "")
