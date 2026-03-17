@@ -18,6 +18,11 @@ export type ProviderCreateFormState = {
   message: string;
 };
 
+export type AdminActionState = {
+  status: "idle" | "success" | "error";
+  message: string;
+};
+
 async function assertAdmin() {
   const supabase = await createClient();
   const admin = createAdminClient();
@@ -468,7 +473,7 @@ export async function sendPasswordRecoveryForUser(formData: FormData) {
     throw new Error("Usuario invalido.");
   }
 
-  const redirectTo = `${process.env.NEXT_PUBLIC_SITE_URL || "https://verifyzon.com"}/auth`;
+  const redirectTo = `${process.env.NEXT_PUBLIC_SITE_URL || "https://verifyzon.com"}/auth/callback`;
   const { error } = await admin.auth.resetPasswordForEmail(email, { redirectTo });
 
   if (error) {
@@ -485,6 +490,24 @@ export async function sendPasswordRecoveryForUser(formData: FormData) {
   });
 
   revalidatePath("/admin");
+}
+
+export async function sendPasswordRecoveryForUserAction(
+  _previousState: AdminActionState,
+  formData: FormData
+): Promise<AdminActionState> {
+  try {
+    await sendPasswordRecoveryForUser(formData);
+    return {
+      status: "success",
+      message: "Correo de recuperacion enviado correctamente.",
+    };
+  } catch (error) {
+    return {
+      status: "error",
+      message: error instanceof Error ? error.message : "No se pudo enviar la recuperacion.",
+    };
+  }
 }
 
 export async function updateUserEmail(formData: FormData) {
@@ -521,4 +544,22 @@ export async function updateUserEmail(formData: FormData) {
 
   revalidatePath("/admin");
   revalidatePath("/dashboard");
+}
+
+export async function updateUserEmailAction(
+  _previousState: AdminActionState,
+  formData: FormData
+): Promise<AdminActionState> {
+  try {
+    await updateUserEmail(formData);
+    return {
+      status: "success",
+      message: "Email actualizado correctamente.",
+    };
+  } catch (error) {
+    return {
+      status: "error",
+      message: error instanceof Error ? error.message : "No se pudo actualizar el email.",
+    };
+  }
 }

@@ -21,6 +21,10 @@ export async function GET(request: NextRequest) {
         return NextResponse.redirect(new URL("/auth?confirm_error=1", baseUrl));
       }
 
+      if (type === "recovery") {
+        return NextResponse.redirect(new URL("/auth?mode=recovery", baseUrl));
+      }
+
       return NextResponse.redirect(new URL("/dashboard?email_confirmed=1", baseUrl));
     }
 
@@ -38,6 +42,10 @@ export async function GET(request: NextRequest) {
 
       if (error) {
         return NextResponse.redirect(new URL("/auth?confirm_error=1", baseUrl));
+      }
+
+      if (type === "recovery") {
+        return NextResponse.redirect(new URL("/auth?mode=recovery", baseUrl));
       }
 
       return NextResponse.redirect(new URL("/dashboard?email_confirmed=1", baseUrl));

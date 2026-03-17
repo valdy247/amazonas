@@ -12,12 +12,13 @@ export default async function AuthPage({
   const resolvedSearchParams = searchParams ? await searchParams : {};
   const language = normalizeLanguage(typeof resolvedSearchParams.lang === "string" ? resolvedSearchParams.lang : undefined);
   const copy = authPageCopy[language];
+  const mode = typeof resolvedSearchParams.mode === "string" ? resolvedSearchParams.mode : "signin";
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (user) {
+  if (user && mode !== "recovery") {
     redirect("/dashboard");
   }
 

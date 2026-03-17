@@ -24,10 +24,14 @@ export function AuthForm() {
   const [error, setError] = useState<string | null>(null);
   const [preferredLanguage, setPreferredLanguage] = useState(() => normalizeLanguage(params.get("lang")));
 
-  const mode = useMemo(() => (params.get("mode") === "signup" ? "signup" : "signin"), [params]);
+  const mode = useMemo(() => {
+    const rawMode = params.get("mode");
+    return rawMode === "signup" || rawMode === "recovery" ? rawMode : "signin";
+  }, [params]);
   const createdOk = params.get("created") === "1";
   const confirmedOk = params.get("confirmed") === "1";
   const confirmError = params.get("confirm_error") === "1";
+  const passwordUpdatedOk = params.get("password_updated") === "1";
   const copy = authCopy[preferredLanguage];
 
   function humanizeAuthError(raw: string) {
@@ -57,6 +61,24 @@ export function AuthForm() {
     const preferredLanguageValue = normalizeLanguage(formData.get("preferred_language"));
 
     try {
+      if (mode === "recovery") {
+        if (password.length < 8) return setError(copy.passwordMin), void setLoading(false);
+        if (password !== confirmPassword) return setError(copy.passwordMismatch), void setLoading(false);
+
+        const supabase = createClient();
+        const { error: updateError } = await supabase.auth.updateUser({ password });
+
+        if (updateError) {
+          setError(updateError.message || copy.passwordUpdateFailed);
+          return;
+        }
+
+        await supabase.auth.signOut();
+        formElement.reset();
+        router.replace(`/auth?mode=signin&password_updated=1&lang=${preferredLanguage}`);
+        return;
+      }
+
       if (mode === "signup") {
         if (!firstName || !lastName) return setError(copy.requiredName), void setLoading(false);
         if (!phoneRegex.test(phone)) return setError(copy.invalidPhone), void setLoading(false);
@@ -137,7 +159,9 @@ export function AuthForm() {
 
   return (
     <form onSubmit={onSubmit} className="card w-full space-y-4 p-4" noValidate>
-      <h1 className="text-2xl font-bold">{mode === "signup" ? copy.signupTitle : copy.signinTitle}</h1>
+      <h1 className="text-2xl font-bold">
+        {mode === "signup" ? copy.signupTitle : mode === "recovery" ? copy.recoveryTitle : copy.signinTitle}
+      </h1>
 
       {createdOk ? (
         <p className="rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
@@ -149,6 +173,9 @@ export function AuthForm() {
       ) : null}
       {confirmError ? (
         <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{copy.confirmError}</p>
+      ) : null}
+      {passwordUpdatedOk ? (
+        <p className="rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{copy.passwordUpdatedOk}</p>
       ) : null}
 
       {mode === "signup" ? (
@@ -200,16 +227,20 @@ export function AuthForm() {
         </div>
       ) : null}
 
-      <input
-        className="input"
-        name="email"
-        placeholder={copy.email}
-        type="email"
-        required
-        defaultValue={params.get("email") || ""}
-      />
+      {mode !== "recovery" ? (
+        <input
+          className="input"
+          name="email"
+          placeholder={copy.email}
+          type="email"
+          required
+          defaultValue={params.get("email") || ""}
+        />
+      ) : (
+        <p className="rounded-xl bg-[#fcfaf7] px-3 py-2 text-sm text-[#62564a]">{copy.recoveryBody}</p>
+      )}
       <input className="input" name="password" placeholder={copy.password} type="password" minLength={8} required />
-      {mode === "signup" ? (
+      {mode === "signup" || mode === "recovery" ? (
         <input
           className="input"
           name="confirm_password"
@@ -223,7 +254,13 @@ export function AuthForm() {
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
 
       <button type="submit" disabled={loading} className="btn-primary w-full">
-        {loading ? copy.processing : mode === "signup" ? copy.createAccount : copy.enter}
+        {loading
+          ? copy.processing
+          : mode === "signup"
+            ? copy.createAccount
+            : mode === "recovery"
+              ? copy.updatePassword
+              : copy.enter}
       </button>
     </form>
   );

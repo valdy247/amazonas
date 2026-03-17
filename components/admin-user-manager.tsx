@@ -1,7 +1,12 @@
 "use client";
 
-import { useDeferredValue, useMemo, useState } from "react";
-import { sendPasswordRecoveryForUser, updateMemberStatus, updateUserEmail } from "@/app/admin/actions";
+import { useActionState, useDeferredValue, useMemo, useState } from "react";
+import {
+  sendPasswordRecoveryForUserAction,
+  updateMemberStatus,
+  updateUserEmailAction,
+  type AdminActionState,
+} from "@/app/admin/actions";
 
 type MemberRow = {
   id: string;
@@ -18,6 +23,11 @@ type MemberRow = {
 
 type AdminUserManagerProps = {
   members: MemberRow[];
+};
+
+const idleAdminActionState: AdminActionState = {
+  status: "idle",
+  message: "",
 };
 
 function getRoleMeta(role: string | null) {
@@ -58,6 +68,54 @@ function getKycMeta(status: string) {
     default:
       return { label: "Pendiente", className: "bg-[#f3efe9] text-[#62564a]" };
   }
+}
+
+function AdminAccountActions({ member }: { member: MemberRow }) {
+  const [recoveryState, recoveryAction, recoveryPending] = useActionState(
+    sendPasswordRecoveryForUserAction,
+    idleAdminActionState
+  );
+  const [emailState, emailAction, emailPending] = useActionState(updateUserEmailAction, idleAdminActionState);
+
+  return (
+    <div className="mt-4 grid gap-3 rounded-[1.1rem] border border-[#efe5db] bg-[#fffaf6] p-3 sm:grid-cols-2">
+      <form action={recoveryAction} className="flex flex-col gap-2">
+        <input type="hidden" name="user_id" value={member.id} />
+        <input type="hidden" name="email" value={member.email || ""} />
+        <p className="text-sm font-semibold text-[#131316]">Recuperacion</p>
+        <p className="text-xs text-[#62626d]">Envia un correo para que el usuario cambie su contrasena.</p>
+        <button className="btn-secondary" type="submit" disabled={!member.email || recoveryPending}>
+          {recoveryPending ? "Enviando..." : "Enviar recuperacion"}
+        </button>
+        {recoveryState.status !== "idle" ? (
+          <p className={`text-xs ${recoveryState.status === "success" ? "text-[#177a52]" : "text-[#c24d3a]"}`}>
+            {recoveryState.message}
+          </p>
+        ) : null}
+      </form>
+
+      <form action={emailAction} className="flex flex-col gap-2">
+        <input type="hidden" name="user_id" value={member.id} />
+        <p className="text-sm font-semibold text-[#131316]">Cambiar email</p>
+        <input
+          className="input"
+          type="email"
+          name="new_email"
+          placeholder="nuevo@correo.com"
+          defaultValue={member.email || ""}
+          required
+        />
+        <button className="btn-secondary" type="submit" disabled={emailPending}>
+          {emailPending ? "Guardando..." : "Cambiar email"}
+        </button>
+        {emailState.status !== "idle" ? (
+          <p className={`text-xs ${emailState.status === "success" ? "text-[#177a52]" : "text-[#c24d3a]"}`}>
+            {emailState.message}
+          </p>
+        ) : null}
+      </form>
+    </div>
+  );
 }
 
 export function AdminUserManager({ members }: AdminUserManagerProps) {
@@ -208,26 +266,7 @@ export function AdminUserManager({ members }: AdminUserManagerProps) {
                     </div>
                   </form>
 
-                  <div className="mt-4 grid gap-3 rounded-[1.1rem] border border-[#efe5db] bg-[#fffaf6] p-3 sm:grid-cols-2">
-                    <form action={sendPasswordRecoveryForUser} className="flex flex-col gap-2">
-                      <input type="hidden" name="user_id" value={member.id} />
-                      <input type="hidden" name="email" value={member.email || ""} />
-                      <p className="text-sm font-semibold text-[#131316]">Recuperacion</p>
-                      <p className="text-xs text-[#62626d]">Envia un correo para que el usuario cambie su contrasena.</p>
-                      <button className="btn-secondary" type="submit" disabled={!member.email}>
-                        Enviar recuperacion
-                      </button>
-                    </form>
-
-                    <form action={updateUserEmail} className="flex flex-col gap-2">
-                      <input type="hidden" name="user_id" value={member.id} />
-                      <p className="text-sm font-semibold text-[#131316]">Cambiar email</p>
-                      <input className="input" name="new_email" placeholder="nuevo@correo.com" defaultValue={member.email || ""} />
-                      <button className="btn-secondary" type="submit">
-                        Cambiar email
-                      </button>
-                    </form>
-                  </div>
+                  <AdminAccountActions member={member} />
                 </div>
               ) : null}
             </article>

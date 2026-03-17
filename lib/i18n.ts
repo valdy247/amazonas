@@ -23,9 +23,12 @@ export const authCopy = {
   es: {
     signupTitle: "Crear cuenta",
     signinTitle: "Iniciar sesion",
+    recoveryTitle: "Crear nueva contrasena",
     createdOk: "Tu cuenta fue creada. Revisa tu correo y confirma tu email antes de iniciar sesion.",
     confirmedOk: "Tu correo fue verificado correctamente. Ya puedes entrar.",
     confirmError: "No pudimos confirmar tu correo. Intenta abrir de nuevo el enlace desde tu email.",
+    passwordUpdatedOk: "Tu contrasena fue actualizada correctamente. Ya puedes iniciar sesion.",
+    recoveryBody: "Define una nueva contrasena para recuperar el acceso a tu cuenta.",
     identityTitle: "Revisa bien tu informacion antes de continuar",
     identityBody:
       "Tu identidad sera validada mas adelante con un documento oficial. Es importante que escribas tu nombre y apellidos tal como aparecen en tu documento para evitar retrasos en la verificacion.",
@@ -50,6 +53,7 @@ export const authCopy = {
     identityRequired: "Debes confirmar que tu nombre coincide con tu documento oficial.",
     passwordMin: "La contrasena debe tener al menos 8 caracteres.",
     passwordMismatch: "Las contrasenas no coinciden.",
+    passwordUpdateFailed: "No se pudo actualizar la contrasena.",
     createFailed: "No se pudo crear la cuenta",
     createConfirmFailed: "No se pudo confirmar la creacion de la cuenta. Intenta de nuevo.",
     signinFailed: "No se pudo iniciar sesion",
@@ -60,13 +64,17 @@ export const authCopy = {
     spanishOptionHelp: "Ideal si prefieres registrarte y conversar en espanol.",
     englishOptionHelp: "Ideal si prefieres navegar y conversar en ingles.",
     active: "Activo",
+    updatePassword: "Actualizar contrasena",
   },
   en: {
     signupTitle: "Create account",
     signinTitle: "Sign in",
+    recoveryTitle: "Create a new password",
     createdOk: "Your account was created. Check your email and confirm it before signing in.",
     confirmedOk: "Your email was verified successfully. You can sign in now.",
     confirmError: "We could not confirm your email. Try opening the link from your inbox again.",
+    passwordUpdatedOk: "Your password was updated successfully. You can sign in now.",
+    recoveryBody: "Choose a new password to regain access to your account.",
     identityTitle: "Review your information carefully before continuing",
     identityBody:
       "Your identity will be verified later with an official document. It is important to enter your first and last name exactly as they appear on your document to avoid delays.",
@@ -91,6 +99,7 @@ export const authCopy = {
     identityRequired: "You must confirm that your name matches your official document.",
     passwordMin: "Password must be at least 8 characters long.",
     passwordMismatch: "Passwords do not match.",
+    passwordUpdateFailed: "The password could not be updated.",
     createFailed: "The account could not be created",
     createConfirmFailed: "We could not confirm account creation. Try again.",
     signinFailed: "Could not sign in",
@@ -101,6 +110,7 @@ export const authCopy = {
     spanishOptionHelp: "Ideal if you prefer to sign up and chat in Spanish.",
     englishOptionHelp: "Ideal if you prefer to browse and chat in English.",
     active: "Active",
+    updatePassword: "Update password",
   },
 } as const;
 
