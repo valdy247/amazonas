@@ -75,10 +75,16 @@ async function cropAvatarDataUrl(file: File, box?: { x: number; y: number; w: nu
       img.src = imageUrl;
     });
 
-    const sourceX = Math.max(0, Math.round(box.x * image.width));
-    const sourceY = Math.max(0, Math.round(box.y * image.height));
-    const sourceW = Math.max(24, Math.round(box.w * image.width));
-    const sourceH = Math.max(24, Math.round(box.h * image.height));
+    const rawX = box.x * image.width;
+    const rawY = box.y * image.height;
+    const rawW = Math.max(24, box.w * image.width);
+    const rawH = Math.max(24, box.h * image.height);
+    const centerX = rawX + rawW / 2;
+    const centerY = rawY + rawH / 2;
+    const squareSize = Math.max(rawW, rawH) * 1.45;
+    const sourceX = Math.round(Math.max(0, Math.min(centerX - squareSize / 2, image.width - squareSize)));
+    const sourceY = Math.round(Math.max(0, Math.min(centerY - squareSize / 2, image.height - squareSize)));
+    const sourceSize = Math.round(Math.max(24, Math.min(squareSize, image.width - sourceX, image.height - sourceY)));
     const size = 96;
     const canvas = document.createElement("canvas");
     canvas.width = size;
@@ -93,7 +99,7 @@ async function cropAvatarDataUrl(file: File, box?: { x: number; y: number; w: nu
     context.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
     context.closePath();
     context.clip();
-    context.drawImage(image, sourceX, sourceY, sourceW, sourceH, 0, 0, size, size);
+    context.drawImage(image, sourceX, sourceY, sourceSize, sourceSize, 0, 0, size, size);
 
     return canvas.toDataURL("image/jpeg", 0.82);
   } finally {
@@ -291,12 +297,16 @@ export function AdminProviderImportStudio() {
                     <div className="min-w-0 flex-1">
                       {row.avatarDataUrl ? (
                         <div className="mb-2 flex items-center gap-3">
-                          <img src={row.avatarDataUrl} alt={row.preview} className="h-12 w-12 rounded-full object-cover ring-1 ring-[#eadfd6]" />
+                          <img
+                            src={row.avatarDataUrl}
+                            alt={row.preview}
+                            className="h-12 w-12 shrink-0 rounded-full bg-[#f5eee6] object-cover object-center ring-1 ring-[#eadfd6]"
+                          />
                           <span className="text-xs text-[#8f857b]">Referencia visual</span>
                         </div>
                       ) : null}
                       <p className="text-xs uppercase tracking-[0.18em] text-[#8f857b]">
-                        {row.source} · {row.fileName}
+                        {SOURCE_OPTIONS.find((option) => option.value === row.source)?.label || row.source}
                       </p>
                       <input
                         className="input mt-2"
