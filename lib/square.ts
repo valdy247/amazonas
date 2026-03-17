@@ -147,13 +147,14 @@ export async function createSquarePaymentLink(input: {
         },
         location_id: locationId,
       },
-      accepted_payment_methods: {
-        apple_pay: true,
-        google_pay: true,
-      },
       checkout_options: {
         redirect_url: input.redirectUrl,
         subscription_plan_id: planVariationId,
+        accepted_payment_methods: {
+          apple_pay: true,
+          google_pay: true,
+        },
+        enable_coupon: true,
       },
       payment_note: `reviewer_access:${input.userId}`,
       pre_populated_data: {
