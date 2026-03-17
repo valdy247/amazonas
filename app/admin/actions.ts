@@ -20,6 +20,7 @@ export type ProviderCreateFormState = {
 
 async function assertAdmin() {
   const supabase = await createClient();
+  const admin = createAdminClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -34,7 +35,7 @@ async function assertAdmin() {
     throw new Error("Solo admin");
   }
 
-  return { supabase, adminId: user.id };
+  return { supabase, admin, adminId: user.id };
 }
 
 function normalizeEmail(value?: string | null) {
@@ -53,12 +54,14 @@ async function getNextProviderAlias(supabase: Awaited<ReturnType<typeof createCl
 
 async function logAdminAction(input: {
   supabase: Awaited<ReturnType<typeof createClient>>;
+  admin?: ReturnType<typeof createAdminClient>;
   adminId: string;
   action: string;
   targetUserId?: string | null;
   metadata?: Record<string, unknown>;
 }) {
-  await input.supabase.from("admin_audit_logs").insert({
+  const writer = input.admin || input.supabase;
+  await writer.from("admin_audit_logs").insert({
     admin_id: input.adminId,
     action: input.action,
     target_user_id: input.targetUserId || null,
@@ -142,7 +145,7 @@ async function assertUniqueProviderContact({
 }
 
 async function performCreateProviderContact(formData: FormData) {
-  const { supabase, adminId } = await assertAdmin();
+  const { supabase, admin, adminId } = await assertAdmin();
 
   const email = normalizeEmail(String(formData.get("email") || ""));
   const whatsappPrefix = normalizeWhatsappPrefix(String(formData.get("whatsapp_prefix") || ""));
@@ -222,7 +225,7 @@ async function performCreateProviderContact(formData: FormData) {
   let lastError: string | null = null;
 
   for (const payload of payloads) {
-    const { error } = await supabase.from("provider_contacts").insert(payload);
+    const { error } = await admin.from("provider_contacts").insert(payload);
 
     if (!error) {
       revalidatePath("/admin");
@@ -259,7 +262,7 @@ export async function createProviderContactAction(
 }
 
 export async function updateProviderContact(formData: FormData) {
-  const { supabase, adminId } = await assertAdmin();
+  const { supabase, admin, adminId } = await assertAdmin();
 
   const contactId = Number(formData.get("contact_id") || 0);
   const email = normalizeEmail(String(formData.get("email") || ""));
@@ -351,7 +354,7 @@ export async function updateProviderContact(formData: FormData) {
   let lastError: string | null = null;
 
   for (const payload of payloads) {
-    const { error } = await supabase.from("provider_contacts").update(payload).eq("id", contactId);
+    const { error } = await admin.from("provider_contacts").update(payload).eq("id", contactId);
 
     if (!error) {
       revalidatePath("/admin");
@@ -366,14 +369,14 @@ export async function updateProviderContact(formData: FormData) {
 }
 
 export async function deleteProviderContact(formData: FormData) {
-  const { supabase } = await assertAdmin();
+  const { admin } = await assertAdmin();
   const contactId = Number(formData.get("contact_id") || 0);
 
   if (!Number.isFinite(contactId) || contactId <= 0) {
     throw new Error("Contacto invalido.");
   }
 
-  const { error } = await supabase.from("provider_contacts").delete().eq("id", contactId);
+  const { error } = await admin.from("provider_contacts").delete().eq("id", contactId);
 
   if (error) {
     throw new Error(error.message || "No se pudo eliminar el contacto.");
@@ -384,7 +387,7 @@ export async function deleteProviderContact(formData: FormData) {
 }
 
 export async function updateMemberStatus(formData: FormData) {
-  const { supabase, adminId } = await assertAdmin();
+  const { supabase, admin, adminId } = await assertAdmin();
   const userId = String(formData.get("user_id") || "");
   const membershipStatus = String(formData.get("membership_status") || "pending_payment");
   const kycStatus = String(formData.get("kyc_status") || "pending");
@@ -394,13 +397,13 @@ export async function updateMemberStatus(formData: FormData) {
     throw new Error("Usuario inválido");
   }
 
-  await supabase.from("memberships").upsert({
+  await admin.from("memberships").upsert({
     user_id: userId,
     status: membershipStatus,
     paid_at: membershipStatus === "active" ? new Date().toISOString() : null,
   });
 
-  await supabase.from("kyc_checks").upsert({
+  await admin.from("kyc_checks").upsert({
     user_id: userId,
     status: kycStatus,
     review_note: kycReviewNote || null,
@@ -409,6 +412,7 @@ export async function updateMemberStatus(formData: FormData) {
 
   await logAdminAction({
     supabase,
+    admin,
     adminId,
     action: "update_member_status",
     targetUserId: userId,
@@ -420,7 +424,7 @@ export async function updateMemberStatus(formData: FormData) {
 }
 
 export async function createAdminUser(formData: FormData) {
-  const { supabase, adminId } = await assertAdmin();
+  const { supabase, admin, adminId } = await assertAdmin();
 
   const targetEmail = String(formData.get("email") || "").toLowerCase();
 
@@ -434,10 +438,11 @@ export async function createAdminUser(formData: FormData) {
     throw new Error("Ese correo no existe en profiles. Debe registrarse primero.");
   }
 
-  await supabase.from("profiles").update({ role: "admin" }).eq("id", userProfile.id);
+  await admin.from("profiles").update({ role: "admin" }).eq("id", userProfile.id);
 
   await logAdminAction({
     supabase,
+    admin,
     adminId,
     action: "create_admin_user",
     targetUserId: userProfile.id,
@@ -448,7 +453,7 @@ export async function createAdminUser(formData: FormData) {
 }
 
 export async function sendPasswordRecoveryForUser(formData: FormData) {
-  const { supabase, adminId } = await assertAdmin();
+  const { supabase, admin, adminId } = await assertAdmin();
   const userId = String(formData.get("user_id") || "").trim();
   const email = normalizeEmail(String(formData.get("email") || ""));
 
@@ -456,7 +461,6 @@ export async function sendPasswordRecoveryForUser(formData: FormData) {
     throw new Error("Usuario invalido.");
   }
 
-  const admin = createAdminClient();
   const redirectTo = `${process.env.NEXT_PUBLIC_SITE_URL || "https://verifyzon.com"}/auth`;
   const { error } = await admin.auth.resetPasswordForEmail(email, { redirectTo });
 
@@ -466,6 +470,7 @@ export async function sendPasswordRecoveryForUser(formData: FormData) {
 
   await logAdminAction({
     supabase,
+    admin,
     adminId,
     action: "send_password_recovery",
     targetUserId: userId,
@@ -476,7 +481,7 @@ export async function sendPasswordRecoveryForUser(formData: FormData) {
 }
 
 export async function updateUserEmail(formData: FormData) {
-  const { supabase, adminId } = await assertAdmin();
+  const { supabase, admin, adminId } = await assertAdmin();
   const userId = String(formData.get("user_id") || "").trim();
   const newEmail = normalizeEmail(String(formData.get("new_email") || ""));
 
@@ -484,7 +489,6 @@ export async function updateUserEmail(formData: FormData) {
     throw new Error("Email invalido.");
   }
 
-  const admin = createAdminClient();
   const { error } = await admin.auth.admin.updateUserById(userId, {
     email: newEmail,
     email_confirm: true,
@@ -494,13 +498,14 @@ export async function updateUserEmail(formData: FormData) {
     throw new Error(error.message || "No se pudo actualizar el email.");
   }
 
-  const { error: profileError } = await supabase.from("profiles").update({ email: newEmail }).eq("id", userId);
+  const { error: profileError } = await admin.from("profiles").update({ email: newEmail }).eq("id", userId);
   if (profileError) {
     throw new Error(profileError.message || "No se pudo sincronizar el perfil.");
   }
 
   await logAdminAction({
     supabase,
+    admin,
     adminId,
     action: "update_user_email",
     targetUserId: userId,
