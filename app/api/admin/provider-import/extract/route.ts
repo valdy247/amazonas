@@ -2,10 +2,11 @@ import { NextResponse } from "next/server";
 import { hasAdminAccess } from "@/lib/admin";
 import {
   findDuplicateProviderContact,
+  normalizeImportedDraft,
   normalizeImportedContactValue,
   type ProviderImportSource,
 } from "@/lib/admin-provider-import";
-import { extractProviderContactsFromImage } from "@/lib/openai";
+import { extractProviderContactsFromImage, extractProviderContactsFromText } from "@/lib/openai";
 import { rejectRateLimited } from "@/lib/rate-limit";
 import { rejectUntrustedOrigin } from "@/lib/security";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -23,6 +24,8 @@ function inferDraftFromSource(source: ProviderImportSource, value: string) {
       return { whatsapp: value, preview: value };
     case "email":
       return { email: value, preview: value };
+    case "bulk_text":
+      return { preview: value };
     default:
       return { preview: value };
   }
@@ -57,15 +60,20 @@ export async function POST(request: Request) {
     const { userId, admin } = await assertAdminRoute();
     const formData = await request.formData();
     const source = String(formData.get("source") || "").trim() as ProviderImportSource;
+    const text = String(formData.get("text") || "").trim();
     const files = formData
       .getAll("files")
       .filter((entry): entry is File => entry instanceof File && entry.size > 0);
 
-    if (!["messenger", "facebook", "instagram", "whatsapp", "email"].includes(source)) {
+    if (!["messenger", "facebook", "instagram", "whatsapp", "email", "bulk_text"].includes(source)) {
       return NextResponse.json({ error: "Fuente invalida." }, { status: 400 });
     }
 
-    if (!files.length) {
+    if (source === "bulk_text" && !text) {
+      return NextResponse.json({ error: "Debes pegar texto para procesarlo." }, { status: 400 });
+    }
+
+    if (source !== "bulk_text" && !files.length) {
       return NextResponse.json({ error: "Debes subir al menos una imagen." }, { status: 400 });
     }
 
@@ -88,9 +96,53 @@ export async function POST(request: Request) {
       preview: string;
       duplicateMessage: string | null;
       fileName: string;
+      email?: string | null;
+      whatsapp?: string | null;
+      facebook?: string | null;
       avatarBox?: { x: number; y: number; w: number; h: number } | null;
     }> = [];
     const seen = new Set<string>();
+
+    if (source === "bulk_text") {
+      const extracted = await extractProviderContactsFromText({ text });
+
+      for (const contact of extracted) {
+        const normalizedDraft = normalizeImportedDraft({
+          email: contact.email,
+          whatsapp: contact.whatsapp,
+          facebook: contact.facebook,
+        });
+
+        const signature = [normalizedDraft.facebook, normalizedDraft.email, normalizedDraft.whatsapp].filter(Boolean).join("|");
+        if (!signature || seen.has(signature)) {
+          continue;
+        }
+
+        seen.add(signature);
+        const duplicateMessage = await findDuplicateProviderContact(admin, {
+          email: normalizedDraft.email,
+          facebook: normalizedDraft.facebook,
+          whatsapp: normalizedDraft.whatsapp,
+        });
+
+        rows.push({
+          id: `bulk:${signature}`,
+          source,
+          value: signature,
+          preview:
+            [normalizedDraft.facebook ? `Facebook: ${normalizedDraft.facebook}` : null, normalizedDraft.email, normalizedDraft.whatsapp]
+              .filter(Boolean)
+              .join(" · ") || signature,
+          duplicateMessage,
+          fileName: "bulk-text",
+          email: normalizedDraft.email || null,
+          whatsapp: normalizedDraft.whatsapp || null,
+          facebook: normalizedDraft.facebook || null,
+        });
+      }
+
+      return NextResponse.json({ rows });
+    }
 
     for (const file of files) {
       const bytes = Buffer.from(await file.arrayBuffer());

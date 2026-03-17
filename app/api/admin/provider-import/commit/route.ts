@@ -15,6 +15,9 @@ import { createClient } from "@/lib/supabase/server";
 type ImportRow = {
   value: string;
   avatarDataUrl?: string | null;
+  email?: string | null;
+  whatsapp?: string | null;
+  facebook?: string | null;
 };
 
 async function assertAdminRoute() {
@@ -71,7 +74,7 @@ export async function POST(request: Request) {
     const source = body.source;
     const rows = Array.isArray(body.rows) ? body.rows : [];
 
-    if (!source || !["messenger", "facebook", "instagram", "whatsapp", "email"].includes(source)) {
+    if (!source || !["messenger", "facebook", "instagram", "whatsapp", "email", "bulk_text"].includes(source)) {
       return NextResponse.json({ error: "Fuente invalida." }, { status: 400 });
     }
 
@@ -104,9 +107,15 @@ export async function POST(request: Request) {
 
       try {
         const alias = await createProviderContactRecord(admin, userId, {
-          ...buildDraftFromSource(source, normalized),
+          ...(source === "bulk_text"
+            ? {
+                email: String(row.email || "").trim(),
+                whatsapp: String(row.whatsapp || "").trim(),
+                facebook: String(row.facebook || "").trim(),
+              }
+            : buildDraftFromSource(source, normalized)),
           avatarDataUrl: row.avatarDataUrl || null,
-          notes: `Importado con IA desde capturas de ${source}.`,
+          notes: source === "bulk_text" ? "Importado con IA desde texto masivo." : `Importado con IA desde capturas de ${source}.`,
           isVerified: Boolean(body.isVerified),
         });
         created.push({ value: normalized, alias });

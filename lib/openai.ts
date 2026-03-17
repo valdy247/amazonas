@@ -280,3 +280,77 @@ export async function extractProviderContactsFromImage(input: {
         .filter((item) => item.value)
     : [];
 }
+
+export async function extractProviderContactsFromText(input: { text: string }) {
+  if (!getOpenAiApiKey()) {
+    throw new Error("Falta OPENAI_API_KEY para procesar texto.");
+  }
+
+  const response = await fetch("https://api.openai.com/v1/responses", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${getOpenAiApiKey()}`,
+    },
+    body: JSON.stringify({
+      model: getOpenAiAssistModel(),
+      input: [
+        {
+          role: "system",
+          content: [
+            {
+              type: "input_text",
+              text:
+                "You extract provider contacts from messy bulk text for an admin import tool. Return strict JSON only. Do not explain anything. Extract only visible contact data that can create provider records. Prefer facebook usernames/links, emails, and phone numbers. Ignore duplicates, commentary, prices, dates, and irrelevant prose.",
+            },
+          ],
+        },
+        {
+          role: "user",
+          content: [
+            {
+              type: "input_text",
+              text:
+                'Return only JSON in this shape: {"contacts":[{"facebook":"facebook.com/name_or_username","email":"person@example.com","whatsapp":"+1234567890"}]}. Each object may include one, two, or three fields. If only a facebook username is visible, return it in facebook. If only a phone is visible, return it in whatsapp. If nothing valid exists, return {"contacts":[]}. Text:\n\n' +
+                input.text,
+            },
+          ],
+        },
+      ],
+    }),
+    cache: "no-store",
+  });
+
+  const data = (await response.json()) as {
+    output_text?: string;
+    output?: Array<{
+      content?: Array<{
+        type?: string;
+        text?: string;
+      }>;
+    }>;
+    error?: { message?: string };
+  };
+
+  if (!response.ok) {
+    throw new Error(data.error?.message || "No se pudo procesar el texto.");
+  }
+
+  const parsed = parseJsonObject<{
+    contacts?: Array<{
+      facebook?: string;
+      email?: string;
+      whatsapp?: string;
+    }>;
+  }>(extractResponseText(data));
+
+  return Array.isArray(parsed?.contacts)
+    ? parsed.contacts
+        .map((item) => ({
+          facebook: String(item?.facebook || "").trim(),
+          email: String(item?.email || "").trim(),
+          whatsapp: String(item?.whatsapp || "").trim(),
+        }))
+        .filter((item) => item.facebook || item.email || item.whatsapp)
+    : [];
+}

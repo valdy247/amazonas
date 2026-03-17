@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { CompactSelect } from "@/components/compact-select";
 
-type ProviderImportSource = "messenger" | "facebook" | "instagram" | "whatsapp" | "email";
+type ProviderImportSource = "messenger" | "facebook" | "instagram" | "whatsapp" | "email" | "bulk_text";
 
 type PreviewRow = {
   id: string;
@@ -12,6 +12,9 @@ type PreviewRow = {
   preview: string;
   duplicateMessage: string | null;
   fileName: string;
+  email?: string | null;
+  whatsapp?: string | null;
+  facebook?: string | null;
   avatarBox?: { x: number; y: number; w: number; h: number } | null;
   avatarDataUrl?: string | null;
 };
@@ -37,6 +40,7 @@ const SOURCE_OPTIONS: Array<{ value: ProviderImportSource; label: string }> = [
   { value: "instagram", label: "Instagram" },
   { value: "whatsapp", label: "WhatsApp" },
   { value: "email", label: "Email" },
+  { value: "bulk_text", label: "Texto masivo" },
 ];
 
 async function compressImage(file: File, index: number) {
@@ -199,6 +203,7 @@ export function AdminProviderImportStudio() {
   const [rows, setRows] = useState<PreviewRow[]>([]);
   const [status, setStatus] = useState<string>("");
   const [isVerified, setIsVerified] = useState(false);
+  const [bulkText, setBulkText] = useState("");
   const [manualImages, setManualImages] = useState<ManualImage[]>([]);
   const [manualIndex, setManualIndex] = useState(0);
   const [manualCropLeft, setManualCropLeft] = useState(4);
@@ -209,6 +214,7 @@ export function AdminProviderImportStudio() {
 
   const sourceCopy = useMemo(() => SOURCE_OPTIONS.find((option) => option.value === source) || SOURCE_OPTIONS[0], [source]);
   const socialManualMode = source === "messenger" || source === "facebook";
+  const bulkTextMode = source === "bulk_text";
   const currentManualImage = manualImages[manualIndex] || null;
 
   async function runExtractionFromPreparedFiles(
@@ -267,6 +273,10 @@ export function AdminProviderImportStudio() {
   }
 
   async function handleFiles(files: FileList | null) {
+    if (bulkTextMode) {
+      return;
+    }
+
     if (!files?.length) {
       return;
     }
@@ -294,6 +304,41 @@ export function AdminProviderImportStudio() {
         await runExtractionFromPreparedFiles(prepared);
       } catch (error) {
         setStatus(error instanceof Error ? error.message : "No se pudieron procesar las capturas.");
+      }
+    });
+  }
+
+  function extractFromText() {
+    if (!bulkText.trim()) {
+      setStatus("Pega el texto grande antes de procesarlo.");
+      return;
+    }
+
+    setStatus("");
+    startExtract(async () => {
+      try {
+        const formData = new FormData();
+        formData.set("source", "bulk_text");
+        formData.set("text", bulkText);
+
+        const response = await fetch("/api/admin/provider-import/extract", {
+          method: "POST",
+          body: formData,
+        });
+        const data = (await response.json()) as { rows?: PreviewRow[]; error?: string };
+
+        if (!response.ok) {
+          throw new Error(data.error || "No se pudo procesar el texto.");
+        }
+
+        setRows(data.rows || []);
+        setStatus(
+          (data.rows || []).length
+            ? `Listo. Detectamos ${(data.rows || []).length} proveedores potenciales desde el texto.`
+            : "No se detectaron contactos utiles en ese texto."
+        );
+      } catch (error) {
+        setStatus(error instanceof Error ? error.message : "No se pudo procesar el texto.");
       }
     });
   }
@@ -402,7 +447,13 @@ export function AdminProviderImportStudio() {
             isVerified,
             rows: rows
               .filter((row) => !row.duplicateMessage && row.value.trim())
-              .map((row) => ({ value: row.value.trim(), avatarDataUrl: row.avatarDataUrl || null })),
+              .map((row) => ({
+                value: row.value.trim(),
+                avatarDataUrl: row.avatarDataUrl || null,
+                email: row.email || null,
+                whatsapp: row.whatsapp || null,
+                facebook: row.facebook || null,
+              })),
           }),
         });
         const data = (await response.json()) as {
@@ -450,26 +501,44 @@ export function AdminProviderImportStudio() {
         </div>
 
         <div className="rounded-[1.3rem] border border-dashed border-[#d8c8b8] bg-[#fffaf5] p-4">
-          <p className="text-sm font-semibold text-[#131316]">2. Sube todas las capturas</p>
-          <p className="mt-1 text-xs leading-5 text-[#62564a]">Puedes subir muchas a la vez. Las comprimimos y las enviamos por lotes para que el proceso sea mas estable.</p>
-          <label className="mt-3 flex cursor-pointer flex-col items-center justify-center rounded-[1.2rem] border border-[#eadfd6] bg-white px-4 py-6 text-center">
-            <span className="text-sm font-semibold text-[#131316]">Seleccionar imagenes</span>
-            <span className="mt-1 text-xs text-[#62564a]">PNG, JPG o WEBP. Fuente actual: {sourceCopy.label}</span>
-            <input
-              type="file"
-              accept="image/png,image/jpeg,image/webp"
-              multiple
-              className="sr-only"
-              onChange={(event) => void handleFiles(event.target.files)}
-            />
-          </label>
+          <p className="text-sm font-semibold text-[#131316]">2. {bulkTextMode ? "Pega el texto masivo" : "Sube todas las capturas"}</p>
+          <p className="mt-1 text-xs leading-5 text-[#62564a]">
+            {bulkTextMode
+              ? "GPT extraera Facebook, correos y telefonos del bloque grande de texto y los convertira en proveedores."
+              : "Puedes subir muchas a la vez. Las comprimimos y las enviamos por lotes para que el proceso sea mas estable."}
+          </p>
+          {bulkTextMode ? (
+            <>
+              <textarea
+                className="input mt-3 min-h-48"
+                value={bulkText}
+                onChange={(event) => setBulkText(event.target.value)}
+                placeholder="Pega aqui el texto enorme con enlaces de Facebook, correos y numeros..."
+              />
+              <button className="btn-primary mt-3" type="button" onClick={extractFromText} disabled={isExtracting}>
+                {isExtracting ? "Procesando..." : "Extraer desde texto"}
+              </button>
+            </>
+          ) : (
+            <label className="mt-3 flex cursor-pointer flex-col items-center justify-center rounded-[1.2rem] border border-[#eadfd6] bg-white px-4 py-6 text-center">
+              <span className="text-sm font-semibold text-[#131316]">Seleccionar imagenes</span>
+              <span className="mt-1 text-xs text-[#62564a]">PNG, JPG o WEBP. Fuente actual: {sourceCopy.label}</span>
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                multiple
+                className="sr-only"
+                onChange={(event) => void handleFiles(event.target.files)}
+              />
+            </label>
+          )}
           <label className="mt-3 flex items-center gap-2 text-sm text-[#62564a]">
             <input type="checkbox" checked={isVerified} onChange={(event) => setIsVerified(event.target.checked)} />
             <span>Marcar los importados como verificados</span>
           </label>
         </div>
 
-        {socialManualMode && manualImages.length ? (
+        {socialManualMode && !bulkTextMode && manualImages.length ? (
           <div className="rounded-[1.3rem] border border-[#eadfd6] bg-white p-4">
             <div className="flex items-center justify-between gap-3">
               <div>
@@ -565,7 +634,7 @@ export function AdminProviderImportStudio() {
           <div className="rounded-[1.3rem] border border-[#eadfd6] bg-white p-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <p className="text-sm font-semibold text-[#131316]">{socialManualMode ? "4. Revisar antes de importar" : "3. Revisar antes de importar"}</p>
+                <p className="text-sm font-semibold text-[#131316]">{socialManualMode && !bulkTextMode ? "4. Revisar antes de importar" : "3. Revisar antes de importar"}</p>
                 <p className="mt-1 text-xs text-[#62564a]">Los alias se generaran solos. Si ves un duplicado, lo dejamos fuera del lote.</p>
               </div>
               <button className="btn-primary" type="button" onClick={importRows} disabled={isImporting || !rows.some((row) => !row.duplicateMessage)}>
@@ -597,10 +666,18 @@ export function AdminProviderImportStudio() {
                       </p>
                       <input
                         className="input mt-2"
-                        value={row.value}
+                        value={bulkTextMode ? row.preview : row.value}
                         onChange={(event) => updateRow(row.id, event.target.value)}
                         placeholder="Contacto extraido"
+                        readOnly={bulkTextMode}
                       />
+                      {bulkTextMode ? (
+                        <div className="mt-2 grid gap-2 sm:grid-cols-3">
+                          {row.facebook ? <div className="rounded-[1rem] bg-[#fcfaf7] px-3 py-2 text-xs text-[#62564a]">Facebook: {row.facebook}</div> : null}
+                          {row.email ? <div className="rounded-[1rem] bg-[#fcfaf7] px-3 py-2 text-xs text-[#62564a]">Email: {row.email}</div> : null}
+                          {row.whatsapp ? <div className="rounded-[1rem] bg-[#fcfaf7] px-3 py-2 text-xs text-[#62564a]">Telefono: {row.whatsapp}</div> : null}
+                        </div>
+                      ) : null}
                       {row.duplicateMessage ? (
                         <p className="mt-2 text-xs font-semibold text-[#c64b1e]">{row.duplicateMessage}</p>
                       ) : (
@@ -619,7 +696,7 @@ export function AdminProviderImportStudio() {
 
         {(isExtracting || isImporting) && (
           <div className="rounded-[1.2rem] border border-[#eadfd6] bg-white px-4 py-3 text-sm text-[#62564a]">
-            {isExtracting ? "Procesando capturas con IA..." : "Importando proveedores..."}
+            {isExtracting ? (bulkTextMode ? "Procesando texto con IA..." : "Procesando capturas con IA...") : "Importando proveedores..."}
           </div>
         )}
       </div>

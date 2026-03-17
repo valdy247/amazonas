@@ -7,7 +7,7 @@ import {
 } from "@/lib/provider-contact";
 import type { createAdminClient } from "@/lib/supabase/admin";
 
-export type ProviderImportSource = "messenger" | "facebook" | "instagram" | "whatsapp" | "email";
+export type ProviderImportSource = "messenger" | "facebook" | "instagram" | "whatsapp" | "email" | "bulk_text";
 
 export type ProviderImportDraft = {
   email?: string | null;
@@ -80,9 +80,24 @@ export function normalizeImportedContactValue(source: ProviderImportSource, raw:
     }
     case "email":
       return normalizeEmail(value);
+    case "bulk_text":
+      return value;
     default:
       return value;
   }
+}
+
+export function normalizeImportedDraft(input: ProviderImportDraft) {
+  return {
+    email: normalizeEmail(input.email),
+    whatsapp: String(input.whatsapp || "").replace(/[^\d+]/g, "").trim(),
+    instagram: normalizeImportedContactValue("instagram", input.instagram || ""),
+    messenger: normalizeImportedContactValue("messenger", input.messenger || ""),
+    facebook: normalizeImportedContactValue("facebook", input.facebook || ""),
+    avatarDataUrl: String(input.avatarDataUrl || "").trim(),
+    notes: String(input.notes || "").trim(),
+    isVerified: Boolean(input.isVerified),
+  };
 }
 
 export async function findDuplicateProviderContact(
@@ -165,13 +180,14 @@ export async function createProviderContactRecord(
   adminId: string,
   input: ProviderImportDraft
 ) {
-  const email = normalizeEmail(input.email);
-  const whatsapp = String(input.whatsapp || "").trim();
-  const instagram = String(input.instagram || "").trim();
-  const messenger = String(input.messenger || "").trim();
-  const facebook = String(input.facebook || "").trim();
-  const avatarDataUrl = String(input.avatarDataUrl || "").trim();
-  const notes = String(input.notes || "").trim();
+  const normalizedInput = normalizeImportedDraft(input);
+  const email = normalizedInput.email;
+  const whatsapp = normalizedInput.whatsapp;
+  const instagram = normalizedInput.instagram;
+  const messenger = normalizedInput.messenger;
+  const facebook = normalizedInput.facebook;
+  const avatarDataUrl = normalizedInput.avatarDataUrl;
+  const notes = normalizedInput.notes;
   const contactMethods = buildContactMethodsFromFields({ whatsapp, instagram, messenger, facebook });
   const methodCount = [whatsapp, instagram, messenger, facebook].filter(Boolean).length;
 
