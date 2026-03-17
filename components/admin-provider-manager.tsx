@@ -93,10 +93,8 @@ export function AdminProviderManager({ contacts, whatsappPrefixOptions }: AdminP
           const whatsappPrefix = prefixMatch?.[0] || "+1";
           const whatsappNumber = whatsappValue.replace(/^\+\d{1,3}/, "");
           const selectedPrefixValue =
-            whatsappPrefixOptions.find((option) => option.value.endsWith(whatsappPrefix))?.value || `custom:${whatsappPrefix}`;
-          const prefixOptionsForContact = whatsappPrefixOptions.some((option) => option.value === selectedPrefixValue)
-            ? whatsappPrefixOptions
-            : [{ flag: "🌍", label: `Prefijo actual ${whatsappPrefix}`, value: selectedPrefixValue }, ...whatsappPrefixOptions];
+            whatsappPrefixOptions.find((option) => option.value.endsWith(whatsappPrefix))?.value || "us:+1";
+          const prefixOptionsForContact = whatsappPrefixOptions;
           const isOpen = openContactId === contact.id;
 
           return (
