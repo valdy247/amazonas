@@ -210,8 +210,10 @@ export function ProviderContactGrid({ contacts, initialContactedIds, language }:
                   <img
                     src={contact.avatar_data_url}
                     alt={contact.title}
-                    className={`object-cover ring-1 ring-[#eadfd6] ${
-                      isSocialReference(contact) ? "h-[3.2rem] w-[8.4rem] rounded-[1rem]" : "h-12 w-12 rounded-full"
+                    className={`ring-1 ring-[#eadfd6] ${
+                      isSocialReference(contact)
+                        ? "h-[3.2rem] w-[8.4rem] rounded-[1rem] bg-[#0f1117] object-contain object-left"
+                        : "h-12 w-12 rounded-full object-cover"
                     }`}
                   />
                 ) : (
@@ -274,8 +276,10 @@ export function ProviderContactGrid({ contacts, initialContactedIds, language }:
                   <img
                     src={selectedContact.avatar_data_url}
                     alt={selectedContact.title}
-                    className={`object-cover ring-1 ring-[#eadfd6] ${
-                      isSocialReference(selectedContact) ? "h-[3.6rem] w-[9.4rem] rounded-[1rem]" : "h-14 w-14 rounded-full"
+                    className={`ring-1 ring-[#eadfd6] ${
+                      isSocialReference(selectedContact)
+                        ? "h-[3.6rem] w-[9.4rem] rounded-[1rem] bg-[#0f1117] object-contain object-left"
+                        : "h-14 w-14 rounded-full object-cover"
                     }`}
                   />
                 ) : null}
