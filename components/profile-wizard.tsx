@@ -422,11 +422,7 @@ export function ProfileWizard({ initialValues, email, language, roleLocked = fal
                   </div>
                 ) : (
                   <div className="mt-4">
-                    <div className="flex items-center justify-between gap-4">
-                      <div>
-                        <p className="text-sm font-semibold text-[#131316]">{copy.productMap}</p>
-                        <p className="mt-1 text-sm text-[#62626d]">{copy.productMapBody}</p>
-                      </div>
+                    <div className="flex items-center justify-end gap-4">
                       <div className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-2 text-xs font-semibold text-[#dc4f1f] shadow-sm">
                         <Compass className="h-4 w-4" />
                         {values.interests.length} {copy.selected}
