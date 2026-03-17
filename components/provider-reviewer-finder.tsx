@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { NotebookTabs, Sparkles, Star, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { EXPERIENCE_LABELS, getInterestOptions, normalizeInterestKey } from "@/lib/onboarding";
+import { getInterestOptions, normalizeInterestKey } from "@/lib/onboarding";
 import { AVAILABILITY_OPTIONS, type ReviewerAvailability } from "@/lib/profile-data";
 import { getRequestStatusLabel } from "@/lib/contact-requests";
 import { normalizeLanguage, providerFinderCopy, type AppLanguage } from "@/lib/i18n";
@@ -64,6 +64,31 @@ function normalizeFilterValue(value: string) {
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "");
+}
+
+function getCountryFlag(country: string) {
+  switch (normalizeFilterValue(country)) {
+    case "estados unidos":
+    case "united states":
+    case "usa":
+      return String.fromCodePoint(0x1f1fa, 0x1f1f8);
+    case "mexico":
+      return String.fromCodePoint(0x1f1f2, 0x1f1fd);
+    case "colombia":
+      return String.fromCodePoint(0x1f1e8, 0x1f1f4);
+    case "peru":
+      return String.fromCodePoint(0x1f1f5, 0x1f1ea);
+    case "argentina":
+      return String.fromCodePoint(0x1f1e6, 0x1f1f7);
+    case "chile":
+      return String.fromCodePoint(0x1f1e8, 0x1f1f1);
+    case "republica dominicana":
+    case "república dominicana":
+    case "dominican republic":
+      return String.fromCodePoint(0x1f1e9, 0x1f1f4);
+    default:
+      return "";
+  }
 }
 
 function mergeProfileSnapshotCountry(profileData: unknown, metadata: Record<string, unknown> | undefined) {
@@ -364,8 +389,17 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
               >
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="font-bold">{reviewer.fullName}</p>
-                    <p className="mt-1 text-sm text-[#62626d]">{reviewer.country || copy.noCountry} · {EXPERIENCE_LABELS[reviewer.experienceLevel]}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-bold">{reviewer.fullName}</p>
+                      {getCountryFlag(reviewer.country) ? (
+                        <span aria-hidden="true" className="text-base leading-none">
+                          {getCountryFlag(reviewer.country)}
+                        </span>
+                      ) : null}
+                    </div>
+                    <p className="mt-1 text-sm text-[#62626d]">
+                      {AVAILABILITY_OPTIONS.find((item) => item.value === reviewer.availability)?.label}
+                    </p>
                   </div>
                   <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-[#dc4f1f]">
                     {reviewer.matchPercent}% {copy.compatible}
@@ -424,6 +458,11 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
                     <h3 className="text-lg font-bold">{reviewer.fullName}</h3>
+                    {getCountryFlag(reviewer.country) ? (
+                      <span aria-hidden="true" className="text-lg leading-none">
+                        {getCountryFlag(reviewer.country)}
+                      </span>
+                    ) : null}
                     {reviewer.isVerified ? (
                       <span className="rounded-full bg-[#eef9f0] px-3 py-1 text-xs font-semibold text-[#1f7a4d]">{copy.verified}</span>
                     ) : null}
@@ -454,9 +493,7 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
               {isExpanded ? (
                 <div className="border-t border-[#eee3d8] px-4 py-4">
                   <div className="mb-4 rounded-[1.2rem] border border-[#efe4d9] bg-[#fffaf6] px-4 py-3">
-                    <p className="text-sm text-[#62626d]">
-                      {reviewer.country || copy.noCountry} · {EXPERIENCE_LABELS[reviewer.experienceLevel]} · {AVAILABILITY_OPTIONS.find((item) => item.value === reviewer.availability)?.label}
-                    </p>
+                    <p className="text-sm text-[#62626d]">{AVAILABILITY_OPTIONS.find((item) => item.value === reviewer.availability)?.label}</p>
                   </div>
                   {reviewer.note ? <p className="text-sm text-[#62626d]">{reviewer.note}</p> : <div className="h-2" />}
 
@@ -541,3 +578,4 @@ export function ProviderReviewerFinder({ reviewers, sentRequests, providerIntere
     </div>
   );
 }
+
