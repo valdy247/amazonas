@@ -24,16 +24,17 @@ type ProviderContactGridProps = {
   contacts: ProviderContact[];
   initialContactedIds: string[];
   language: AppLanguage;
+  reviewerId: string;
 };
 
-export function ProviderContactGrid({ contacts, initialContactedIds, language }: ProviderContactGridProps) {
+export function ProviderContactGrid({ contacts, initialContactedIds, language, reviewerId }: ProviderContactGridProps) {
   const copy = providerContactsCopy[normalizeLanguage(language)];
   const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"pending" | "contacted">("pending");
   const [error, setError] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-  const contactedStorageKey = "provider-contacted";
+  const contactedStorageKey = `provider-contacted:${reviewerId}`;
   const [contactedIds, setContactedIds] = useState<string[]>(() => {
     if (typeof window === "undefined") {
       return initialContactedIds;
@@ -88,7 +89,7 @@ export function ProviderContactGrid({ contacts, initialContactedIds, language }:
     }
 
     window.localStorage.setItem(contactedStorageKey, JSON.stringify(contactedIds));
-  }, [contactedIds]);
+  }, [contactedIds, contactedStorageKey]);
 
   useEffect(() => {
     if (!feedback) {

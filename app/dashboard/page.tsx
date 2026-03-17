@@ -1065,7 +1065,7 @@ export default async function DashboardPage({
                   {copy.accessOpen}
                 </span>
               </div>
-              <ProviderContactGrid contacts={contacts} initialContactedIds={contactedIds} language={currentUserLanguage} />
+              <ProviderContactGrid key={user.id} contacts={contacts} initialContactedIds={contactedIds} language={currentUserLanguage} reviewerId={user.id} />
             </section>
           ) : (
             <section className="overflow-hidden rounded-[1.9rem] border border-[#f1d6c8] bg-[linear-gradient(135deg,#fff6f0_0%,#fffdf9_100%)] p-5 shadow-[0_18px_36px_rgba(22,18,14,0.04)]">
