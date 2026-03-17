@@ -1,4 +1,5 @@
 import type { AppLanguage } from "@/lib/i18n";
+import type { ProviderImportSource } from "@/lib/admin-provider-import";
 
 export function getOpenAiApiKey() {
   return process.env.OPENAI_API_KEY || "";
@@ -10,6 +11,42 @@ export function getOpenAiTranslationModel() {
 
 export function getOpenAiAssistModel() {
   return process.env.OPENAI_ASSIST_MODEL || getOpenAiTranslationModel();
+}
+
+function extractResponseText(data: {
+  output_text?: string;
+  output?: Array<{
+    content?: Array<{
+      type?: string;
+      text?: string;
+    }>;
+  }>;
+}) {
+  const nestedOutputText =
+    Array.isArray(data.output)
+      ? data.output
+          .flatMap((item) => item.content || [])
+          .map((item) => (typeof item.text === "string" ? item.text : ""))
+          .find((item) => item.trim())
+      : "";
+
+  return typeof data.output_text === "string" && data.output_text.trim()
+    ? data.output_text.trim()
+    : typeof nestedOutputText === "string"
+      ? nestedOutputText.trim()
+      : "";
+}
+
+function parseJsonObject<T>(raw: string): T | null {
+  const direct = raw.trim();
+  const fenced = direct.match(/```(?:json)?\s*([\s\S]+?)\s*```/i)?.[1]?.trim();
+  const candidate = fenced || direct;
+
+  try {
+    return JSON.parse(candidate) as T;
+  } catch {
+    return null;
+  }
 }
 
 export async function translateMessage(input: {
@@ -69,19 +106,7 @@ export async function translateMessage(input: {
     throw new Error(data.error?.message || "No se pudo traducir el mensaje.");
   }
 
-  const nestedOutputText =
-    Array.isArray(data.output)
-      ? data.output
-          .flatMap((item) => item.content || [])
-          .map((item) => (typeof item.text === "string" ? item.text : ""))
-          .find((item) => item.trim())
-      : "";
-  const translatedText =
-    typeof data.output_text === "string" && data.output_text.trim()
-      ? data.output_text.trim()
-      : typeof nestedOutputText === "string"
-        ? nestedOutputText.trim()
-        : "";
+  const translatedText = extractResponseText(data);
   return translatedText || null;
 }
 
@@ -143,20 +168,90 @@ export async function improveCampaignMessage(input: {
     throw new Error(data.error?.message || "No se pudo mejorar el mensaje.");
   }
 
-  const nestedOutputText =
-    Array.isArray(data.output)
-      ? data.output
-          .flatMap((item) => item.content || [])
-          .map((item) => (typeof item.text === "string" ? item.text : ""))
-          .find((item) => item.trim())
-      : "";
-
-  const improvedText =
-    typeof data.output_text === "string" && data.output_text.trim()
-      ? data.output_text.trim()
-      : typeof nestedOutputText === "string"
-        ? nestedOutputText.trim()
-        : "";
+  const improvedText = extractResponseText(data);
 
   return improvedText || null;
+}
+
+export async function extractProviderContactsFromImage(input: {
+  imageDataUrl: string;
+  source: ProviderImportSource;
+}) {
+  if (!getOpenAiApiKey()) {
+    throw new Error("Falta OPENAI_API_KEY para procesar capturas.");
+  }
+
+  const sourceLabel =
+    input.source === "messenger"
+      ? "Messenger"
+      : input.source === "instagram"
+        ? "Instagram"
+        : input.source === "whatsapp"
+          ? "WhatsApp"
+          : "email";
+  const extractionRule =
+    input.source === "messenger"
+      ? "Extract only Messenger usernames or direct Messenger handles visible in the screenshot. Return usernames only, without labels, @ symbols, or full URLs when possible."
+      : input.source === "instagram"
+        ? "Extract only Instagram usernames visible in the screenshot. Return usernames only, without labels, @ symbols, or full URLs when possible."
+        : input.source === "whatsapp"
+          ? "Extract only WhatsApp phone numbers visible in the screenshot. Return the digits with country code when visible."
+          : "Extract only email addresses visible in the screenshot.";
+
+  const response = await fetch("https://api.openai.com/v1/responses", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${getOpenAiApiKey()}`,
+    },
+    body: JSON.stringify({
+      model: getOpenAiAssistModel(),
+      input: [
+        {
+          role: "system",
+          content: [
+            {
+              type: "input_text",
+              text:
+                "You extract provider contact handles from screenshots for an admin import tool. Return strict JSON only. Do not infer the platform. Ignore buttons, timestamps, counts, ads, and duplicated rows. If nothing valid is visible, return an empty array.",
+            },
+          ],
+        },
+        {
+          role: "user",
+          content: [
+            {
+              type: "input_text",
+              text: `Source platform selected by admin: ${sourceLabel}.\n${extractionRule}\nReturn only JSON in this shape: {"contacts":["value 1","value 2"]}`,
+            },
+            {
+              type: "input_image",
+              image_url: input.imageDataUrl,
+            },
+          ],
+        },
+      ],
+    }),
+    cache: "no-store",
+  });
+
+  const data = (await response.json()) as {
+    output_text?: string;
+    output?: Array<{
+      content?: Array<{
+        type?: string;
+        text?: string;
+      }>;
+    }>;
+    error?: { message?: string };
+  };
+
+  if (!response.ok) {
+    throw new Error(data.error?.message || "No se pudo procesar la captura.");
+  }
+
+  const parsed = parseJsonObject<{ contacts?: string[] }>(extractResponseText(data));
+  return Array.isArray(parsed?.contacts)
+    ? parsed.contacts.map((item) => String(item || "").trim()).filter(Boolean)
+    : [];
 }

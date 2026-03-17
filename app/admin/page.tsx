@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { AdminProviderCreateForm } from "@/components/admin-provider-create-form";
 import { AdminExportButton } from "@/components/admin-export-button";
+import { AdminProviderImportStudio } from "@/components/admin-provider-import-studio";
 import { AdminProviderManager } from "@/components/admin-provider-manager";
 import { AdminSectionNav } from "@/components/admin-section-nav";
 import { AdminUserManager } from "@/components/admin-user-manager";
@@ -288,6 +289,10 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         <section className="grid gap-4">
           {activeSection === "providers" ? (
             <>
+              <div className="card p-4">
+                <AdminProviderImportStudio />
+              </div>
+
               <div className="card p-4">
                 <AdminProviderCreateForm whatsappPrefixOptions={WHATSAPP_PREFIX_OPTIONS} />
               </div>
