@@ -245,12 +245,22 @@ export function AuthForm() {
                     key={option.value}
                     type="button"
                     onClick={() => setSignupRole(option.value)}
-                    className={`rounded-[1.3rem] border p-4 text-left transition ${
-                      active ? "border-[#ff6b35] bg-[#fff3ec]" : "border-[#eadfd6] bg-white hover:border-[#f0cbb8] hover:bg-[#fff8f3]"
+                    className={`rounded-[1.4rem] border px-5 py-4 text-left transition ${
+                      active
+                        ? "border-[#ff6b35] bg-[linear-gradient(135deg,#fff4ee_0%,#ffe8db_100%)] text-[#131316] shadow-[0_16px_30px_rgba(255,107,53,0.12)]"
+                        : "border-[#eadfd6] bg-white text-[#131316] hover:border-[#f0cbb8] hover:bg-[#fffaf6]"
                     }`}
                   >
-                    <p className="font-semibold text-[#131316]">{option.label}</p>
-                    <p className="mt-1 text-sm text-[#62564a]">{option.body}</p>
+                    <span className="flex items-center justify-between gap-3">
+                      <span className="text-[1.05rem] font-semibold">{option.label}</span>
+                      <span
+                        className={`inline-flex h-5 w-5 items-center justify-center rounded-full border text-[11px] ${
+                          active ? "border-[#ff6b35] bg-[#ff6b35] text-white" : "border-[#d9cec4] bg-[#f8f4ef] text-transparent"
+                        }`}
+                      >
+                        •
+                      </span>
+                    </span>
                   </button>
                 );
               })}
@@ -274,9 +284,6 @@ export function AuthForm() {
               <input type="hidden" name="last_name" value="" />
               <input type="hidden" name="phone" value="" />
               <input type="hidden" name="identity_confirmation" value="" />
-              <p className="rounded-[1.2rem] border border-[#eadfd6] bg-[#fcfaf7] px-4 py-3 text-sm text-[#62564a]">
-                {copy.providerInterestsHint}
-              </p>
             </>
           )}
           <label className="rounded-[1.2rem] border border-[#eadfd6] bg-[#fcfaf7] px-4 py-3 text-sm text-[#62564a]">
