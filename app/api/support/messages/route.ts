@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { hasAdminAccess } from "@/lib/admin";
+import { logActionAudit } from "@/lib/action-audit";
+import { rejectRateLimited } from "@/lib/rate-limit";
 import { rejectUntrustedOrigin } from "@/lib/security";
 
 type SendSupportMessageBody = {
@@ -23,6 +25,18 @@ export async function POST(request: Request) {
 
     if (!user) {
       return NextResponse.json({ error: "No se pudo validar tu sesion." }, { status: 401 });
+    }
+
+    const rateLimitError = await rejectRateLimited({
+      scope: "support_messages",
+      request,
+      identifierParts: [user.id],
+      limit: 20,
+      windowSeconds: 300,
+      message: "Estas enviando mensajes de soporte demasiado rapido. Espera un momento.",
+    });
+    if (rateLimitError) {
+      return rateLimitError;
     }
 
     const body = (await request.json()) as SendSupportMessageBody;
@@ -76,6 +90,16 @@ export async function POST(request: Request) {
     }
 
     await admin.from("support_threads").update(threadUpdate).eq("id", threadId);
+
+    await logActionAudit({
+      actorId: user.id,
+      action: isAdmin ? "support_message_admin" : "support_message_user",
+      targetUserId: isAdmin ? thread.user_id : user.id,
+      metadata: {
+        threadId,
+        messageId: insertedMessage.id,
+      },
+    });
 
     return NextResponse.json({ data: insertedMessage });
   } catch (error) {

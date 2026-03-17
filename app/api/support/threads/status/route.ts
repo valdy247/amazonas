@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { hasAdminAccess } from "@/lib/admin";
+import { logActionAudit } from "@/lib/action-audit";
+import { rejectRateLimited } from "@/lib/rate-limit";
 import { rejectUntrustedOrigin } from "@/lib/security";
 
 type UpdateSupportStatusBody = {
@@ -31,6 +33,18 @@ export async function POST(request: Request) {
     const { data: me } = await admin.from("profiles").select("role, email").eq("id", user.id).single();
     if (!hasAdminAccess(me?.role, me?.email || user.email)) {
       return NextResponse.json({ error: "Solo admin." }, { status: 403 });
+    }
+
+    const rateLimitError = await rejectRateLimited({
+      scope: "support_status",
+      request,
+      identifierParts: [user.id],
+      limit: 30,
+      windowSeconds: 300,
+      message: "Estas haciendo demasiados cambios de soporte. Espera un momento.",
+    });
+    if (rateLimitError) {
+      return rateLimitError;
     }
 
     const body = (await request.json()) as UpdateSupportStatusBody;
@@ -66,6 +80,17 @@ export async function POST(request: Request) {
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
+
+    await logActionAudit({
+      actorId: user.id,
+      action: "update_support_thread",
+      metadata: {
+        threadId,
+        status,
+        priority,
+        assignToMe,
+      },
+    });
 
     return NextResponse.json({ ok: true });
   } catch (error) {

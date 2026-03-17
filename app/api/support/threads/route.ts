@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { SUPPORT_CATEGORIES } from "@/lib/support";
+import { logActionAudit } from "@/lib/action-audit";
+import { rejectRateLimited } from "@/lib/rate-limit";
 import { rejectUntrustedOrigin } from "@/lib/security";
 
 type CreateSupportThreadBody = {
@@ -24,6 +26,18 @@ export async function POST(request: Request) {
 
     if (!user) {
       return NextResponse.json({ error: "No se pudo validar tu sesion." }, { status: 401 });
+    }
+
+    const rateLimitError = await rejectRateLimited({
+      scope: "support_threads",
+      request,
+      identifierParts: [user.id],
+      limit: 5,
+      windowSeconds: 900,
+      message: "Has creado demasiados casos en poco tiempo. Espera un momento.",
+    });
+    if (rateLimitError) {
+      return rateLimitError;
     }
 
     const body = (await request.json()) as CreateSupportThreadBody;
@@ -65,6 +79,17 @@ export async function POST(request: Request) {
     if (messageError) {
       return NextResponse.json({ error: messageError.message }, { status: 500 });
     }
+
+    await logActionAudit({
+      actorId: user.id,
+      action: "create_support_thread",
+      targetUserId: user.id,
+      metadata: {
+        threadId: thread.id,
+        category,
+        subject,
+      },
+    });
 
     return NextResponse.json({ data: { id: thread.id } });
   } catch (error) {

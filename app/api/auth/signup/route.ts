@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { callSupabaseAuth } from "@/lib/auth-api";
+import { rejectRateLimited } from "@/lib/rate-limit";
 import { rejectUntrustedOrigin } from "@/lib/security";
 import { resolveSiteOrigin } from "@/lib/site-url";
 
@@ -22,6 +23,18 @@ export async function POST(request: Request) {
 
     if (!email || !password) {
       return NextResponse.json({ error: "Datos incompletos" }, { status: 400 });
+    }
+
+    const rateLimitError = await rejectRateLimited({
+      scope: "auth_signup",
+      request,
+      identifierParts: [email],
+      limit: 5,
+      windowSeconds: 900,
+      message: "Demasiados intentos de registro. Espera un poco antes de intentarlo otra vez.",
+    });
+    if (rateLimitError) {
+      return rateLimitError;
     }
 
     const result = await callSupabaseAuth("/auth/v1/signup", {

@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { normalizeLanguage, type AppLanguage } from "@/lib/i18n";
 import { translateMessage } from "@/lib/openai";
 import { getLocalizedPushBody, getLocalizedPushTitle, normalizePushLanguage, sendPushNotificationToUser } from "@/lib/push";
+import { rejectRateLimited } from "@/lib/rate-limit";
 import { rejectUntrustedOrigin } from "@/lib/security";
 
 type SendMessageBody = {
@@ -35,6 +36,18 @@ export async function POST(request: Request) {
 
     if (!user) {
       return NextResponse.json({ error: "No se pudo validar tu sesion." }, { status: 401 });
+    }
+
+    const routeRateLimitError = await rejectRateLimited({
+      scope: "chat_messages",
+      request,
+      identifierParts: [user.id],
+      limit: 30,
+      windowSeconds: 60,
+      message: "Estas enviando mensajes demasiado rapido. Espera un momento.",
+    });
+    if (routeRateLimitError) {
+      return routeRateLimitError;
     }
 
     const admin = createAdminClient();

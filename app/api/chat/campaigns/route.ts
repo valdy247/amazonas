@@ -6,6 +6,7 @@ import { normalizeLanguage, type AppLanguage } from "@/lib/i18n";
 import { normalizeInterestKeys } from "@/lib/onboarding";
 import { translateMessage } from "@/lib/openai";
 import { getLocalizedPushBody, getLocalizedPushTitle, sendPushNotificationToUser } from "@/lib/push";
+import { rejectRateLimited } from "@/lib/rate-limit";
 import { rejectUntrustedOrigin } from "@/lib/security";
 
 type CampaignBody = {
@@ -48,6 +49,18 @@ export async function POST(request: Request) {
 
     if (!user) {
       return NextResponse.json({ error: "No se pudo validar tu sesion." }, { status: 401 });
+    }
+
+    const rateLimitError = await rejectRateLimited({
+      scope: "chat_campaigns",
+      request,
+      identifierParts: [user.id],
+      limit: 4,
+      windowSeconds: 300,
+      message: "Estas enviando campanas demasiado rapido. Espera unos minutos.",
+    });
+    if (rateLimitError) {
+      return rateLimitError;
     }
 
     const admin = createAdminClient();

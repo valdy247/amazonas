@@ -1,11 +1,14 @@
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { hasAdminAccess } from "@/lib/admin";
+import { logActionAudit } from "@/lib/action-audit";
 import {
   createProviderContactRecord,
   normalizeImportedContactValue,
   type ProviderImportSource,
 } from "@/lib/admin-provider-import";
+import { rejectRateLimited } from "@/lib/rate-limit";
+import { rejectUntrustedOrigin } from "@/lib/security";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -54,6 +57,11 @@ function buildDraftFromSource(source: ProviderImportSource, rawValue: string) {
 
 export async function POST(request: Request) {
   try {
+    const originError = rejectUntrustedOrigin(request);
+    if (originError) {
+      return originError;
+    }
+
     const { userId, admin } = await assertAdminRoute();
     const body = (await request.json()) as {
       source?: ProviderImportSource;
@@ -69,6 +77,18 @@ export async function POST(request: Request) {
 
     if (!rows.length) {
       return NextResponse.json({ error: "No hay filas para importar." }, { status: 400 });
+    }
+
+    const rateLimitError = await rejectRateLimited({
+      scope: "provider_import_commit",
+      request,
+      identifierParts: [userId],
+      limit: 8,
+      windowSeconds: 900,
+      message: "Estas importando proveedores demasiado rapido. Espera unos minutos.",
+    });
+    if (rateLimitError) {
+      return rateLimitError;
     }
 
     const created: Array<{ value: string; alias: string }> = [];
@@ -100,6 +120,18 @@ export async function POST(request: Request) {
 
     revalidatePath("/admin");
     revalidatePath("/dashboard");
+
+    await logActionAudit({
+      actorId: userId,
+      action: "import_provider_contacts",
+      metadata: {
+        source,
+        requestedRows: rows.length,
+        createdCount: created.length,
+        skippedCount: skipped.length,
+        createdValues: created.map((item) => item.value),
+      },
+    });
 
     return NextResponse.json({
       created,

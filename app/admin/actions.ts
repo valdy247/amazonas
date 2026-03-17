@@ -240,6 +240,22 @@ async function performCreateProviderContact(formData: FormData) {
     const { error } = await admin.from("provider_contacts").insert(payload);
 
     if (!error) {
+      await logAdminAction({
+        supabase,
+        admin,
+        adminId,
+        action: "create_provider_contact",
+        metadata: {
+          title: safeTitle,
+          network: primaryNetwork,
+          hasEmail: Boolean(email),
+          hasWhatsapp: Boolean(whatsapp),
+          hasInstagram: Boolean(instagram),
+          hasMessenger: Boolean(messenger),
+          hasFacebook: Boolean(facebook),
+          isVerified,
+        },
+      });
       revalidatePath("/admin");
       revalidatePath("/dashboard");
       return;
@@ -371,6 +387,19 @@ export async function updateProviderContact(formData: FormData) {
     const { error } = await admin.from("provider_contacts").update(payload).eq("id", contactId);
 
     if (!error) {
+      await logAdminAction({
+        supabase,
+        admin,
+        adminId,
+        action: "update_provider_contact",
+        metadata: {
+          contactId,
+          title: safeTitle,
+          network: primaryNetwork,
+          isActive,
+          isVerified,
+        },
+      });
       revalidatePath("/admin");
       revalidatePath("/dashboard");
       return;
@@ -383,7 +412,7 @@ export async function updateProviderContact(formData: FormData) {
 }
 
 export async function deleteProviderContact(formData: FormData) {
-  const { admin } = await assertAdmin();
+  const { supabase, admin, adminId } = await assertAdmin();
   const contactId = Number(formData.get("contact_id") || 0);
 
   if (!Number.isFinite(contactId) || contactId <= 0) {
@@ -395,6 +424,14 @@ export async function deleteProviderContact(formData: FormData) {
   if (error) {
     throw new Error(error.message || "No se pudo eliminar el contacto.");
   }
+
+  await logAdminAction({
+    supabase,
+    admin,
+    adminId,
+    action: "delete_provider_contact",
+    metadata: { contactId },
+  });
 
   revalidatePath("/admin");
   revalidatePath("/dashboard");

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { callSupabaseAuth } from "@/lib/auth-api";
+import { rejectRateLimited } from "@/lib/rate-limit";
 import { rejectUntrustedOrigin } from "@/lib/security";
 
 type SignInBody = {
@@ -20,6 +21,18 @@ export async function POST(request: Request) {
 
     if (!email || !password) {
       return NextResponse.json({ error: "Datos incompletos" }, { status: 400 });
+    }
+
+    const rateLimitError = await rejectRateLimited({
+      scope: "auth_signin",
+      request,
+      identifierParts: [email],
+      limit: 8,
+      windowSeconds: 300,
+      message: "Demasiados intentos de inicio de sesion. Espera unos minutos.",
+    });
+    if (rateLimitError) {
+      return rateLimitError;
     }
 
     const result = await callSupabaseAuth("/auth/v1/token?grant_type=password", { email, password });

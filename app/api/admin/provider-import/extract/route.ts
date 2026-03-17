@@ -6,6 +6,8 @@ import {
   type ProviderImportSource,
 } from "@/lib/admin-provider-import";
 import { extractProviderContactsFromImage } from "@/lib/openai";
+import { rejectRateLimited } from "@/lib/rate-limit";
+import { rejectUntrustedOrigin } from "@/lib/security";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -47,7 +49,12 @@ async function assertAdminRoute() {
 
 export async function POST(request: Request) {
   try {
-    const { admin } = await assertAdminRoute();
+    const originError = rejectUntrustedOrigin(request);
+    if (originError) {
+      return originError;
+    }
+
+    const { userId, admin } = await assertAdminRoute();
     const formData = await request.formData();
     const source = String(formData.get("source") || "").trim() as ProviderImportSource;
     const files = formData
@@ -60,6 +67,18 @@ export async function POST(request: Request) {
 
     if (!files.length) {
       return NextResponse.json({ error: "Debes subir al menos una imagen." }, { status: 400 });
+    }
+
+    const rateLimitError = await rejectRateLimited({
+      scope: "provider_import_extract",
+      request,
+      identifierParts: [userId],
+      limit: 12,
+      windowSeconds: 900,
+      message: "Estas procesando demasiadas capturas en poco tiempo. Espera unos minutos.",
+    });
+    if (rateLimitError) {
+      return rateLimitError;
     }
 
     const rows: Array<{

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { improveCampaignMessage } from "@/lib/openai";
 import { normalizeLanguage } from "@/lib/i18n";
+import { rejectRateLimited } from "@/lib/rate-limit";
 import { rejectUntrustedOrigin } from "@/lib/security";
 
 type CampaignAssistBody = {
@@ -23,6 +24,18 @@ export async function POST(request: Request) {
 
     if (!user) {
       return NextResponse.json({ error: "No se pudo validar tu sesion." }, { status: 401 });
+    }
+
+    const rateLimitError = await rejectRateLimited({
+      scope: "chat_campaign_assist",
+      request,
+      identifierParts: [user.id],
+      limit: 10,
+      windowSeconds: 300,
+      message: "Estas usando la ayuda IA demasiado rapido. Espera un momento.",
+    });
+    if (rateLimitError) {
+      return rateLimitError;
     }
 
     const body = (await request.json()) as CampaignAssistBody;
