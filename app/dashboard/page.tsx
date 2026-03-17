@@ -165,6 +165,20 @@ function formatProviderAlias(aliasNumber: number) {
   return `Proveedor ${aliasNumber}`;
 }
 
+function getStableMatchAdjustment(seed: string) {
+  const normalizedSeed = seed.trim();
+  let hash = 0;
+
+  for (let index = 0; index < normalizedSeed.length; index += 1) {
+    hash = (hash * 31 + normalizedSeed.charCodeAt(index)) | 0;
+  }
+
+  const magnitude = 3 + (Math.abs(hash) % 3);
+  const sign = Math.abs(hash >> 3) % 2 === 0 ? 1 : -1;
+
+  return magnitude * sign;
+}
+
 function getRegisteredProviderComparableFields(provider: ProfileRow) {
   const providerProfileData = mergeProfileData(provider.profile_data);
   const contactMethods = buildContactMethodsFromFields({
@@ -628,7 +642,9 @@ export default async function DashboardPage({
         const countryWeight =
           normalizeComparable(reviewerData.country) && normalizeComparable(reviewerData.country) === normalizeComparable(country) ? 20 : 0;
         const availabilityWeight = reviewerData.availability === "open" ? 10 : 6;
-        const matchPercent = Math.max(1, Math.min(100, Math.round(categoryWeight + countryWeight + availabilityWeight)));
+        const baseMatchPercent = Math.round(categoryWeight + countryWeight + availabilityWeight);
+        const adjustedMatchPercent = baseMatchPercent + getStableMatchAdjustment(row.id);
+        const matchPercent = Math.max(1, Math.min(100, adjustedMatchPercent));
 
         return {
           id: row.id,
