@@ -202,8 +202,8 @@ export function AdminProviderImportStudio() {
   const [manualImages, setManualImages] = useState<ManualImage[]>([]);
   const [manualIndex, setManualIndex] = useState(0);
   const [manualCropLeft, setManualCropLeft] = useState(4);
-  const [manualCropWidth, setManualCropWidth] = useState(46);
-  const [manualCropHeight, setManualCropHeight] = useState(11);
+  const [manualCropWidth, setManualCropWidth] = useState(54);
+  const [manualCropHeight, setManualCropHeight] = useState(9);
   const [isExtracting, startExtract] = useTransition();
   const [isImporting, startImport] = useTransition();
 
