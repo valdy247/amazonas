@@ -19,6 +19,7 @@ function labelFromUrl(raw: string) {
     const url = new URL(raw);
     const host = url.hostname.replace(/^www\./, "");
 
+    if (host.includes("mailto")) return "Email";
     if (host.includes("instagram")) return "Instagram";
     if (host.includes("m.me") || host.includes("messenger")) return "Messenger";
     if (host.includes("facebook")) return "Facebook";
@@ -38,6 +39,9 @@ function toHref(raw: string) {
   if (!value) return null;
   if (value === "#") return null;
   if (/^https?:\/\//i.test(value)) return value;
+  if (/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(value)) {
+    return `mailto:${value}`;
+  }
 
   const normalizedPhone = value.replace(/[^\d+]/g, "");
   if (/^\+?\d{7,15}$/.test(normalizedPhone)) {
@@ -152,15 +156,18 @@ export function buildContactMethodsFromFields({
   instagram,
   messenger,
   facebook,
+  email,
 }: {
   whatsapp?: string | null;
   instagram?: string | null;
   messenger?: string | null;
   facebook?: string | null;
+  email?: string | null;
 }) {
   const trimmedMessenger = messenger?.trim() || "";
   const trimmedFacebook = facebook?.trim() || "";
   const rows = [
+    email?.trim() ? `Email|${email.trim()}` : null,
     whatsapp?.trim() ? `WhatsApp|${whatsapp.trim()}` : null,
     instagram?.trim() ? `Instagram|${instagram.trim()}` : null,
     trimmedMessenger ? `Messenger|${isLikelyDirectLink(trimmedMessenger) ? trimmedMessenger : `copy:${trimmedMessenger}`}` : null,
@@ -197,6 +204,7 @@ export function getComparableContactMethods(contactMethods?: string | null, fall
 
 export function getContactFieldValues(contactMethods?: string | null, fallbackUrl?: string | null, fallbackNetwork?: string | null) {
   const methods = parseContactMethods(contactMethods, fallbackUrl, fallbackNetwork);
+  let email = "";
   let whatsapp = "";
   let instagram = "";
   let messenger = "";
@@ -206,6 +214,11 @@ export function getContactFieldValues(contactMethods?: string | null, fallbackUr
     const href = method.href?.trim() || "";
     const label = method.label.toLowerCase();
     const value = method.value.trim();
+
+    if (!email && (label.includes("email") || href.startsWith("mailto:") || /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(value))) {
+      email = href.startsWith("mailto:") ? href.replace(/^mailto:/i, "") : value;
+      return;
+    }
 
     if (!whatsapp && (label.includes("whatsapp") || href.includes("wa.me/"))) {
       const match = href.match(/wa\.me\/(\d+)/i);
@@ -228,5 +241,5 @@ export function getContactFieldValues(contactMethods?: string | null, fallbackUr
     }
   });
 
-  return { whatsapp, instagram, messenger, facebook };
+  return { email, whatsapp, instagram, messenger, facebook };
 }

@@ -204,8 +204,8 @@ export async function createProviderContactRecord(
   const facebook = normalizedInput.facebook;
   const avatarDataUrl = normalizedInput.avatarDataUrl;
   const notes = normalizedInput.notes;
-  const contactMethods = buildContactMethodsFromFields({ whatsapp, instagram, messenger, facebook });
-  const methodCount = [whatsapp, instagram, messenger, facebook].filter(Boolean).length;
+  const contactMethods = buildContactMethodsFromFields({ email, whatsapp, instagram, messenger, facebook });
+  const methodCount = [email, whatsapp, instagram, messenger, facebook].filter(Boolean).length;
 
   if (!methodCount) {
     throw new Error("Debes agregar al menos un metodo de contacto.");
@@ -225,7 +225,7 @@ export async function createProviderContactRecord(
 
   const safeTitle = await getNextProviderAlias(admin);
   const safeUrl = getPrimaryContactUrl(contactMethods) || "#";
-  const primaryNetwork = whatsapp ? "WhatsApp" : instagram ? "Instagram" : messenger ? "Messenger" : facebook ? "Facebook" : "";
+  const primaryNetwork = email ? "Email" : whatsapp ? "WhatsApp" : instagram ? "Instagram" : messenger ? "Messenger" : facebook ? "Facebook" : "";
 
   const basePayload = {
     title: safeTitle,
