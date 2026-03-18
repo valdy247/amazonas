@@ -167,23 +167,17 @@ export function ProviderContactGrid({ contacts, initialContactedIds, language, r
     }
   }
 
-  function prepareMobileSafeNavigation(href: string) {
-    if (typeof window === "undefined") {
-      return { popup: null as Window | null, direct: false };
-    }
-
-    if (/^(tel:|mailto:)/i.test(href)) {
-      return { popup: null as Window | null, direct: true };
-    }
-
-    const popup = window.open("", "_blank", "noopener,noreferrer");
-    return { popup, direct: false };
-  }
-
   function openMethod(contact: ProviderContact, method: (typeof methods)[number], href?: string) {
     setError(null);
     setFeedback(null);
-    const navigation = method.mode === "link" && href ? prepareMobileSafeNavigation(href) : null;
+
+    if (method.mode === "link" && href) {
+      if (/^(tel:|mailto:)/i.test(href)) {
+        window.location.href = href;
+      } else {
+        window.open(href, "_blank", "noopener,noreferrer");
+      }
+    }
 
     startTransition(async () => {
       if (contact.history_id) {
@@ -194,7 +188,6 @@ export function ProviderContactGrid({ contacts, initialContactedIds, language, r
         } = await supabase.auth.getUser();
 
         if (userError || !user) {
-          navigation?.popup?.close();
           setError(copy.sessionError);
           return;
         }
@@ -206,7 +199,6 @@ export function ProviderContactGrid({ contacts, initialContactedIds, language, r
         });
 
         if (insertError) {
-          navigation?.popup?.close();
           setError(insertError.message);
           return;
         }
@@ -226,22 +218,8 @@ export function ProviderContactGrid({ contacts, initialContactedIds, language, r
       }
 
       if (!href) {
-        navigation?.popup?.close();
         setError(copy.sessionError);
-        return;
       }
-
-      if (navigation?.direct) {
-        window.location.href = href;
-        return;
-      }
-
-      if (navigation?.popup) {
-        navigation.popup.location.href = href;
-        return;
-      }
-
-      window.location.href = href;
     });
   }
 
