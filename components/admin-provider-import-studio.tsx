@@ -259,6 +259,7 @@ export function AdminProviderImportStudio() {
   const [progress, setProgress] = useState<ProgressState>(null);
   const [visualProgressPercent, setVisualProgressPercent] = useState<number | null>(null);
   const [displayProgressPercent, setDisplayProgressPercent] = useState<number>(0);
+  const [readyNotice, setReadyNotice] = useState<string>("");
   const [isExtracting, startExtract] = useTransition();
   const [isImporting, startImport] = useTransition();
 
@@ -303,6 +304,50 @@ export function AdminProviderImportStudio() {
 
     const minutes = Math.ceil(seconds / 60);
     return `About ${minutes} min remaining`;
+  }
+
+  function notifyImportReady(message: string) {
+    setReadyNotice(message);
+    window.setTimeout(() => setReadyNotice(""), 5000);
+
+    if (typeof window === "undefined" || !("Notification" in window)) {
+      return;
+    }
+
+    if (Notification.permission === "granted") {
+      new Notification("Verifyzon import ready", {
+        body: message,
+      });
+      return;
+    }
+
+    if (Notification.permission === "default") {
+      Notification.requestPermission().then((permission) => {
+        if (permission === "granted") {
+          new Notification("Verifyzon import ready", {
+            body: message,
+          });
+        }
+      });
+    }
+  }
+
+  function finishProgress(message: string) {
+    setProgress((current) =>
+      current
+        ? {
+            ...current,
+            completed: current.total,
+          }
+        : current
+    );
+    setVisualProgressPercent(100);
+    setDisplayProgressPercent(100);
+    notifyImportReady(message);
+    window.setTimeout(() => {
+      setProgress(null);
+      setVisualProgressPercent(null);
+    }, 2200);
   }
 
   useEffect(() => {
@@ -500,13 +545,11 @@ export function AdminProviderImportStudio() {
       (row, index, current) => current.findIndex((candidate) => candidate.source === row.source && candidate.value === row.value) === index
     );
     setRows(deduped);
-    setStatus(
-      deduped.length
-        ? `Listo. Detectamos ${deduped.length} proveedores potenciales. Revisa la lista antes de importar.`
-        : "No se detectaron contactos utiles en esas capturas."
-    );
-    setProgress(null);
-    setVisualProgressPercent(null);
+    const message = deduped.length
+      ? `Listo. Detectamos ${deduped.length} proveedores potenciales. Revisa la lista antes de importar.`
+      : "No se detectaron contactos utiles en esas capturas.";
+    setStatus(message);
+    finishProgress(message);
   }
 
   async function handleFiles(files: FileList | null) {
@@ -589,13 +632,12 @@ export function AdminProviderImportStudio() {
           label: "Processing text with AI",
         });
         setRows(data.rows || []);
-        setStatus(
+        const message =
           (data.rows || []).length
             ? `Listo. Detectamos ${(data.rows || []).length} proveedores potenciales desde el texto.`
-            : "No se detectaron contactos utiles en ese texto."
-        );
-        setProgress(null);
-        setVisualProgressPercent(null);
+            : "No se detectaron contactos utiles en ese texto.";
+        setStatus(message);
+        finishProgress(message);
       } catch (error) {
         setProgress(null);
         setVisualProgressPercent(null);
@@ -646,13 +688,12 @@ export function AdminProviderImportStudio() {
           label: "Processing contact CSV",
         });
         setRows(data.rows || []);
-        setStatus(
+        const message =
           (data.rows || []).length
             ? `Listo. Detectamos ${(data.rows || []).length} proveedores potenciales desde el CSV.`
-            : "No se detectaron contactos utiles en ese CSV."
-        );
-        setProgress(null);
-        setVisualProgressPercent(null);
+            : "No se detectaron contactos utiles en ese CSV.";
+        setStatus(message);
+        finishProgress(message);
       } catch (error) {
         setProgress(null);
         setVisualProgressPercent(null);
@@ -702,13 +743,12 @@ export function AdminProviderImportStudio() {
           label: "Processing exported chat ZIP",
         });
         setRows(data.rows || []);
-        setStatus(
+        const message =
           (data.rows || []).length
             ? `Listo. Detectamos ${(data.rows || []).length} proveedores potenciales desde el chat exportado.`
-            : "No se detectaron contactos utiles en ese chat exportado."
-        );
-        setProgress(null);
-        setVisualProgressPercent(null);
+            : "No se detectaron contactos utiles en ese chat exportado.";
+        setStatus(message);
+        finishProgress(message);
       } catch (error) {
         setProgress(null);
         setVisualProgressPercent(null);
@@ -878,13 +918,13 @@ export function AdminProviderImportStudio() {
           label: "Importing providers",
         });
         const skippedText = (data.skipped || []).slice(0, 4).map((item) => `${item.value}: ${item.reason}`).join(" | ");
-        setStatus([data.summary, skippedText].filter(Boolean).join(" "));
+        const message = [data.summary, skippedText].filter(Boolean).join(" ");
+        setStatus(message);
         setRows([]);
         setManualImages([]);
         setManualIndex(0);
         setBulkText("");
-        setProgress(null);
-        setVisualProgressPercent(null);
+        finishProgress(message || "Import completed.");
       } catch (error) {
         setProgress(null);
         setVisualProgressPercent(null);
@@ -1084,6 +1124,12 @@ export function AdminProviderImportStudio() {
 
         {status ? (
           <div className="rounded-[1.2rem] border border-[#eadfd6] bg-white px-4 py-3 text-sm text-[#62564a]">{status}</div>
+        ) : null}
+
+        {readyNotice ? (
+          <div className="rounded-[1.2rem] border border-[#cfe9d9] bg-[#f4fff7] px-4 py-3 text-sm font-semibold text-[#177a52]">
+            {readyNotice}
+          </div>
         ) : null}
 
         {rows.length ? (
