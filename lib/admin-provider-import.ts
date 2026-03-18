@@ -7,7 +7,14 @@ import {
 } from "@/lib/provider-contact";
 import type { createAdminClient } from "@/lib/supabase/admin";
 
-export type ProviderImportSource = "messenger" | "facebook" | "instagram" | "whatsapp" | "email" | "bulk_text";
+export type ProviderImportSource =
+  | "messenger"
+  | "facebook"
+  | "instagram"
+  | "whatsapp"
+  | "email"
+  | "bulk_text"
+  | "csv_contacts";
 
 export type ProviderImportDraft = {
   email?: string | null;
@@ -87,6 +94,7 @@ export function normalizeImportedContactValue(source: ProviderImportSource, raw:
     case "email":
       return normalizeEmail(value);
     case "bulk_text":
+    case "csv_contacts":
       return value;
     default:
       return value;

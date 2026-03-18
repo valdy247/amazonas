@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, useTransition, type PointerEvent as ReactPointerEvent } from "react";
 import { CompactSelect } from "@/components/compact-select";
 
-type ProviderImportSource = "messenger" | "facebook" | "instagram" | "whatsapp" | "email" | "bulk_text";
+type ProviderImportSource = "messenger" | "facebook" | "instagram" | "whatsapp" | "email" | "bulk_text" | "csv_contacts";
 
 type PreviewRow = {
   id: string;
@@ -57,6 +57,7 @@ const SOURCE_OPTIONS: Array<{ value: ProviderImportSource; label: string }> = [
   { value: "whatsapp", label: "WhatsApp" },
   { value: "email", label: "Email" },
   { value: "bulk_text", label: "Texto masivo" },
+  { value: "csv_contacts", label: "CSV de contactos" },
 ];
 
 async function compressImage(file: File, index: number) {
@@ -116,6 +117,15 @@ async function fileToDataUrl(file: File) {
     reader.onload = () => resolve(typeof reader.result === "string" ? reader.result : "");
     reader.onerror = () => reject(new Error(`No se pudo leer ${file.name}`));
     reader.readAsDataURL(file);
+  });
+}
+
+async function fileToText(file: File) {
+  return await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(typeof reader.result === "string" ? reader.result : "");
+    reader.onerror = () => reject(new Error(`No se pudo leer ${file.name}`));
+    reader.readAsText(file);
   });
 }
 
@@ -246,6 +256,7 @@ export function AdminProviderImportStudio() {
   const sourceCopy = useMemo(() => SOURCE_OPTIONS.find((option) => option.value === source) || SOURCE_OPTIONS[0], [source]);
   const socialManualMode = source === "messenger" || source === "facebook";
   const bulkTextMode = source === "bulk_text";
+  const csvMode = source === "csv_contacts";
   const currentManualImage = manualImages[manualIndex] || null;
   const manualCropWidthMax = Math.max(25, 100 - manualCropLeft);
   const progressPercent = progress
@@ -489,7 +500,7 @@ export function AdminProviderImportStudio() {
   }
 
   async function handleFiles(files: FileList | null) {
-    if (bulkTextMode) {
+    if (bulkTextMode || csvMode) {
       return;
     }
 
@@ -579,6 +590,63 @@ export function AdminProviderImportStudio() {
         setProgress(null);
         setVisualProgressPercent(null);
         setStatus(error instanceof Error ? error.message : "No se pudo procesar el texto.");
+      }
+    });
+  }
+
+  function extractFromCsv(file: File | null) {
+    if (!file) {
+      setStatus("Selecciona el CSV antes de procesarlo.");
+      return;
+    }
+
+    setStatus("");
+    startExtract(async () => {
+      try {
+        const csvText = await fileToText(file);
+        const startedAt = Date.now();
+        setProgress({
+          phase: "extract",
+          completed: 0,
+          total: Math.max(1, csvText.length),
+          startedAt,
+          label: "Processing contact CSV",
+        });
+        setVisualProgressPercent(12);
+
+        const formData = new FormData();
+        formData.set("source", "csv_contacts");
+        formData.set("text", csvText);
+
+        const response = await fetch("/api/admin/provider-import/extract", {
+          method: "POST",
+          body: formData,
+        });
+        const data = (await response.json()) as { rows?: PreviewRow[]; error?: string };
+
+        if (!response.ok) {
+          throw new Error(data.error || "No se pudo procesar el CSV.");
+        }
+
+        setProgress({
+          phase: "extract",
+          completed: Math.max(1, csvText.length),
+          total: Math.max(1, csvText.length),
+          startedAt,
+          label: "Processing contact CSV",
+        });
+        setRows(data.rows || []);
+        setStatus(
+          (data.rows || []).length
+            ? `Listo. Detectamos ${(data.rows || []).length} proveedores potenciales desde el CSV.`
+            : "No se detectaron contactos utiles en ese CSV."
+        );
+        setProgress(null);
+        setVisualProgressPercent(null);
+      } catch (error) {
+        setProgress(null);
+        setVisualProgressPercent(null);
+        setStatus(error instanceof Error ? error.message : "No se pudo procesar el CSV.");
       }
     });
   }
@@ -785,10 +853,14 @@ export function AdminProviderImportStudio() {
         </div>
 
         <div className="rounded-[1.3rem] border border-dashed border-[#d8c8b8] bg-[#fffaf5] p-4">
-          <p className="text-sm font-semibold text-[#131316]">2. {bulkTextMode ? "Pega el texto masivo" : "Sube todas las capturas"}</p>
+          <p className="text-sm font-semibold text-[#131316]">
+            2. {bulkTextMode ? "Pega el texto masivo" : csvMode ? "Sube el CSV de contactos" : "Sube todas las capturas"}
+          </p>
           <p className="mt-1 text-xs leading-5 text-[#62564a]">
             {bulkTextMode
               ? "GPT extraera Facebook, correos y telefonos del bloque grande de texto y los convertira en proveedores."
+              : csvMode
+                ? "Leemos el CSV estructurado, normalizamos Facebook, correos y telefonos, y marcamos duplicados antes de importar."
               : "Puedes subir muchas a la vez. Las comprimimos y las enviamos por lotes para que el proceso sea mas estable."}
           </p>
           {bulkTextMode ? (
@@ -806,6 +878,17 @@ export function AdminProviderImportStudio() {
                 {isExtracting ? "Procesando..." : "Extraer desde texto"}
               </button>
             </>
+          ) : csvMode ? (
+            <label className="mt-3 flex cursor-pointer flex-col items-center justify-center rounded-[1.2rem] border border-[#eadfd6] bg-white px-4 py-6 text-center">
+              <span className="text-sm font-semibold text-[#131316]">Seleccionar CSV</span>
+              <span className="mt-1 text-xs text-[#62564a]">CSV con columnas type,value,source. Tipos utiles: facebook, email, whatsapp.</span>
+              <input
+                type="file"
+                accept=".csv,text/csv"
+                className="sr-only"
+                onChange={(event) => extractFromCsv(event.target.files?.[0] || null)}
+              />
+            </label>
           ) : (
             <label className="mt-3 flex cursor-pointer flex-col items-center justify-center rounded-[1.2rem] border border-[#eadfd6] bg-white px-4 py-6 text-center">
               <span className="text-sm font-semibold text-[#131316]">Seleccionar imagenes</span>
@@ -960,12 +1043,12 @@ export function AdminProviderImportStudio() {
                       </p>
                       <input
                         className="input mt-2"
-                        value={bulkTextMode ? row.preview : row.value}
+                        value={bulkTextMode || csvMode ? row.preview : row.value}
                         onChange={(event) => updateRow(row.id, event.target.value)}
                         placeholder="Contacto extraido"
-                        readOnly={bulkTextMode}
+                        readOnly={bulkTextMode || csvMode}
                       />
-                      {bulkTextMode ? (
+                      {bulkTextMode || csvMode ? (
                         <div className="mt-2 grid gap-2 sm:grid-cols-3">
                           {row.facebook ? <div className="rounded-[1rem] bg-[#fcfaf7] px-3 py-2 text-xs text-[#62564a]">Facebook: {row.facebook}</div> : null}
                           {row.email ? <div className="rounded-[1rem] bg-[#fcfaf7] px-3 py-2 text-xs text-[#62564a]">Email: {row.email}</div> : null}

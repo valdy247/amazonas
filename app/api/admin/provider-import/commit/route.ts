@@ -53,6 +53,9 @@ function buildDraftFromSource(source: ProviderImportSource, rawValue: string) {
       return { whatsapp: value };
     case "email":
       return { email: value };
+    case "bulk_text":
+    case "csv_contacts":
+      return {};
     default:
       return {};
   }
@@ -74,7 +77,7 @@ export async function POST(request: Request) {
     const source = body.source;
     const rows = Array.isArray(body.rows) ? body.rows : [];
 
-    if (!source || !["messenger", "facebook", "instagram", "whatsapp", "email", "bulk_text"].includes(source)) {
+    if (!source || !["messenger", "facebook", "instagram", "whatsapp", "email", "bulk_text", "csv_contacts"].includes(source)) {
       return NextResponse.json({ error: "Fuente invalida." }, { status: 400 });
     }
 
@@ -107,7 +110,7 @@ export async function POST(request: Request) {
 
       try {
         const alias = await createProviderContactRecord(admin, userId, {
-          ...(source === "bulk_text"
+          ...(source === "bulk_text" || source === "csv_contacts"
             ? {
                 email: String(row.email || "").trim(),
                 whatsapp: String(row.whatsapp || "").trim(),
@@ -115,7 +118,12 @@ export async function POST(request: Request) {
               }
             : buildDraftFromSource(source, normalized)),
           avatarDataUrl: row.avatarDataUrl || null,
-          notes: source === "bulk_text" ? "Importado con IA desde texto masivo." : `Importado con IA desde capturas de ${source}.`,
+          notes:
+            source === "bulk_text"
+              ? "Importado con IA desde texto masivo."
+              : source === "csv_contacts"
+                ? "Importado desde CSV de contactos."
+                : `Importado con IA desde capturas de ${source}.`,
           isVerified: Boolean(body.isVerified),
         });
         created.push({ value: normalized, alias });

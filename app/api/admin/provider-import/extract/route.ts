@@ -12,6 +12,77 @@ import { rejectUntrustedOrigin } from "@/lib/security";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
+function parseCsvRecords(text: string) {
+  const rows: string[][] = [];
+  let currentField = "";
+  let currentRow: string[] = [];
+  let insideQuotes = false;
+
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+    const nextChar = text[index + 1];
+
+    if (char === "\"") {
+      if (insideQuotes && nextChar === "\"") {
+        currentField += "\"";
+        index += 1;
+      } else {
+        insideQuotes = !insideQuotes;
+      }
+      continue;
+    }
+
+    if (char === "," && !insideQuotes) {
+      currentRow.push(currentField);
+      currentField = "";
+      continue;
+    }
+
+    if ((char === "\n" || char === "\r") && !insideQuotes) {
+      if (char === "\r" && nextChar === "\n") {
+        index += 1;
+      }
+      currentRow.push(currentField);
+      rows.push(currentRow);
+      currentField = "";
+      currentRow = [];
+      continue;
+    }
+
+    currentField += char;
+  }
+
+  if (currentField.length || currentRow.length) {
+    currentRow.push(currentField);
+    rows.push(currentRow);
+  }
+
+  return rows;
+}
+
+function extractContactsFromCsvText(text: string) {
+  const parsed = parseCsvRecords(text);
+  if (!parsed.length) {
+    return [];
+  }
+
+  const [header, ...records] = parsed;
+  const lowerHeader = header.map((column) => column.trim().toLowerCase());
+  const typeIndex = lowerHeader.indexOf("type");
+  const valueIndex = lowerHeader.indexOf("value");
+
+  if (typeIndex === -1 || valueIndex === -1) {
+    throw new Error("El CSV debe incluir columnas type y value.");
+  }
+
+  return records
+    .map((record) => ({
+      type: String(record[typeIndex] || "").trim().toLowerCase(),
+      value: String(record[valueIndex] || "").trim(),
+    }))
+    .filter((record) => record.type && record.value);
+}
+
 function inferDraftFromSource(source: ProviderImportSource, value: string) {
   switch (source) {
     case "messenger":
@@ -25,6 +96,8 @@ function inferDraftFromSource(source: ProviderImportSource, value: string) {
     case "email":
       return { email: value, preview: value };
     case "bulk_text":
+      return { preview: value };
+    case "csv_contacts":
       return { preview: value };
     default:
       return { preview: value };
@@ -65,15 +138,18 @@ export async function POST(request: Request) {
       .getAll("files")
       .filter((entry): entry is File => entry instanceof File && entry.size > 0);
 
-    if (!["messenger", "facebook", "instagram", "whatsapp", "email", "bulk_text"].includes(source)) {
+    if (!["messenger", "facebook", "instagram", "whatsapp", "email", "bulk_text", "csv_contacts"].includes(source)) {
       return NextResponse.json({ error: "Fuente invalida." }, { status: 400 });
     }
 
-    if (source === "bulk_text" && !text) {
-      return NextResponse.json({ error: "Debes pegar texto para procesarlo." }, { status: 400 });
+    if ((source === "bulk_text" || source === "csv_contacts") && !text) {
+      return NextResponse.json(
+        { error: source === "csv_contacts" ? "Debes subir un CSV para procesarlo." : "Debes pegar texto para procesarlo." },
+        { status: 400 }
+      );
     }
 
-    if (source !== "bulk_text" && !files.length) {
+    if (source !== "bulk_text" && source !== "csv_contacts" && !files.length) {
       return NextResponse.json({ error: "Debes subir al menos una imagen." }, { status: 400 });
     }
 
@@ -138,6 +214,67 @@ export async function POST(request: Request) {
           email: normalizedDraft.email || null,
           whatsapp: normalizedDraft.whatsapp || null,
           facebook: normalizedDraft.facebook || null,
+        });
+      }
+
+      return NextResponse.json({ rows });
+    }
+
+    if (source === "csv_contacts") {
+      const extracted = extractContactsFromCsvText(text);
+
+      for (const contact of extracted) {
+        const normalizedSource = (["facebook", "whatsapp", "email"].includes(contact.type) ? contact.type : "") as
+          | "facebook"
+          | "whatsapp"
+          | "email"
+          | "";
+
+        if (!normalizedSource) {
+          continue;
+        }
+
+        const normalized = normalizeImportedContactValue(normalizedSource, contact.value);
+        if (!normalized) {
+          continue;
+        }
+
+        const draft =
+          normalizedSource === "facebook"
+            ? normalizeImportedDraft({ facebook: normalized })
+            : normalizedSource === "whatsapp"
+              ? normalizeImportedDraft({ whatsapp: normalized })
+              : normalizeImportedDraft({ email: normalized });
+
+        const signature = [draft.facebook, draft.email, draft.whatsapp].filter(Boolean).join("|");
+        if (!signature || seen.has(signature)) {
+          continue;
+        }
+
+        seen.add(signature);
+        const duplicateMessage = await findDuplicateProviderContact(admin, {
+          email: draft.email,
+          facebook: draft.facebook,
+          whatsapp: draft.whatsapp,
+        });
+
+        rows.push({
+          id: `csv:${signature}`,
+          source,
+          value: signature,
+          preview:
+            [
+              draft.facebook ? `Facebook: ${draft.facebook}` : null,
+              draft.email ? `Email: ${draft.email}` : null,
+              draft.whatsapp ? `Telefono: ${draft.whatsapp}` : null,
+            ]
+              .filter(Boolean)
+              .join(" · ") || signature,
+          duplicateMessage,
+          fileName: "csv-contacts",
+          email: draft.email || null,
+          whatsapp: draft.whatsapp || null,
+          facebook: draft.facebook || null,
         });
       }
 
