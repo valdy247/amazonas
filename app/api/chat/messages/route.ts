@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { normalizeLanguage, type AppLanguage } from "@/lib/i18n";
 import { translateMessage } from "@/lib/openai";
+import { sendFirstConversationMessageEmail } from "@/lib/notification-email";
 import { getLocalizedPushBody, getLocalizedPushTitle, normalizePushLanguage, sendPushNotificationToUser } from "@/lib/push";
 import { rejectRateLimited } from "@/lib/rate-limit";
 import { rejectUntrustedOrigin } from "@/lib/security";
@@ -91,6 +92,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Estas enviando mensajes demasiado rapido. Espera unos segundos." }, { status: 429 });
     }
 
+    const { count: existingMessageCount } = await admin
+      .from("request_messages")
+      .select("*", { count: "exact", head: true })
+      .eq("request_id", requestId);
+
     const { data: participants } = await admin
       .from("profiles")
       .select("id, full_name, preferred_language")
@@ -170,6 +176,25 @@ export async function POST(request: Request) {
       url: `/dashboard?section=messages&thread=${requestId}`,
       tag: `chat-${requestId}`,
     });
+
+    if ((existingMessageCount || 0) === 0) {
+      const { data: receiverProfile } = await admin
+        .from("profiles")
+        .select("email, full_name, preferred_language")
+        .eq("id", receiverId)
+        .maybeSingle();
+
+      await sendFirstConversationMessageEmail({
+        toProfile: {
+          email: receiverProfile?.email || null,
+          full_name: receiverProfile?.full_name || null,
+          preferred_language: receiverProfile?.preferred_language || null,
+        },
+        senderName,
+        messagePreview: previewBody,
+        requestId,
+      });
+    }
 
     return NextResponse.json({
       data: {

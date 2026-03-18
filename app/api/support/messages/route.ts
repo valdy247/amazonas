@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { hasAdminAccess } from "@/lib/admin";
 import { logActionAudit } from "@/lib/action-audit";
+import { sendSupportReplyEmail } from "@/lib/notification-email";
 import { rejectRateLimited } from "@/lib/rate-limit";
 import { rejectUntrustedOrigin } from "@/lib/security";
 
@@ -52,7 +53,7 @@ export async function POST(request: Request) {
     const isAdmin = hasAdminAccess(me?.role, me?.email || user.email);
     const { data: thread } = await admin
       .from("support_threads")
-      .select("id, user_id")
+      .select("id, user_id, subject")
       .eq("id", threadId)
       .maybeSingle();
 
@@ -90,6 +91,25 @@ export async function POST(request: Request) {
     }
 
     await admin.from("support_threads").update(threadUpdate).eq("id", threadId);
+
+    if (isAdmin) {
+      const { data: targetProfile } = await admin
+        .from("profiles")
+        .select("email, full_name, preferred_language")
+        .eq("id", thread.user_id)
+        .maybeSingle();
+
+      await sendSupportReplyEmail({
+        toProfile: {
+          email: targetProfile?.email || null,
+          full_name: targetProfile?.full_name || null,
+          preferred_language: targetProfile?.preferred_language || null,
+        },
+        subject: thread.subject || "Support case",
+        messagePreview: insertedMessage.body,
+        threadId,
+      });
+    }
 
     await logActionAudit({
       actorId: user.id,
