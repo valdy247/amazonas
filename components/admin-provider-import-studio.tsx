@@ -233,8 +233,8 @@ export function AdminProviderImportStudio() {
   const [bulkText, setBulkText] = useState("");
   const [manualImages, setManualImages] = useState<ManualImage[]>([]);
   const [manualIndex, setManualIndex] = useState(0);
-  const [manualCropLeft, setManualCropLeft] = useState(4);
-  const [manualCropWidth, setManualCropWidth] = useState(54);
+  const [manualCropLeft, setManualCropLeft] = useState(0);
+  const [manualCropWidth, setManualCropWidth] = useState(100);
   const [manualCropHeight, setManualCropHeight] = useState(9);
   const [dragState, setDragState] = useState<DragState>(null);
   const [progress, setProgress] = useState<ProgressState>(null);
