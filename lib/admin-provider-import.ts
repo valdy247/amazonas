@@ -79,7 +79,10 @@ export function normalizeImportedContactValue(source: ProviderImportSource, raw:
         .replace(/^@/, "")
         .replace(/\/+$/, "")
         .trim();
-      return cleaned;
+      if (!cleaned) {
+        return "";
+      }
+      return `https://facebook.com/${cleaned.replace(/^\/+/, "")}`.replace(/\/+$/, "");
     }
     case "instagram": {
       const cleaned = value

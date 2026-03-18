@@ -164,14 +164,27 @@ export function buildContactMethodsFromFields({
   facebook?: string | null;
   email?: string | null;
 }) {
+  const trimmedWhatsapp = whatsapp?.trim() || "";
+  const trimmedInstagram = instagram?.trim() || "";
   const trimmedMessenger = messenger?.trim() || "";
   const trimmedFacebook = facebook?.trim() || "";
+  const normalizedInstagram = trimmedInstagram ? toLabeledHref(trimmedInstagram, "Instagram") || trimmedInstagram : "";
+  const normalizedMessenger = trimmedMessenger
+    ? isLikelyDirectLink(trimmedMessenger)
+      ? toLabeledHref(trimmedMessenger, "Messenger") || trimmedMessenger
+      : `copy:${trimmedMessenger}`
+    : "";
+  const normalizedFacebook = trimmedFacebook
+    ? isLikelyDirectLink(trimmedFacebook)
+      ? toLabeledHref(trimmedFacebook, "Facebook") || trimmedFacebook
+      : `copy:${trimmedFacebook}`
+    : "";
   const rows = [
     email?.trim() ? `Email|${email.trim()}` : null,
-    whatsapp?.trim() ? `WhatsApp|${whatsapp.trim()}` : null,
-    instagram?.trim() ? `Instagram|${instagram.trim()}` : null,
-    trimmedMessenger ? `Messenger|${isLikelyDirectLink(trimmedMessenger) ? trimmedMessenger : `copy:${trimmedMessenger}`}` : null,
-    trimmedFacebook ? `Facebook|${isLikelyDirectLink(trimmedFacebook) ? trimmedFacebook : `copy:${trimmedFacebook}`}` : null,
+    trimmedWhatsapp ? `WhatsApp|${trimmedWhatsapp}` : null,
+    normalizedInstagram ? `Instagram|${normalizedInstagram}` : null,
+    normalizedMessenger ? `Messenger|${normalizedMessenger}` : null,
+    normalizedFacebook ? `Facebook|${normalizedFacebook}` : null,
   ].filter(Boolean);
 
   return rows.join("\n");
