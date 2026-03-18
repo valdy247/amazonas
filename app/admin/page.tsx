@@ -643,6 +643,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       <SiteHeader
         menuItems={[
           { href: "/dashboard", label: "Inicio" },
+          { href: "/admin/contact-health", label: "Salud contactos" },
           { href: "/admin?section=providers#repair-center", label: "Saneamiento" },
           { href: "/admin?section=metrics", label: "Metricas" },
           { href: "/admin?section=support", label: "Soporte" },
