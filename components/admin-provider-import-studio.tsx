@@ -916,7 +916,7 @@ export function AdminProviderImportStudio() {
                           <img
                             src={row.avatarDataUrl}
                             alt={row.preview}
-                            className={`shrink-0 bg-[#f5eee6] object-cover object-center ring-1 ring-[#eadfd6] ${
+                            className={`shrink-0 bg-[#f5eee6] object-contain object-left ring-1 ring-[#eadfd6] ${
                               row.source === "messenger" || row.source === "facebook"
                                 ? "h-[3.2rem] w-[8.4rem] rounded-[1rem]"
                                 : "h-12 w-12 rounded-full"
