@@ -166,8 +166,8 @@ async function performCreateProviderContact(formData: FormData) {
   const facebook = String(formData.get("facebook") || "").trim();
   const notes = String(formData.get("notes") || "").trim();
   const isVerified = String(formData.get("is_verified") || "") === "on";
-  const contactMethods = buildContactMethodsFromFields({ whatsapp, instagram, messenger, facebook });
-  const methodCount = [whatsapp, instagram, messenger, facebook].filter(Boolean).length;
+  const contactMethods = buildContactMethodsFromFields({ email, whatsapp, instagram, messenger, facebook });
+  const methodCount = [email, whatsapp, instagram, messenger, facebook].filter(Boolean).length;
 
   if (!methodCount) {
     throw new Error("Debes agregar al menos un metodo de contacto.");
@@ -184,7 +184,7 @@ async function performCreateProviderContact(formData: FormData) {
 
   const safeTitle = await getNextProviderAlias(supabase);
   const safeUrl = getPrimaryContactUrl(contactMethods) || "#";
-  const primaryNetwork = whatsapp ? "WhatsApp" : instagram ? "Instagram" : messenger ? "Messenger" : facebook ? "Facebook" : "";
+  const primaryNetwork = email ? "Email" : whatsapp ? "WhatsApp" : instagram ? "Instagram" : messenger ? "Messenger" : facebook ? "Facebook" : "";
 
   const payloads = [
     {
@@ -303,8 +303,8 @@ export async function updateProviderContact(formData: FormData) {
   const notes = String(formData.get("notes") || "").trim();
   const isVerified = String(formData.get("is_verified") || "") === "on";
   const isActive = String(formData.get("is_active") || "") === "on";
-  const contactMethods = buildContactMethodsFromFields({ whatsapp, instagram, messenger, facebook });
-  const methodCount = [whatsapp, instagram, messenger, facebook].filter(Boolean).length;
+  const contactMethods = buildContactMethodsFromFields({ email, whatsapp, instagram, messenger, facebook });
+  const methodCount = [email, whatsapp, instagram, messenger, facebook].filter(Boolean).length;
 
   if (!Number.isFinite(contactId) || contactId <= 0) {
     throw new Error("Contacto invalido.");
@@ -326,7 +326,7 @@ export async function updateProviderContact(formData: FormData) {
 
   const safeTitle = formatProviderAlias(contactId);
   const safeUrl = getPrimaryContactUrl(contactMethods) || "#";
-  const primaryNetwork = whatsapp ? "WhatsApp" : instagram ? "Instagram" : messenger ? "Messenger" : facebook ? "Facebook" : "";
+  const primaryNetwork = email ? "Email" : whatsapp ? "WhatsApp" : instagram ? "Instagram" : messenger ? "Messenger" : facebook ? "Facebook" : "";
 
   const payloads = [
     {

@@ -5,6 +5,7 @@ import { AdminExportButton } from "@/components/admin-export-button";
 import { AdminOptionsPanel } from "@/components/admin-options-panel";
 import { AdminProviderImportStudio } from "@/components/admin-provider-import-studio";
 import { AdminProviderManager } from "@/components/admin-provider-manager";
+import { AdminProviderRepairPanel } from "@/components/admin-provider-repair-panel";
 import { AdminSectionNav } from "@/components/admin-section-nav";
 import { AdminUserManager } from "@/components/admin-user-manager";
 import { SupportCenter } from "@/components/support-center";
@@ -576,6 +577,19 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                   <AdminProviderManager contacts={contacts} whatsappPrefixOptions={WHATSAPP_PREFIX_OPTIONS} duplicateGroups={duplicateGroups} />
                 ) : (
                   <div className="mt-4 rounded-[1.2rem] border border-dashed border-[#e2d8cc] bg-[#fffaf5] p-5 text-sm text-[#62626d]">No hay contactos de proveedores cargados todavia.</div>
+                )}
+              </div>
+              <div className="card p-4">
+                <div>
+                  <h2 className="font-bold">Saneamiento de proveedores</h2>
+                  <p className="mt-1 text-sm text-[#62626d]">Reglas automaticas para limpiar enlaces, correos y telefonos. Usa IA solo para casos ambiguos.</p>
+                </div>
+                {contacts.length ? (
+                  <AdminProviderRepairPanel contacts={contacts} />
+                ) : (
+                  <div className="mt-4 rounded-[1.2rem] border border-dashed border-[#e2d8cc] bg-[#fffaf5] p-5 text-sm text-[#62626d]">
+                    No hay contactos para revisar todavia.
+                  </div>
                 )}
               </div>
               <div className="card p-4">

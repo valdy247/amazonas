@@ -354,3 +354,84 @@ export async function extractProviderContactsFromText(input: { text: string }) {
         .filter((item) => item.facebook || item.email || item.whatsapp)
     : [];
 }
+
+export async function suggestProviderRepairFromAi(input: {
+  title: string;
+  email?: string | null;
+  network?: string | null;
+  url?: string | null;
+  notes?: string | null;
+  contactMethods?: string | null;
+}) {
+  if (!getOpenAiApiKey()) {
+    throw new Error("Falta OPENAI_API_KEY para revisar contactos ambiguos.");
+  }
+
+  const response = await fetch("https://api.openai.com/v1/responses", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${getOpenAiApiKey()}`,
+    },
+    body: JSON.stringify({
+      model: getOpenAiAssistModel(),
+      input: [
+        {
+          role: "system",
+          content: [
+            {
+              type: "input_text",
+              text:
+                "You help sanitize provider contacts. Return strict JSON only. Do not invent new contacts. Extract only clean, direct values for email, whatsapp, instagram, messenger, and facebook from the supplied record. Remove extra words around them. If a field is unclear, return an empty string for that field.",
+            },
+          ],
+        },
+        {
+          role: "user",
+          content: [
+            {
+              type: "input_text",
+              text:
+                'Return only JSON in this shape: {"email":"","whatsapp":"","instagram":"","messenger":"","facebook":"","reason":""}.\n\nRecord:\n' +
+                JSON.stringify(input),
+            },
+          ],
+        },
+      ],
+    }),
+    cache: "no-store",
+  });
+
+  const data = (await response.json()) as {
+    output_text?: string;
+    output?: Array<{
+      content?: Array<{
+        type?: string;
+        text?: string;
+      }>;
+    }>;
+    error?: { message?: string };
+  };
+
+  if (!response.ok) {
+    throw new Error(data.error?.message || "No se pudo sugerir la reparacion con IA.");
+  }
+
+  const parsed = parseJsonObject<{
+    email?: string;
+    whatsapp?: string;
+    instagram?: string;
+    messenger?: string;
+    facebook?: string;
+    reason?: string;
+  }>(extractResponseText(data));
+
+  return {
+    email: String(parsed?.email || "").trim(),
+    whatsapp: String(parsed?.whatsapp || "").trim(),
+    instagram: String(parsed?.instagram || "").trim(),
+    messenger: String(parsed?.messenger || "").trim(),
+    facebook: String(parsed?.facebook || "").trim(),
+    reason: String(parsed?.reason || "").trim(),
+  };
+}
