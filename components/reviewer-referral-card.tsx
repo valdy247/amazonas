@@ -24,13 +24,28 @@ export function ReviewerReferralCard({
   eligibleForRewards,
 }: ReviewerReferralCardProps) {
   const [open, setOpen] = useState(false);
+  const [shared, setShared] = useState(false);
   const [copied, setCopied] = useState(false);
   const isEnglish = language === "en";
 
-  async function copyInvite() {
-    await navigator.clipboard.writeText(referralLink);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1800);
+  async function shareInvite() {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: isEnglish ? "Join Verifyzon" : "Únete a Verifyzon",
+          text: isEnglish ? "Use my referral link to join as a reviewer!" : "Usa mi enlace de referido para unirte como reseñador!",
+          url: referralLink,
+        });
+        setShared(true);
+        window.setTimeout(() => setShared(false), 1800);
+      } catch {
+        setShared(false);
+      }
+    } else {
+      await navigator.clipboard.writeText(referralLink);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1800);
+    }
   }
 
   return (
@@ -74,9 +89,13 @@ export function ReviewerReferralCard({
           <div className="rounded-[1rem] border border-[#eadfd6] bg-white px-3 py-3 text-sm font-semibold text-[#131316]">
             {isEnglish ? "Referral code" : "Codigo de referido"}: {referralCode}
           </div>
-          <button type="button" className="btn-secondary inline-flex items-center gap-2" onClick={() => void copyInvite()}>
+          <button type="button" className="btn-secondary inline-flex items-center gap-2" onClick={() => void shareInvite()}>
             <Copy className="h-4 w-4" />
-            {copied ? (isEnglish ? "Copied" : "Copiado") : isEnglish ? "Copy invite link" : "Copiar enlace"}
+            {shared
+              ? isEnglish ? "Shared" : "Compartido"
+              : copied
+                ? isEnglish ? "Copied" : "Copiado"
+                : isEnglish ? "Share invite link" : "Compartir enlace"}
           </button>
         </div>
       ) : null}
