@@ -165,6 +165,34 @@ async function assertUniqueProviderContact({
   }
 }
 
+async function deleteProviderContactAsDuplicate(input: {
+  supabase: Awaited<ReturnType<typeof createClient>>;
+  admin: ReturnType<typeof createAdminClient>;
+  adminId: string;
+  contactId: number;
+  duplicateMessage: string;
+}) {
+  const { error } = await input.admin.from("provider_contacts").delete().eq("id", input.contactId);
+
+  if (error) {
+    throw new Error(error.message || "No se pudo eliminar el duplicado saneado.");
+  }
+
+  await logAdminAction({
+    supabase: input.supabase,
+    admin: input.admin,
+    adminId: input.adminId,
+    action: "delete_provider_contact_duplicate_after_repair",
+    metadata: {
+      contactId: input.contactId,
+      duplicateMessage: input.duplicateMessage,
+    },
+  });
+
+  revalidatePath("/admin");
+  revalidatePath("/dashboard");
+}
+
 async function performCreateProviderContact(formData: FormData) {
   const { supabase, admin, adminId } = await assertAdmin();
 
@@ -313,6 +341,7 @@ export async function updateProviderContact(formData: FormData) {
   const facebook = String(formData.get("facebook") || "").trim();
   const notes = String(formData.get("notes") || "").trim();
   const isVerified = String(formData.get("is_verified") || "") === "on";
+  const allowDuplicateDelete = String(formData.get("allow_duplicate_delete") || "") === "on";
   const isActive = String(formData.get("is_active") || "") === "on";
   const contactMethods = buildContactMethodsFromFields({ email, whatsapp, instagram, messenger, facebook });
   const methodCount = [email, whatsapp, instagram, messenger, facebook].filter(Boolean).length;
@@ -325,15 +354,34 @@ export async function updateProviderContact(formData: FormData) {
     throw new Error("Debes agregar al menos un metodo de contacto.");
   }
 
-  await assertUniqueProviderContact({
-    supabase,
-    contactId,
-    whatsapp,
-    email,
-    instagram,
-    messenger,
-    facebook,
-  });
+  try {
+    await assertUniqueProviderContact({
+      supabase,
+      contactId,
+      whatsapp,
+      email,
+      instagram,
+      messenger,
+      facebook,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "No se pudo validar el duplicado.";
+    const isDuplicateConflict =
+      message.includes("ya ha sido agregado") || message.includes("ya existe como cuenta registrada");
+
+    if (allowDuplicateDelete && isDuplicateConflict) {
+      await deleteProviderContactAsDuplicate({
+        supabase,
+        admin,
+        adminId,
+        contactId,
+        duplicateMessage: message,
+      });
+      return;
+    }
+
+    throw error;
+  }
 
   const safeTitle = formatProviderAlias(contactId);
   const safeUrl = getPrimaryContactUrl(contactMethods) || "#";
@@ -456,7 +504,10 @@ export async function updateProviderContactAction(
     await updateProviderContact(formData);
     return {
       status: "success",
-      message: "Reparacion aplicada correctamente.",
+      message:
+        String(formData.get("allow_duplicate_delete") || "") === "on"
+          ? "Saneamiento aplicado. Si era duplicado, se elimino automaticamente."
+          : "Reparacion aplicada correctamente.",
     };
   } catch (error) {
     return {

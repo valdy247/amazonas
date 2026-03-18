@@ -181,6 +181,7 @@ export function AdminProviderRepairPanel({ contacts }: AdminProviderRepairPanelP
 
           <form action={repairAction} className="mt-4 grid gap-2">
             <input type="hidden" name="contact_id" value={openItem.contact.id} />
+            <input type="hidden" name="allow_duplicate_delete" value="on" />
             <input type="hidden" name="email" value={selectedSuggestion?.email || ""} readOnly />
             <input type="hidden" name="whatsapp_prefix" value={whatsappPrefix} readOnly />
             <input type="hidden" name="whatsapp_number" value={whatsappNumber} readOnly />
@@ -194,6 +195,9 @@ export function AdminProviderRepairPanel({ contacts }: AdminProviderRepairPanelP
               {isRepairPending ? "Aplicando..." : "Aplicar reparacion"}
             </button>
           </form>
+          <p className="mt-2 text-xs text-[#8f857b]">
+            Si el valor limpio ya coincide con otro proveedor, este registro se eliminara automaticamente como duplicado.
+          </p>
           {actionState.status === "success" ? (
             <p className="mt-3 text-sm font-semibold text-[#177a52]">{actionState.message}</p>
           ) : null}
