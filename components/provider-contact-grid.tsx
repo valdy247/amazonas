@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
-import { ArrowUpRight, CircleX, Copy, MessageCircleMore } from "lucide-react";
+import { ArrowUpRight, CircleHelp, CircleX, Copy, MessageCircleMore } from "lucide-react";
 import { parseContactMethods } from "@/lib/provider-contact";
 import { createClient } from "@/lib/supabase/client";
 import { normalizeLanguage, providerContactsCopy, type AppLanguage } from "@/lib/i18n";
@@ -30,10 +30,13 @@ type ProviderContactGridProps = {
 export function ProviderContactGrid({ contacts, initialContactedIds, language, reviewerId }: ProviderContactGridProps) {
   const copy = providerContactsCopy[normalizeLanguage(language)];
   const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
+  const [selectedReportContactId, setSelectedReportContactId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"pending" | "contacted">("pending");
   const [error, setError] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [reportError, setReportError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [isReportPending, startReportTransition] = useTransition();
   const contactedStorageKey = `provider-contacted:${reviewerId}`;
   const copyTipStorageKey = `provider-copy-tip:${reviewerId}`;
   const [dismissedSearchTip, setDismissedSearchTip] = useState(() => {
@@ -69,6 +72,10 @@ export function ProviderContactGrid({ contacts, initialContactedIds, language, r
     () => contacts.find((contact) => contact.id === selectedContactId) || null,
     [contacts, selectedContactId]
   );
+  const selectedReportContact = useMemo(
+    () => contacts.find((contact) => contact.id === selectedReportContactId) || null,
+    [contacts, selectedReportContactId]
+  );
   const methods = useMemo(
     () =>
       selectedContact
@@ -93,6 +100,16 @@ export function ProviderContactGrid({ contacts, initialContactedIds, language, r
     [contactedIds, contacts]
   );
   const showSearchTip = copyContactedCount >= 5 && !dismissedSearchTip;
+  const reportOptions = useMemo(
+    () => [
+      { value: "no_reply", label: copy.reportNoReply },
+      { value: "not_provider", label: copy.reportNotProvider },
+      { value: "trusted", label: copy.reportTrusted },
+      { value: "scam", label: copy.reportScam },
+      { value: "broken_contact", label: copy.reportBrokenContact },
+    ],
+    [copy.reportBrokenContact, copy.reportNoReply, copy.reportNotProvider, copy.reportScam, copy.reportTrusted]
+  );
 
   function hasOnlyCopyMethods(contact: ProviderContact) {
     const contactMethods = parseContactMethods(contact.contact_methods, contact.url, contact.network);
@@ -122,6 +139,10 @@ export function ProviderContactGrid({ contacts, initialContactedIds, language, r
 
   function markAsContacted(contactId: string) {
     setContactedIds((current) => (current.includes(contactId) ? current : [...current, contactId]));
+  }
+
+  function canReportContact(contact: ProviderContact) {
+    return Number.isFinite(contact.history_id);
   }
 
   function buildWhatsappInviteMessage() {
@@ -207,6 +228,39 @@ export function ProviderContactGrid({ contacts, initialContactedIds, language, r
     return network.includes("messenger") || network.includes("facebook");
   }
 
+  function submitContactReport(contact: ProviderContact, reportType: string) {
+    if (!contact.history_id) {
+      setReportError(copy.reportSubmitError);
+      return;
+    }
+
+    setReportError(null);
+    startReportTransition(async () => {
+      try {
+        const response = await fetch("/api/provider-contact-reports", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            providerContactId: contact.history_id,
+            reportType,
+          }),
+        });
+
+        const data = (await response.json().catch(() => ({}))) as { error?: string };
+        if (!response.ok) {
+          throw new Error(data.error || copy.reportSubmitError);
+        }
+
+        setSelectedReportContactId(null);
+        setFeedback(copy.reportSubmitSuccess);
+      } catch (submitError) {
+        setReportError(submitError instanceof Error ? submitError.message : copy.reportSubmitError);
+      }
+    });
+  }
+
   return (
     <>
       <div className="mt-4 flex rounded-full border border-[#e8ddd2] bg-[#f8f3ed] p-1">
@@ -276,18 +330,35 @@ export function ProviderContactGrid({ contacts, initialContactedIds, language, r
                 ) : null}
               </div>
             </div>
-            <button
-              type="button"
-              onClick={() => setSelectedContactId(contact.id)}
-              className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-[#dc4f1f]"
-            >
-              {activeTab === "pending"
-                ? hasOnlyCopyMethods(contact)
-                  ? copy.copyUsername
-                  : copy.contactProvider
-                : copy.contactAgain}
-              {hasOnlyCopyMethods(contact) ? <Copy className="h-4 w-4" /> : <ArrowUpRight className="h-4 w-4" />}
-            </button>
+            <div className="mt-4 flex items-end justify-between gap-3">
+              <button
+                type="button"
+                onClick={() => setSelectedContactId(contact.id)}
+                className="inline-flex items-center gap-2 text-sm font-semibold text-[#dc4f1f]"
+              >
+                {activeTab === "pending"
+                  ? hasOnlyCopyMethods(contact)
+                    ? copy.copyUsername
+                    : copy.contactProvider
+                  : copy.contactAgain}
+                {hasOnlyCopyMethods(contact) ? <Copy className="h-4 w-4" /> : <ArrowUpRight className="h-4 w-4" />}
+              </button>
+
+              {canReportContact(contact) ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedReportContactId(contact.id);
+                    setReportError(null);
+                  }}
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#eadfd6] bg-[#fff8f2] text-[#b36b4d] transition hover:border-[#dc4f1f] hover:text-[#dc4f1f]"
+                  aria-label={copy.reportHelp}
+                  title={copy.reportHelp}
+                >
+                  <CircleHelp className="h-4 w-4" />
+                </button>
+              ) : null}
+            </div>
           </article>
         ))}
       </div>
@@ -382,6 +453,58 @@ export function ProviderContactGrid({ contacts, initialContactedIds, language, r
                 </button>
               ))}
             </div>
+          </div>
+        </div>
+      ) : null}
+
+      {selectedReportContact ? (
+        <div
+          className="fixed inset-0 z-40 flex items-end justify-center bg-[#131316]/45 p-4 backdrop-blur-sm sm:items-center"
+          onClick={() => {
+            if (isReportPending) return;
+            setSelectedReportContactId(null);
+            setReportError(null);
+          }}
+        >
+          <div
+            className="w-full max-w-md rounded-[1.8rem] border border-[#e7ddd2] bg-white p-5 shadow-[0_26px_80px_rgba(17,17,17,0.18)]"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-[#dc4f1f]">{copy.reportHelp}</p>
+                <h3 className="mt-2 text-2xl font-bold text-[#131316]">{copy.reportTitle}</h3>
+                <p className="mt-3 text-sm leading-7 text-[#62564a]">{copy.reportBody}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (isReportPending) return;
+                  setSelectedReportContactId(null);
+                  setReportError(null);
+                }}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#e5e5df] text-[#62626d]"
+              >
+                <CircleX className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="mt-5 grid gap-3">
+              {reportOptions.map((option) => (
+                <button
+                  key={`${selectedReportContact.id}-${option.value}`}
+                  type="button"
+                  disabled={isReportPending}
+                  onClick={() => submitContactReport(selectedReportContact, option.value)}
+                  className="rounded-[1.25rem] border border-[#eadfd6] bg-[#fcfaf7] px-4 py-4 text-left text-sm font-semibold text-[#131316] transition hover:border-[#dc4f1f] hover:bg-[#fff6f0] disabled:opacity-60"
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+
+            <p className="mt-4 text-xs leading-6 text-[#8f857b]">{copy.reviewQueueHint}</p>
+            {reportError ? <p className="mt-3 text-sm font-semibold text-red-600">{reportError}</p> : null}
           </div>
         </div>
       ) : null}

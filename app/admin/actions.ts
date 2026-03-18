@@ -25,6 +25,17 @@ export type AdminActionState = {
   message: string;
 };
 
+const PROVIDER_CONTACT_REPORT_TYPES = ["no_reply", "not_provider", "trusted", "scam", "broken_contact"] as const;
+const PROVIDER_CONTACT_REPORT_STATUSES = ["open", "in_review", "resolved", "dismissed"] as const;
+
+function isProviderContactReportType(value: string): value is (typeof PROVIDER_CONTACT_REPORT_TYPES)[number] {
+  return (PROVIDER_CONTACT_REPORT_TYPES as readonly string[]).includes(value);
+}
+
+function isProviderContactReportStatus(value: string): value is (typeof PROVIDER_CONTACT_REPORT_STATUSES)[number] {
+  return (PROVIDER_CONTACT_REPORT_STATUSES as readonly string[]).includes(value);
+}
+
 async function assertAdmin() {
   const supabase = await createClient();
   const admin = createAdminClient();
@@ -741,6 +752,102 @@ export async function updateDirectoryRemovalRequest(formData: FormData) {
     action: "update_directory_removal_request",
     metadata: {
       requestId,
+      status,
+      hasAdminNote: Boolean(adminNote),
+    },
+  });
+
+  revalidatePath("/admin");
+}
+
+export async function createProviderContactAdminReport(formData: FormData) {
+  const { supabase, admin, adminId } = await assertAdmin();
+  const contactId = Number(formData.get("contact_id") || 0);
+  const reportType = String(formData.get("report_type") || "").trim();
+
+  if (!Number.isFinite(contactId) || contactId <= 0) {
+    throw new Error("Contacto invalido.");
+  }
+
+  if (!isProviderContactReportType(reportType)) {
+    throw new Error("Tipo de reporte invalido.");
+  }
+
+  const now = new Date().toISOString();
+  const { error } = await admin.from("provider_contact_reports").upsert(
+    {
+      provider_contact_id: contactId,
+      reporter_id: adminId,
+      reporter_role: "admin",
+      report_type: reportType,
+      status: "open",
+      updated_at: now,
+    },
+    {
+      onConflict: "provider_contact_id,reporter_id,report_type",
+    }
+  );
+
+  if (error) {
+    throw new Error(error.message || "No se pudo registrar la marca.");
+  }
+
+  await logAdminAction({
+    supabase,
+    admin,
+    adminId,
+    action: "admin_provider_contact_report",
+    metadata: {
+      contactId,
+      reportType,
+    },
+  });
+
+  revalidatePath("/admin");
+}
+
+export async function updateProviderContactReportReview(formData: FormData) {
+  const { supabase, admin, adminId } = await assertAdmin();
+  const contactId = Number(formData.get("contact_id") || 0);
+  const reportType = String(formData.get("report_type") || "").trim();
+  const status = String(formData.get("status") || "").trim();
+  const adminNote = String(formData.get("admin_note") || "").trim();
+
+  if (!Number.isFinite(contactId) || contactId <= 0) {
+    throw new Error("Contacto invalido.");
+  }
+
+  if (!isProviderContactReportType(reportType)) {
+    throw new Error("Tipo de reporte invalido.");
+  }
+
+  if (!isProviderContactReportStatus(status)) {
+    throw new Error("Estado invalido.");
+  }
+
+  const now = new Date().toISOString();
+  const { error } = await admin
+    .from("provider_contact_reports")
+    .update({
+      status,
+      admin_note: adminNote || null,
+      updated_at: now,
+    })
+    .eq("provider_contact_id", contactId)
+    .eq("report_type", reportType);
+
+  if (error) {
+    throw new Error(error.message || "No se pudo actualizar la revision.");
+  }
+
+  await logAdminAction({
+    supabase,
+    admin,
+    adminId,
+    action: "review_provider_contact_report",
+    metadata: {
+      contactId,
+      reportType,
       status,
       hasAdminNote: Boolean(adminNote),
     },

@@ -1,7 +1,7 @@
 "use client";
 
 import { useDeferredValue, useMemo, useState } from "react";
-import { deleteProviderContact, updateProviderContact } from "@/app/admin/actions";
+import { createProviderContactAdminReport, deleteProviderContact, updateProviderContact } from "@/app/admin/actions";
 import { WhatsappCountrySelect } from "@/components/whatsapp-country-select";
 import { getContactFieldValues } from "@/lib/provider-contact";
 import type { WhatsappPrefixOption } from "@/lib/whatsapp-prefix-options";
@@ -229,6 +229,33 @@ export function AdminProviderManager({
                       </button>
                     </div>
                   </form>
+
+                  <div className="mt-4 rounded-[1.2rem] border border-[#eadfd6] bg-[#fcfaf7] p-3">
+                    <p className="text-sm font-semibold text-[#131316]">Marcar para revision</p>
+                    <p className="mt-1 text-xs text-[#62564a]">
+                      Si un admin marca un contacto, entra directo al panel de revision aunque aun no tenga 5 reportes de reseñadores.
+                    </p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {[
+                        { value: "no_reply", label: "No contesta" },
+                        { value: "not_provider", label: "No es proveedor" },
+                        { value: "trusted", label: "Es confiable" },
+                        { value: "scam", label: "Scam" },
+                        { value: "broken_contact", label: "Contacto dañado" },
+                      ].map((option) => (
+                        <form key={`${contact.id}-${option.value}`} action={createProviderContactAdminReport}>
+                          <input type="hidden" name="contact_id" value={contact.id} />
+                          <input type="hidden" name="report_type" value={option.value} />
+                          <button
+                            className="rounded-full border border-[#eadfd6] bg-white px-3 py-2 text-xs font-semibold text-[#62564a] transition hover:border-[#dc4f1f] hover:text-[#dc4f1f]"
+                            type="submit"
+                          >
+                            {option.label}
+                          </button>
+                        </form>
+                      ))}
+                    </div>
+                  </div>
 
                   <form action={deleteProviderContact} className="mt-3">
                     <input type="hidden" name="contact_id" value={contact.id} />

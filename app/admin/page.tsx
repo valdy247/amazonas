@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { updateDirectoryRemovalRequest } from "@/app/admin/actions";
+import { updateDirectoryRemovalRequest, updateProviderContactReportReview } from "@/app/admin/actions";
 import { AdminProviderCreateForm } from "@/components/admin-provider-create-form";
 import { AdminExportButton } from "@/components/admin-export-button";
 import { AdminOptionsPanel } from "@/components/admin-options-panel";
@@ -97,6 +97,30 @@ type DirectoryRemovalRequestRow = {
   created_at: string;
   updated_at: string;
 };
+type ProviderContactReportRow = {
+  id: number;
+  provider_contact_id: number;
+  reporter_id: string;
+  reporter_role: string;
+  report_type: string;
+  status: string;
+  admin_note: string | null;
+  created_at: string;
+  updated_at: string;
+};
+type ProviderContactReviewGroup = {
+  contactId: number;
+  title: string;
+  network: string | null;
+  url: string;
+  reportType: string;
+  reviewerCount: number;
+  adminCount: number;
+  totalCount: number;
+  status: string;
+  latestAt: string;
+  adminNote: string | null;
+};
 
 const ADMIN_SECTIONS = [
   { id: "providers", label: "Proveedores" },
@@ -142,6 +166,23 @@ function buildDuplicateGroups(contacts: ContactRow[]): DuplicateGroup[] {
     .map((group) => ({ ...group, contactIds: Array.from(new Set(group.contactIds)), labels: Array.from(new Set(group.labels)) }))
     .filter((group) => group.contactIds.length > 1)
     .sort((left, right) => right.contactIds.length - left.contactIds.length);
+}
+
+function getProviderContactReportLabel(reportType: string) {
+  switch (reportType) {
+    case "no_reply":
+      return "No contesta";
+    case "not_provider":
+      return "No es proveedor";
+    case "trusted":
+      return "Es confiable";
+    case "scam":
+      return "Scam";
+    case "broken_contact":
+      return "Contacto dañado";
+    default:
+      return reportType;
+  }
 }
 
 function getLatestAt(...values: Array<string | null | undefined>) {
@@ -484,6 +525,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
 
   let contacts: ContactRow[] = [];
   let directoryRemovalRequests: DirectoryRemovalRequestRow[] = [];
+  let providerContactReviewGroups: ProviderContactReviewGroup[] = [];
   const withMethods = await supabase
     .from("provider_contacts")
     .select("id, title, email, network, url, notes, is_active, is_verified, contact_methods")
@@ -514,6 +556,67 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
 
   if (!directoryRemovalRequestsResult.error) {
     directoryRemovalRequests = (directoryRemovalRequestsResult.data || []) as DirectoryRemovalRequestRow[];
+  }
+
+  const providerContactReportsResult = await supabase
+    .from("provider_contact_reports")
+    .select("id, provider_contact_id, reporter_id, reporter_role, report_type, status, admin_note, created_at, updated_at")
+    .order("updated_at", { ascending: false })
+    .limit(800);
+
+  if (!providerContactReportsResult.error) {
+    const reportRows = (providerContactReportsResult.data || []) as ProviderContactReportRow[];
+    const contactById = new Map(contacts.map((contact) => [contact.id, contact]));
+    const grouped = new Map<string, ProviderContactReviewGroup>();
+
+    reportRows.forEach((report) => {
+      const contact = contactById.get(report.provider_contact_id);
+      if (!contact) {
+        return;
+      }
+
+      const key = `${report.provider_contact_id}:${report.report_type}`;
+      const current = grouped.get(key) || {
+        contactId: report.provider_contact_id,
+        title: contact.title,
+        network: contact.network,
+        url: contact.url,
+        reportType: report.report_type,
+        reviewerCount: 0,
+        adminCount: 0,
+        totalCount: 0,
+        status: report.status,
+        latestAt: report.updated_at || report.created_at,
+        adminNote: report.admin_note,
+      };
+
+      current.totalCount += 1;
+      if (report.reporter_role === "admin") {
+        current.adminCount += 1;
+      } else {
+        current.reviewerCount += 1;
+      }
+
+      if (new Date(report.updated_at || report.created_at).getTime() >= new Date(current.latestAt).getTime()) {
+        current.latestAt = report.updated_at || report.created_at;
+        current.status = report.status;
+        current.adminNote = report.admin_note;
+      }
+
+      grouped.set(key, current);
+    });
+
+    providerContactReviewGroups = Array.from(grouped.values())
+      .filter((group) => group.adminCount > 0 || group.reviewerCount >= 5)
+      .sort((left, right) => {
+        if (right.adminCount !== left.adminCount) {
+          return right.adminCount - left.adminCount;
+        }
+        if (right.reviewerCount !== left.reviewerCount) {
+          return right.reviewerCount - left.reviewerCount;
+        }
+        return new Date(right.latestAt).getTime() - new Date(left.latestAt).getTime();
+      });
   }
 
   const duplicateGroups = buildDuplicateGroups(contacts);
@@ -589,6 +692,65 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                 ) : (
                   <div className="mt-4 rounded-[1.2rem] border border-dashed border-[#e2d8cc] bg-[#fffaf5] p-5 text-sm text-[#62626d]">
                     No hay contactos para revisar todavia.
+                  </div>
+                )}
+              </div>
+              <div className="card p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h2 className="font-bold">Revision de contactos reportados</h2>
+                    <p className="mt-1 text-sm text-[#62626d]">Entra aqui cuando 5 o mas reseñadores coinciden en una marca o cuando un admin lo marca directo.</p>
+                  </div>
+                  <span className="rounded-full bg-[#fff2eb] px-3 py-2 text-xs font-bold uppercase tracking-[0.18em] text-[#dc4f1f]">
+                    {providerContactReviewGroups.length} casos
+                  </span>
+                </div>
+                {providerContactReviewGroups.length ? (
+                  <div className="mt-4 grid gap-3">
+                    {providerContactReviewGroups.map((group) => (
+                      <article key={`${group.contactId}-${group.reportType}`} className="rounded-[1.4rem] border border-[#eadfd6] bg-[#fffaf7] p-4">
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div>
+                            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8f857b]">{group.network || "Sin red"}</p>
+                            <p className="mt-2 text-base font-semibold text-[#131316]">{group.title}</p>
+                            <p className="mt-2 text-sm font-semibold text-[#c24d3a]">{getProviderContactReportLabel(group.reportType)}</p>
+                            <p className="mt-2 break-all text-xs text-[#62564a]">{group.url}</p>
+                            <p className="mt-2 text-xs text-[#8f857b]">
+                              {group.reviewerCount} reseñadores coinciden
+                              {group.adminCount ? ` · ${group.adminCount} marca admin` : ""}
+                              {` · ${new Date(group.latestAt).toLocaleString()}`}
+                            </p>
+                          </div>
+                          <span className="rounded-full bg-white px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-[#7c7064]">
+                            {group.status}
+                          </span>
+                        </div>
+
+                        <form action={updateProviderContactReportReview} className="mt-4 grid gap-3 lg:grid-cols-[170px_minmax(0,1fr)_auto]">
+                          <input type="hidden" name="contact_id" value={group.contactId} />
+                          <input type="hidden" name="report_type" value={group.reportType} />
+                          <select name="status" className="input" defaultValue={group.status}>
+                            <option value="open">Open</option>
+                            <option value="in_review">In review</option>
+                            <option value="resolved">Resolved</option>
+                            <option value="dismissed">Dismissed</option>
+                          </select>
+                          <input
+                            name="admin_note"
+                            className="input"
+                            placeholder="Nota interna para esta revision"
+                            defaultValue={group.adminNote || ""}
+                          />
+                          <button className="btn-secondary" type="submit">
+                            Guardar
+                          </button>
+                        </form>
+                      </article>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="mt-4 rounded-[1.2rem] border border-dashed border-[#e2d8cc] bg-[#fffaf5] p-5 text-sm text-[#62626d]">
+                    No hay contactos en cola de revision todavia.
                   </div>
                 )}
               </div>
