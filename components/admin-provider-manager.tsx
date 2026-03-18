@@ -39,6 +39,7 @@ export function AdminProviderManager({
   const [query, setQuery] = useState("");
   const [openContactId, setOpenContactId] = useState<number | null>(contacts[0]?.id ?? null);
   const [duplicatesOnly, setDuplicatesOnly] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(10);
   const deferredQuery = useDeferredValue(query);
 
   const duplicateIdSet = useMemo(() => new Set(duplicateGroups.flatMap((group) => group.contactIds)), [duplicateGroups]);
@@ -77,6 +78,9 @@ export function AdminProviderManager({
     });
   }, [contacts, deferredQuery, duplicateIdSet, duplicatesOnly]);
 
+  const visibleContacts = filteredContacts.slice(0, visibleCount);
+  const hasMoreContacts = filteredContacts.length > visibleCount;
+
   return (
     <div className="mt-4 space-y-3">
       <div className="rounded-[1.2rem] border border-[#eadfd6] bg-[#fcfaf7] p-3">
@@ -89,12 +93,22 @@ export function AdminProviderManager({
               id="provider-search"
               className="input mt-2"
               value={query}
-              onChange={(event) => setQuery(event.target.value)}
+              onChange={(event) => {
+                setQuery(event.target.value);
+                setVisibleCount(10);
+              }}
               placeholder="Alias, WhatsApp, Instagram, Messenger, Facebook, email o nota"
             />
           </div>
           <label className="mt-7 flex items-center gap-2 text-sm text-[#62564a]">
-            <input type="checkbox" checked={duplicatesOnly} onChange={(event) => setDuplicatesOnly(event.target.checked)} />
+            <input
+              type="checkbox"
+              checked={duplicatesOnly}
+              onChange={(event) => {
+                setDuplicatesOnly(event.target.checked);
+                setVisibleCount(10);
+              }}
+            />
             <span>Solo duplicados</span>
           </label>
         </div>
@@ -109,6 +123,7 @@ export function AdminProviderManager({
             onClick={() => {
               setQuery("");
               setDuplicatesOnly(false);
+              setVisibleCount(10);
             }}
           >
             Limpiar filtro
@@ -147,7 +162,8 @@ export function AdminProviderManager({
       ) : null}
 
       {filteredContacts.length ? (
-        filteredContacts.map((contact) => {
+        <>
+          {visibleContacts.map((contact) => {
           const methods = getContactFieldValues(contact.contact_methods, contact.url, contact.network);
           const whatsappValue = methods.whatsapp;
           const prefixMatch = whatsappValue.match(/^\+\d{1,3}/);
@@ -267,7 +283,19 @@ export function AdminProviderManager({
               ) : null}
             </article>
           );
-        })
+          })}
+          {hasMoreContacts ? (
+            <div className="flex justify-center pt-1">
+              <button
+                type="button"
+                className="rounded-full border border-[#eadfd6] bg-white px-5 py-2 text-sm font-semibold text-[#62564a] transition hover:border-[#dc4f1f] hover:text-[#dc4f1f]"
+                onClick={() => setVisibleCount((current) => Math.min(filteredContacts.length, current + 10))}
+              >
+                Ver mas 10
+              </button>
+            </div>
+          ) : null}
+        </>
       ) : (
         <div className="rounded-[1.2rem] border border-dashed border-[#e2d8cc] bg-[#fffaf5] p-5 text-sm text-[#62626d]">
           No hay proveedores que coincidan con ese filtro.
