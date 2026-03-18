@@ -26,6 +26,7 @@ const INITIAL_ACTION_STATE: AdminActionState = { status: "idle", message: "" };
 
 export function AdminProviderRepairPanel({ contacts }: AdminProviderRepairPanelProps) {
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [visibleCount, setVisibleCount] = useState(10);
   const [aiSuggestions, setAiSuggestions] = useState<Record<number, AiSuggestion>>({});
   const [isPending, startTransition] = useTransition();
   const [actionState, repairAction, isRepairPending] = useActionState(updateProviderContactAction, INITIAL_ACTION_STATE);
@@ -42,6 +43,8 @@ export function AdminProviderRepairPanel({ contacts }: AdminProviderRepairPanelP
   );
 
   const openItem = suggestions.find((item) => item.contact.id === selectedId) || suggestions[0] || null;
+  const visibleSuggestions = suggestions.slice(0, visibleCount);
+  const hasMoreSuggestions = suggestions.length > visibleCount;
   const selectedSuggestion = openItem ? aiSuggestions[openItem.contact.id] || openItem.suggestion : null;
   const whatsappPrefixMatch = selectedSuggestion?.whatsapp.match(/^\+\d{1,3}/);
   const whatsappPrefix = whatsappPrefixMatch?.[0] || "";
@@ -110,7 +113,7 @@ export function AdminProviderRepairPanel({ contacts }: AdminProviderRepairPanelP
         </div>
 
         <div className="mt-3 space-y-2">
-          {suggestions.slice(0, 120).map(({ contact, suggestion }) => (
+          {visibleSuggestions.map(({ contact, suggestion }) => (
             <button
               key={contact.id}
               type="button"
@@ -124,6 +127,15 @@ export function AdminProviderRepairPanel({ contacts }: AdminProviderRepairPanelP
             </button>
           ))}
         </div>
+        {hasMoreSuggestions ? (
+          <button
+            type="button"
+            className="btn-secondary mt-3 w-full"
+            onClick={() => setVisibleCount((current) => current + 10)}
+          >
+            Mostrar 10 mas
+          </button>
+        ) : null}
       </div>
 
       {openItem ? (
