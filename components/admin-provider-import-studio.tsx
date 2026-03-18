@@ -746,6 +746,9 @@ export function AdminProviderImportStudio() {
         const skippedText = (data.skipped || []).slice(0, 4).map((item) => `${item.value}: ${item.reason}`).join(" | ");
         setStatus([data.summary, skippedText].filter(Boolean).join(" "));
         setRows([]);
+        setManualImages([]);
+        setManualIndex(0);
+        setBulkText("");
         setProgress(null);
         setVisualProgressPercent(null);
       } catch (error) {
