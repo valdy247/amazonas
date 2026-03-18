@@ -146,9 +146,13 @@ export function ProviderContactGrid({ contacts, initialContactedIds, language, r
   }
 
   function buildWhatsappInviteMessage() {
-    if (typeof window === "undefined") return "";
-    const inviteUrl = `${window.location.origin}/?invite=provider-directory`;
-    return copy.whatsappTemplate.replace("{inviteUrl}", inviteUrl);
+    const inviteUrl = "https://verifyzon.com/?invite=provider-directory";
+    return [
+      "Hi, I am reaching out because your contact appears in the private Verifyzon directory.",
+      "I am a reviewer and I would like to work with you.",
+      "Verifyzon helps providers connect with reviewers with verified identity through a safer workflow.",
+      `If you want to join Verifyzon and manage your presence there, start here: ${inviteUrl}`,
+    ].join(" ");
   }
 
   function buildMethodHref(label: string, href: string) {
