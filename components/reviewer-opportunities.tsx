@@ -2,7 +2,6 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { createClient } from "@/lib/supabase/client";
 import {
   CONTACT_REQUEST_CHANNEL_OPTIONS,
   CONTACT_REQUEST_INTENT_OPTIONS,
@@ -30,7 +29,6 @@ type ReviewerOpportunitiesProps = {
 
 export function ReviewerOpportunities({ opportunities }: ReviewerOpportunitiesProps) {
   const router = useRouter();
-  const supabase = createClient();
   const [items, setItems] = useState(opportunities.filter((item) => item.status !== "declined" && item.status !== "accepted"));
   const [replyDrafts, setReplyDrafts] = useState<Record<number, string>>(
     Object.fromEntries(opportunities.map((item) => [item.id, item.responseMessage || ""]))
@@ -45,34 +43,24 @@ export function ReviewerOpportunities({ opportunities }: ReviewerOpportunitiesPr
 
     startTransition(async () => {
       const responseMessage = replyDrafts[id]?.trim() || null;
-      const { error: updateError } = await supabase
-        .from("reviewer_contact_requests")
-        .update({
+      const response = await fetch("/api/chat/request-state", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          mode: "update_status",
+          requestId: id,
           status,
-          response_message: responseMessage,
-          updated_at: new Date().toISOString(),
-          last_activity_at: new Date().toISOString(),
-        })
-        .eq("id", id);
+          responseMessage,
+        }),
+      });
 
-      if (updateError) {
-        setError(updateError.message);
+      const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+      if (!response.ok) {
+        setError(payload?.error || "No se pudo actualizar la solicitud.");
         setPendingId(null);
         return;
-      }
-
-      if (status === "accepted" && responseMessage) {
-        const { error: messageError } = await supabase.from("request_messages").insert({
-          request_id: id,
-          sender_id: (await supabase.auth.getUser()).data.user?.id,
-          body: responseMessage,
-        });
-
-        if (messageError) {
-          setError(messageError.message);
-          setPendingId(null);
-          return;
-        }
       }
 
       setItems((current) =>

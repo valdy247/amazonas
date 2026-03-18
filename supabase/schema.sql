@@ -282,6 +282,31 @@ as $$
   );
 $$;
 
+create or replace function public.can_read_active_provider_contacts(user_uuid uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.profiles profiles
+    left join public.memberships memberships on memberships.user_id = profiles.id
+    left join public.kyc_checks kyc_checks on kyc_checks.user_id = profiles.id
+    where profiles.id = user_uuid
+      and profiles.accepted_terms_at is not null
+      and (
+        profiles.role = 'admin'
+        or (
+          profiles.role in ('reviewer', 'tester')
+          and memberships.status = 'active'
+          and kyc_checks.status = 'approved'
+        )
+      )
+  );
+$$;
+
 create or replace function public.consume_rate_limit(
   scope_name text,
   identifier_value text,
@@ -373,10 +398,15 @@ for all
 using (public.is_admin(auth.uid()))
 with check (public.is_admin(auth.uid()));
 
+drop policy if exists "members read active contacts" on public.provider_contacts;
 create policy "members read active contacts"
 on public.provider_contacts
 for select
-using (is_active = true);
+using (
+  is_active = true
+  and auth.uid() is not null
+  and public.can_read_active_provider_contacts(auth.uid())
+);
 
 create policy "admin manage contacts"
 on public.provider_contacts
@@ -445,11 +475,14 @@ on public.support_threads
 for insert
 with check (auth.uid() = user_id or public.is_admin(auth.uid()));
 
-create policy "users update own support threads"
+drop policy if exists "users update own support threads" on public.support_threads;
+
+drop policy if exists "admins update support threads" on public.support_threads;
+create policy "admins update support threads"
 on public.support_threads
 for update
-using (auth.uid() = user_id or public.is_admin(auth.uid()))
-with check (auth.uid() = user_id or public.is_admin(auth.uid()));
+using (public.is_admin(auth.uid()))
+with check (public.is_admin(auth.uid()));
 
 create policy "participants read support messages"
 on public.support_messages
@@ -492,11 +525,14 @@ on public.reviewer_contact_requests
 for select
 using (auth.uid() = provider_id or auth.uid() = reviewer_id or public.is_admin(auth.uid()));
 
-create policy "providers update own sent requests"
+drop policy if exists "providers update own sent requests" on public.reviewer_contact_requests;
+
+drop policy if exists "admins update reviewer contact requests" on public.reviewer_contact_requests;
+create policy "admins update reviewer contact requests"
 on public.reviewer_contact_requests
 for update
-using (auth.uid() = provider_id or auth.uid() = reviewer_id or public.is_admin(auth.uid()))
-with check (auth.uid() = provider_id or auth.uid() = reviewer_id or public.is_admin(auth.uid()));
+using (public.is_admin(auth.uid()))
+with check (public.is_admin(auth.uid()));
 
 create policy "participants read request messages"
 on public.request_messages

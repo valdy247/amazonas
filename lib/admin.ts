@@ -1,5 +1,6 @@
 export function isEmailInAdminAllowlist(email?: string | null) {
   if (!email) return false;
+  if (process.env.NODE_ENV === "production") return false;
   const raw = process.env.ADMIN_EMAIL_ALLOWLIST || "";
   if (!raw.trim()) return false;
 
@@ -14,4 +15,3 @@ export function isEmailInAdminAllowlist(email?: string | null) {
 export function hasAdminAccess(role?: string | null, email?: string | null) {
   return role === "admin" || isEmailInAdminAllowlist(email);
 }
-

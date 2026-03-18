@@ -151,6 +151,28 @@ export function CollaborationInbox({
   const messageListRef = useRef<HTMLDivElement | null>(null);
   const bottomAnchorRef = useRef<HTMLDivElement | null>(null);
 
+  const persistRequestData = useCallback(
+    async (threadId: number, requestData: Record<string, unknown>) => {
+      const response = await fetch("/api/chat/request-state", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          mode: "sync_request_data",
+          requestId: threadId,
+          requestData,
+        }),
+      });
+
+      const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+      if (!response.ok) {
+        throw new Error(payload?.error || copy.sendMessageError);
+      }
+    },
+    [copy.sendMessageError]
+  );
+
   const sortedThreads = useMemo(
     () =>
       [...items]
@@ -272,8 +294,12 @@ export function CollaborationInbox({
       );
     }
 
-    await supabase.from("reviewer_contact_requests").update({ request_data: nextRequestData }).eq("id", threadId);
-  }, [currentUserId, currentUserRole, items, seenMessageIds, supabase]);
+    try {
+      await persistRequestData(threadId, nextRequestData);
+    } catch {
+      // Keep the optimistic seen marker; the next server sync will reconcile if needed.
+    }
+  }, [currentUserId, currentUserRole, items, persistRequestData, seenMessageIds]);
 
   const syncTypingStateFromPresence = useCallback(
     (threadId: number) => {
@@ -541,7 +567,7 @@ export function CollaborationInbox({
           : item
       )
     );
-    await supabase.from("reviewer_contact_requests").update({ request_data: nextRequestData }).eq("id", threadId);
+    await persistRequestData(threadId, nextRequestData);
   }
 
   async function toggleFavorite(threadId: number) {
