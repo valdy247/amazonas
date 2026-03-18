@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { updateDirectoryRemovalRequest } from "@/app/admin/actions";
 import { AdminProviderCreateForm } from "@/components/admin-provider-create-form";
 import { AdminExportButton } from "@/components/admin-export-button";
 import { AdminOptionsPanel } from "@/components/admin-options-panel";
@@ -84,6 +85,17 @@ type AdminAuditRow = {
   created_at: string;
 };
 type DuplicateGroup = { key: string; reason: string; contactIds: number[]; labels: string[] };
+type DirectoryRemovalRequestRow = {
+  id: number;
+  contact_channel: string;
+  contact_value: string;
+  status: string;
+  request_note: string | null;
+  admin_note: string | null;
+  resolved_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
 
 const ADMIN_SECTIONS = [
   { id: "providers", label: "Proveedores" },
@@ -470,6 +482,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   });
 
   let contacts: ContactRow[] = [];
+  let directoryRemovalRequests: DirectoryRemovalRequestRow[] = [];
   const withMethods = await supabase
     .from("provider_contacts")
     .select("id, title, email, network, url, notes, is_active, is_verified, contact_methods")
@@ -490,6 +503,16 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     }
   } else {
     contacts = (withMethods.data || []) as ContactRow[];
+  }
+
+  const directoryRemovalRequestsResult = await supabase
+    .from("directory_removal_requests")
+    .select("id, contact_channel, contact_value, status, request_note, admin_note, resolved_at, created_at, updated_at")
+    .order("created_at", { ascending: false })
+    .limit(40);
+
+  if (!directoryRemovalRequestsResult.error) {
+    directoryRemovalRequests = (directoryRemovalRequestsResult.data || []) as DirectoryRemovalRequestRow[];
   }
 
   const duplicateGroups = buildDuplicateGroups(contacts);
@@ -553,6 +576,63 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                   <AdminProviderManager contacts={contacts} whatsappPrefixOptions={WHATSAPP_PREFIX_OPTIONS} duplicateGroups={duplicateGroups} />
                 ) : (
                   <div className="mt-4 rounded-[1.2rem] border border-dashed border-[#e2d8cc] bg-[#fffaf5] p-5 text-sm text-[#62626d]">No hay contactos de proveedores cargados todavia.</div>
+                )}
+              </div>
+              <div className="card p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h2 className="font-bold">Solicitudes de eliminación del directorio</h2>
+                    <p className="mt-1 text-sm text-[#62626d]">Casos enviados desde el enlace público para quitar WhatsApp o perfiles del directorio.</p>
+                  </div>
+                  <span className="rounded-full bg-[#fff2eb] px-3 py-2 text-xs font-bold uppercase tracking-[0.18em] text-[#dc4f1f]">
+                    {directoryRemovalRequests.length} casos
+                  </span>
+                </div>
+                {directoryRemovalRequests.length ? (
+                  <div className="mt-4 grid gap-3">
+                    {directoryRemovalRequests.map((request) => (
+                      <article key={request.id} className="rounded-[1.4rem] border border-[#eadfd6] bg-[#fffaf7] p-4">
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div>
+                            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8f857b]">{request.contact_channel}</p>
+                            <p className="mt-2 break-all text-base font-semibold text-[#131316]">{request.contact_value}</p>
+                            <p className="mt-2 text-xs text-[#8f857b]">
+                              {new Date(request.created_at).toLocaleString()}
+                              {request.resolved_at ? ` · Resuelto ${new Date(request.resolved_at).toLocaleString()}` : ""}
+                            </p>
+                          </div>
+                          <span className="rounded-full bg-white px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-[#7c7064]">
+                            {request.status}
+                          </span>
+                        </div>
+
+                        {request.request_note ? <p className="mt-3 text-sm text-[#62564a]">{request.request_note}</p> : null}
+
+                        <form action={updateDirectoryRemovalRequest} className="mt-4 grid gap-3 lg:grid-cols-[160px_minmax(0,1fr)_auto]">
+                          <input type="hidden" name="request_id" value={request.id} />
+                          <select name="status" className="input" defaultValue={request.status}>
+                            <option value="open">Open</option>
+                            <option value="in_review">In review</option>
+                            <option value="resolved">Resolved</option>
+                            <option value="rejected">Rejected</option>
+                          </select>
+                          <input
+                            name="admin_note"
+                            className="input"
+                            placeholder="Internal note for this case"
+                            defaultValue={request.admin_note || ""}
+                          />
+                          <button className="btn-secondary" type="submit">
+                            Guardar
+                          </button>
+                        </form>
+                      </article>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="mt-4 rounded-[1.2rem] border border-dashed border-[#e2d8cc] bg-[#fffaf5] p-5 text-sm text-[#62626d]">
+                    No hay solicitudes de eliminación todavía.
+                  </div>
                 )}
               </div>
             </>

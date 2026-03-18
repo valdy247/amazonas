@@ -704,3 +704,48 @@ export async function updateUserEmailAction(
   }
 }
 
+export async function updateDirectoryRemovalRequest(formData: FormData) {
+  const { supabase, admin, adminId } = await assertAdmin();
+  const requestId = Number(formData.get("request_id") || 0);
+  const status = String(formData.get("status") || "open").trim();
+  const adminNote = String(formData.get("admin_note") || "").trim();
+
+  if (!Number.isFinite(requestId) || requestId <= 0) {
+    throw new Error("Solicitud invalida.");
+  }
+
+  if (!["open", "in_review", "resolved", "rejected"].includes(status)) {
+    throw new Error("Estado invalido.");
+  }
+
+  const now = new Date().toISOString();
+  const { error } = await admin
+    .from("directory_removal_requests")
+    .update({
+      status,
+      admin_note: adminNote || null,
+      reviewed_by: adminId,
+      resolved_at: status === "resolved" || status === "rejected" ? now : null,
+      updated_at: now,
+    })
+    .eq("id", requestId);
+
+  if (error) {
+    throw new Error(error.message || "No se pudo actualizar la solicitud.");
+  }
+
+  await logAdminAction({
+    supabase,
+    admin,
+    adminId,
+    action: "update_directory_removal_request",
+    metadata: {
+      requestId,
+      status,
+      hasAdminNote: Boolean(adminNote),
+    },
+  });
+
+  revalidatePath("/admin");
+}
+

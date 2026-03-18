@@ -180,6 +180,26 @@ export const landingCopy = {
       "We have verified reviewers ready to collaborate with brands and providers. Create your account and get free access to discover them from one place.",
     providerInvitePrimary: "Ok, create account",
     providerInviteSecondary: "Maybe later",
+    providerInviteBenefitsTitle: "Why providers join",
+    providerInviteBenefitOne: "Reach ID-verified reviewers from a cleaner directory.",
+    providerInviteBenefitTwo: "Receive contact from real users instead of random scraping.",
+    providerInviteBenefitThree: "Build a safer workflow for future collaborations.",
+    providerInviteRemoveLink: "Remove my contact from the directory",
+    providerInviteRemoveTitle: "Request directory removal",
+    providerInviteRemoveBody:
+      "If you were contacted through our directory and want your details removed, send us your case below. We review these requests as quickly as possible because safety for our users and external contacts is a priority.",
+    providerInviteChannelLabel: "How were you contacted?",
+    providerInviteWhatsapp: "WhatsApp",
+    providerInviteMessenger: "Messenger",
+    providerInviteFacebook: "Facebook",
+    providerInvitePhoneLabel: "WhatsApp number",
+    providerInvitePhonePlaceholder: "+1 305 555 0101",
+    providerInviteProfileLabel: "Profile link",
+    providerInviteProfilePlaceholder: "Paste your Messenger or Facebook profile link",
+    providerInviteSubmit: "Send request",
+    providerInviteSubmitting: "Sending...",
+    providerInviteSuccess:
+      "We received your request and will work on it as soon as possible. Safety for our users and external contacts is a priority.",
   },
   en: {
     verifiedCommunity: "Verified community",
@@ -212,9 +232,29 @@ export const landingCopy = {
     providerInviteBadge: "Official directory",
     providerInviteTitle: "Join Verifyzon",
     providerInviteBody:
-      "We have verified reviewers ready to collaborate with brands and providers. Create your account and get free access to discover them from one place.",
+      "Verifyzon helps providers connect with ID-verified reviewers through a cleaner, safer collaboration directory. Join to manage your presence, discover trusted reviewers, and handle future collaborations from one place.",
     providerInvitePrimary: "Ok, create account",
     providerInviteSecondary: "Maybe later",
+    providerInviteBenefitsTitle: "Why providers join",
+    providerInviteBenefitOne: "Reach ID-verified reviewers from a cleaner directory.",
+    providerInviteBenefitTwo: "Receive contact from real users instead of random scraping.",
+    providerInviteBenefitThree: "Build a safer workflow for future collaborations.",
+    providerInviteRemoveLink: "Remove my contact from the directory",
+    providerInviteRemoveTitle: "Request directory removal",
+    providerInviteRemoveBody:
+      "If you were contacted through our directory and want your details removed, send us your case below. We review these requests as quickly as possible because safety for our users and external contacts is a priority.",
+    providerInviteChannelLabel: "How were you contacted?",
+    providerInviteWhatsapp: "WhatsApp",
+    providerInviteMessenger: "Messenger",
+    providerInviteFacebook: "Facebook",
+    providerInvitePhoneLabel: "WhatsApp number",
+    providerInvitePhonePlaceholder: "+1 305 555 0101",
+    providerInviteProfileLabel: "Profile link",
+    providerInviteProfilePlaceholder: "Paste your Messenger or Facebook profile link",
+    providerInviteSubmit: "Send request",
+    providerInviteSubmitting: "Sending...",
+    providerInviteSuccess:
+      "We received your request and will work on it as soon as possible. Safety for our users and external contacts is a priority.",
   },
 } as const;
 
@@ -470,7 +510,7 @@ export const providerContactsCopy = {
     copyVia: "Copy username from",
     copiedPrefix: "Copied",
     whatsappTemplate:
-      "Hi, I found your contact in the official Verifyzon directory and I would love to collaborate with you. If you want to join Verifyzon and access ID-verified reviewers, start here: {inviteUrl}",
+      "Hi, I found your contact through the Verifyzon directory and would love to collaborate. Verifyzon helps providers connect with ID-verified reviewers through a safer workflow. If you want to join and manage your presence there, start here: {inviteUrl}",
   },
 } as const;
 
