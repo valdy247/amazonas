@@ -564,6 +564,11 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     .order("updated_at", { ascending: false })
     .limit(800);
 
+  const providerContactReportsUnavailable =
+    providerContactReportsResult.error &&
+    (providerContactReportsResult.error.message?.includes("provider_contact_reports") ||
+      providerContactReportsResult.error.message?.includes("schema cache"));
+
   if (!providerContactReportsResult.error) {
     const reportRows = (providerContactReportsResult.data || []) as ProviderContactReportRow[];
     const contactById = new Map(contacts.map((contact) => [contact.id, contact]));
@@ -638,6 +643,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       <SiteHeader
         menuItems={[
           { href: "/dashboard", label: "Inicio" },
+          { href: "/admin?section=providers#repair-center", label: "Saneamiento" },
           { href: "/admin?section=metrics", label: "Metricas" },
           { href: "/admin?section=support", label: "Soporte" },
           { href: "/profile", label: "Editar perfil" },
@@ -682,7 +688,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                   <div className="mt-4 rounded-[1.2rem] border border-dashed border-[#e2d8cc] bg-[#fffaf5] p-5 text-sm text-[#62626d]">No hay contactos de proveedores cargados todavia.</div>
                 )}
               </div>
-              <div className="card p-4">
+              <div id="repair-center" className="card p-4">
                 <div>
                   <h2 className="font-bold">Saneamiento de proveedores</h2>
                   <p className="mt-1 text-sm text-[#62626d]">Reglas automaticas para limpiar enlaces, correos y telefonos. Usa IA solo para casos ambiguos.</p>
@@ -705,7 +711,11 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                     {providerContactReviewGroups.length} casos
                   </span>
                 </div>
-                {providerContactReviewGroups.length ? (
+                {providerContactReportsUnavailable ? (
+                  <div className="mt-4 rounded-[1.2rem] border border-dashed border-[#e2d8cc] bg-[#fffaf5] p-5 text-sm text-[#62626d]">
+                    Corre la migracion nueva de `provider_contact_reports` en Supabase para activar esta revision.
+                  </div>
+                ) : providerContactReviewGroups.length ? (
                   <div className="mt-4 grid gap-3">
                     {providerContactReviewGroups.map((group) => (
                       <article key={`${group.contactId}-${group.reportType}`} className="rounded-[1.4rem] border border-[#eadfd6] bg-[#fffaf7] p-4">

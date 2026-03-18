@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
-import { updateProviderContact } from "@/app/admin/actions";
+import { useActionState, useMemo, useState, useTransition } from "react";
+import { updateProviderContactAction, type AdminActionState } from "@/app/admin/actions";
 import { buildProviderRepairSuggestion, type ProviderRepairSuggestion } from "@/lib/provider-repair";
 import { getContactFieldValues } from "@/lib/provider-contact";
 
@@ -22,11 +22,13 @@ type AdminProviderRepairPanelProps = {
 };
 
 type AiSuggestion = ProviderRepairSuggestion & { aiReason?: string };
+const INITIAL_ACTION_STATE: AdminActionState = { status: "idle", message: "" };
 
 export function AdminProviderRepairPanel({ contacts }: AdminProviderRepairPanelProps) {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [aiSuggestions, setAiSuggestions] = useState<Record<number, AiSuggestion>>({});
   const [isPending, startTransition] = useTransition();
+  const [actionState, repairAction, isRepairPending] = useActionState(updateProviderContactAction, INITIAL_ACTION_STATE);
 
   const suggestions = useMemo(
     () =>
@@ -177,7 +179,7 @@ export function AdminProviderRepairPanel({ contacts }: AdminProviderRepairPanelP
             </div>
           </div>
 
-          <form action={updateProviderContact} className="mt-4 grid gap-2">
+          <form action={repairAction} className="mt-4 grid gap-2">
             <input type="hidden" name="contact_id" value={openItem.contact.id} />
             <input type="hidden" name="email" value={selectedSuggestion?.email || ""} readOnly />
             <input type="hidden" name="whatsapp_prefix" value={whatsappPrefix} readOnly />
@@ -189,9 +191,15 @@ export function AdminProviderRepairPanel({ contacts }: AdminProviderRepairPanelP
             {openItem.contact.is_active ? <input type="hidden" name="is_active" value="on" /> : null}
             {openItem.contact.is_verified ? <input type="hidden" name="is_verified" value="on" /> : null}
             <button className="btn-primary w-full sm:w-auto" type="submit">
-              Aplicar reparacion
+              {isRepairPending ? "Aplicando..." : "Aplicar reparacion"}
             </button>
           </form>
+          {actionState.status === "success" ? (
+            <p className="mt-3 text-sm font-semibold text-[#177a52]">{actionState.message}</p>
+          ) : null}
+          {actionState.status === "error" ? (
+            <p className="mt-3 text-sm font-semibold text-[#c24d3a]">{actionState.message}</p>
+          ) : null}
         </div>
       ) : (
         <div className="rounded-[1.2rem] border border-dashed border-[#e2d8cc] bg-[#fffaf5] p-5 text-sm text-[#62626d]">

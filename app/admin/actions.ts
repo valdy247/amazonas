@@ -448,6 +448,24 @@ export async function deleteProviderContact(formData: FormData) {
   revalidatePath("/dashboard");
 }
 
+export async function updateProviderContactAction(
+  _previousState: AdminActionState,
+  formData: FormData
+): Promise<AdminActionState> {
+  try {
+    await updateProviderContact(formData);
+    return {
+      status: "success",
+      message: "Reparacion aplicada correctamente.",
+    };
+  } catch (error) {
+    return {
+      status: "error",
+      message: error instanceof Error ? error.message : "No se pudo aplicar la reparacion.",
+    };
+  }
+}
+
 export async function updateMemberStatus(formData: FormData) {
   const { supabase, admin, adminId } = await assertAdmin();
   const userId = String(formData.get("user_id") || "");
