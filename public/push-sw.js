@@ -17,11 +17,11 @@ self.addEventListener("push", (event) => {
         return;
       }
 
-      await self.registration.showNotification(payload.title || "Amazona Review", {
+      await self.registration.showNotification(payload.title || "Verifyzon", {
         body: payload.body || "You have a new message.",
         icon: "/globe.svg",
         badge: "/globe.svg",
-        tag: payload.tag || "amazona-review-message",
+        tag: payload.tag || "verifyzon-message",
         data: {
           url: payload.url || "/dashboard?section=messages",
         },

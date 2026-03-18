@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState, useTransition, type PointerEvent as ReactPointerEvent } from "react";
 import { CompactSelect } from "@/components/compact-select";
+import { type AppLanguage } from "@/lib/i18n";
+import { getBrowserAppLanguage } from "@/lib/browser-language";
 
 type ProviderImportSource =
   | "messenger"
@@ -68,6 +70,53 @@ const SOURCE_OPTIONS: Array<{ value: ProviderImportSource; label: string }> = [
   { value: "csv_contacts", label: "CSV de contactos" },
   { value: "chat_export_zip", label: "ZIP de chat" },
 ];
+
+const IMPORT_STUDIO_COPY: Record<
+  AppLanguage,
+  {
+    calculatingEta: string;
+    etaSeconds: (seconds: number) => string;
+    etaMinutes: (minutes: number) => string;
+    importReadyTitle: string;
+    preparingExtraction: string;
+    processingCaptures: string;
+    processingText: string;
+    importingProviders: string;
+    completedCount: (completed: number, total: number) => string;
+    finishingImport: string;
+    starting: string;
+    importCompleted: string;
+  }
+> = {
+  es: {
+    calculatingEta: "Calculando tiempo restante...",
+    etaSeconds: (seconds) => `Aproximadamente ${seconds}s restantes`,
+    etaMinutes: (minutes) => `Aproximadamente ${minutes} min restantes`,
+    importReadyTitle: "Importacion lista",
+    preparingExtraction: "Preparando extraccion con IA",
+    processingCaptures: "Procesando capturas con IA",
+    processingText: "Procesando texto con IA",
+    importingProviders: "Importando proveedores",
+    completedCount: (completed, total) => `${completed} de ${total} completado`,
+    finishingImport: "Terminando importacion...",
+    starting: "Iniciando...",
+    importCompleted: "Importacion completada.",
+  },
+  en: {
+    calculatingEta: "Calculating time remaining...",
+    etaSeconds: (seconds) => `About ${seconds}s remaining`,
+    etaMinutes: (minutes) => `About ${minutes} min remaining`,
+    importReadyTitle: "Verifyzon import ready",
+    preparingExtraction: "Preparing AI extraction",
+    processingCaptures: "Processing captures with AI",
+    processingText: "Processing text with AI",
+    importingProviders: "Importing providers",
+    completedCount: (completed, total) => `${completed} of ${total} completed`,
+    finishingImport: "Finishing import...",
+    starting: "Starting...",
+    importCompleted: "Import completed.",
+  },
+};
 
 async function compressImage(file: File, index: number) {
   const imageUrl = URL.createObjectURL(file);
@@ -245,6 +294,7 @@ function createManualCrop(id: string, clickRatioY: number, left: number, width: 
 }
 
 export function AdminProviderImportStudio() {
+  const [uiLanguage, setUiLanguage] = useState<AppLanguage>("es");
   const [source, setSource] = useState<ProviderImportSource>("messenger");
   const [rows, setRows] = useState<PreviewRow[]>([]);
   const [status, setStatus] = useState<string>("");
@@ -279,6 +329,7 @@ export function AdminProviderImportStudio() {
         )
       )
     : 0;
+  const uiCopy = IMPORT_STUDIO_COPY[uiLanguage];
   const progressEtaSeconds = useMemo(() => {
     if (!progress || progress.completed <= 0 || progress.completed >= progress.total) {
       return null;
@@ -293,17 +344,21 @@ export function AdminProviderImportStudio() {
     return Math.max(1, Math.round((progress.total - progress.completed) / rate));
   }, [progress]);
 
+  useEffect(() => {
+    setUiLanguage(getBrowserAppLanguage());
+  }, []);
+
   function formatEta(seconds: number | null) {
     if (!seconds) {
-      return "Calculating time remaining...";
+      return uiCopy.calculatingEta;
     }
 
     if (seconds < 60) {
-      return `About ${seconds}s remaining`;
+      return uiCopy.etaSeconds(seconds);
     }
 
     const minutes = Math.ceil(seconds / 60);
-    return `About ${minutes} min remaining`;
+    return uiCopy.etaMinutes(minutes);
   }
 
   function notifyImportReady(message: string) {
@@ -315,7 +370,7 @@ export function AdminProviderImportStudio() {
     }
 
     if (Notification.permission === "granted") {
-      new Notification("Verifyzon import ready", {
+      new Notification(uiCopy.importReadyTitle, {
         body: message,
       });
       return;
@@ -324,7 +379,7 @@ export function AdminProviderImportStudio() {
     if (Notification.permission === "default") {
       Notification.requestPermission().then((permission) => {
         if (permission === "granted") {
-          new Notification("Verifyzon import ready", {
+          new Notification(uiCopy.importReadyTitle, {
             body: message,
           });
         }
@@ -506,7 +561,7 @@ export function AdminProviderImportStudio() {
       completed: 0,
       total: prepared.length,
       startedAt,
-      label: "Preparing AI extraction",
+      label: uiCopy.preparingExtraction,
     });
     setVisualProgressPercent(4);
 
@@ -548,7 +603,7 @@ export function AdminProviderImportStudio() {
         completed: Math.min(index + chunk.length, prepared.length),
         total: prepared.length,
         startedAt,
-        label: "Processing captures with AI",
+        label: uiCopy.processingCaptures,
       });
       setStatus(`Procesadas ${Math.min(index + chunk.length, prepared.length)} de ${prepared.length} capturas...`);
     }
@@ -619,7 +674,7 @@ export function AdminProviderImportStudio() {
           completed: 0,
           total: Math.max(1, bulkText.length),
           startedAt,
-          label: "Processing text with AI",
+          label: uiCopy.processingText,
         });
         setVisualProgressPercent(12);
         const formData = new FormData();
@@ -641,7 +696,7 @@ export function AdminProviderImportStudio() {
           completed: Math.max(1, bulkText.length),
           total: Math.max(1, bulkText.length),
           startedAt,
-          label: "Processing text with AI",
+          label: uiCopy.processingText,
         });
         setRows(data.rows || []);
         const message =
@@ -890,7 +945,7 @@ export function AdminProviderImportStudio() {
           completed: 0,
           total: Math.max(1, importableCount),
           startedAt,
-          label: "Importing providers",
+          label: uiCopy.importingProviders,
         });
         setVisualProgressPercent(14);
         const response = await fetch("/api/admin/provider-import/commit", {
@@ -927,7 +982,7 @@ export function AdminProviderImportStudio() {
           completed: Math.max(1, importableCount),
           total: Math.max(1, importableCount),
           startedAt,
-          label: "Importing providers",
+          label: uiCopy.importingProviders,
         });
         const skippedText = (data.skipped || []).slice(0, 4).map((item) => `${item.value}: ${item.reason}`).join(" | ");
         const message = [data.summary, skippedText].filter(Boolean).join(" ");
@@ -936,7 +991,7 @@ export function AdminProviderImportStudio() {
         setManualImages([]);
         setManualIndex(0);
         setBulkText("");
-        finishProgress(message || "Import completed.");
+        finishProgress(message || uiCopy.importCompleted);
       } catch (error) {
         setProgress(null);
         setVisualProgressPercent(null);
@@ -1233,7 +1288,7 @@ export function AdminProviderImportStudio() {
           <div className="rounded-[1.2rem] border border-[#eadfd6] bg-white px-4 py-4">
             <div className="flex items-center justify-between gap-3 text-sm">
               <p className="font-semibold text-[#131316]">
-                {progress?.label || (isExtracting ? (bulkTextMode ? "Processing text with AI" : "Processing captures with AI") : "Importing providers")}
+                {progress?.label || (isExtracting ? (bulkTextMode ? uiCopy.processingText : uiCopy.processingCaptures) : uiCopy.importingProviders)}
               </p>
               <span className="text-[#62564a]">{displayProgressPercent}%</span>
             </div>
@@ -1246,10 +1301,10 @@ export function AdminProviderImportStudio() {
             <div className="mt-3 flex items-center justify-between gap-3 text-xs text-[#62564a]">
               <span>
                 {progress
-                  ? `${Math.min(progress.completed, progress.total)} of ${progress.total} completed`
+                  ? uiCopy.completedCount(Math.min(progress.completed, progress.total), progress.total)
                   : isImporting
-                    ? "Finishing import..."
-                    : "Starting..."}
+                    ? uiCopy.finishingImport
+                    : uiCopy.starting}
               </span>
               <span>{formatEta(progressEtaSeconds)}</span>
             </div>

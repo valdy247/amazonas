@@ -149,7 +149,27 @@ export const landingCopy = {
   es: {
     verifiedCommunity: "Comunidad verificada",
     headline: "Verifyzon",
+    heroEyebrow: "Red verificada de reseÃ±adores para colaboraciones mas seguras con marcas",
     body: "Conectamos proveedores con reseñadores altamente verificados, impulsando más confianza, claridad y seguridad en cada colaboración.",
+    reviewersEyebrow: "Para reseÃ±adores",
+    reviewersTitle: "Genera confianza antes de la primera colaboracion",
+    reviewersBody:
+      "Entra con un perfil mas limpio, completa la verificacion de identidad y habla con proveedores en un entorno mas controlado antes de compartir datos personales.",
+    reviewersTagOne: "Identidad verificada",
+    reviewersTagTwo: "Mensajeria privada",
+    reviewersTagThree: "Contacto mas seguro",
+    providersEyebrow: "Para proveedores",
+    providersTitle: "Llega a reseÃ±adores verificados con menos friccion",
+    providersBody:
+      "Descubre perfiles verificados, envia campaÃ±as y abre conversaciones desde un solo lugar, sin depender de contactos desordenados o canales dispersos.",
+    providersTagOne: "Herramientas de campaÃ±a",
+    providersTagTwo: "Chat entre idiomas",
+    providersTagThree: "Audiencia verificada",
+    ctaEyebrow: "Listo para entrar a Verifyzon?",
+    ctaTitle: "Empieza con un flujo de colaboracion mas limpio y confiable.",
+    ctaBody:
+      "Crea tu cuenta, completa la configuracion y entra en una plataforma pensada alrededor de verificacion, mejor mensajeria y señales de confianza mas claras.",
+    ctaSecondary: "Revisar terminos",
     startNow: "Empezar ahora",
     alreadyHaveAccount: "Ya tengo cuenta",
     legalFlowTitle: "Flujo legal",
@@ -204,7 +224,27 @@ export const landingCopy = {
   en: {
     verifiedCommunity: "Verified community",
     headline: "Verifyzon",
+    heroEyebrow: "Verified reviewer network for safer brand collaborations",
     body: "We connect providers with highly verified reviewers, building more trust, clarity, and safety into every collaboration.",
+    reviewersEyebrow: "For reviewers",
+    reviewersTitle: "Build trust before the first collaboration",
+    reviewersBody:
+      "Join with a cleaner profile, pass identity verification, and talk to providers in a more controlled environment before sharing personal details.",
+    reviewersTagOne: "ID verification",
+    reviewersTagTwo: "Private messaging",
+    reviewersTagThree: "Safer contact flow",
+    providersEyebrow: "For providers",
+    providersTitle: "Reach verified reviewers with less friction",
+    providersBody:
+      "Discover verified reviewer profiles, send campaigns, and open conversations in one place without relying on messy outreach or scattered channels.",
+    providersTagOne: "Campaign tools",
+    providersTagTwo: "Cross-language chat",
+    providersTagThree: "Verified audience",
+    ctaEyebrow: "Ready to join Verifyzon?",
+    ctaTitle: "Start with a cleaner, more trusted collaboration workflow.",
+    ctaBody:
+      "Create your account, complete the setup, and move into a platform built around verification, clearer messaging, and stronger trust signals.",
+    ctaSecondary: "Review terms",
     startNow: "Get started",
     alreadyHaveAccount: "I already have an account",
     legalFlowTitle: "Protected flow",
@@ -499,6 +539,12 @@ export const providerContactsCopy = {
     reportSubmitSuccess: "Reporte enviado correctamente.",
     reportSubmitError: "No se pudo enviar el reporte.",
     reviewQueueHint: "Lo revisaremos cuando el equipo vea suficientes coincidencias o una marca directa de admin.",
+    searchTipEyebrow: "Consejo de busqueda",
+    searchTipTitle: "Encontrar el perfil correcto puede tomar un momento",
+    searchTipBody:
+      "Entendemos que puede ser dificil encontrar usuarios en Facebook. Recomendamos escribir palabras clave junto al nombre de usuario y revisar cada perfil con calma hasta dar con el correcto.",
+    searchTipFootnote: "Trabajamos todos los dias para mejorar esta parte del servicio.",
+    searchTipConfirm: "Entiendo",
     whatsappTemplate:
       "Hola, vi tu contacto en el directorio oficial de Verifyzon y me gustaría colaborar contigo. Si quieres unirte a Verifyzon para conocer reseñadores con ID verificado, entra aquí: {inviteUrl}",
   },
@@ -531,6 +577,12 @@ export const providerContactsCopy = {
     reportSubmitSuccess: "Report submitted successfully.",
     reportSubmitError: "The report could not be submitted.",
     reviewQueueHint: "We will review it once enough reviewers agree or an admin flags it directly.",
+    searchTipEyebrow: "Search tip",
+    searchTipTitle: "Finding the right profile can take a moment",
+    searchTipBody:
+      "We understand it can be difficult to find users on Facebook. We recommend typing keywords next to the username and searching calmly through each profile until you find the right one.",
+    searchTipFootnote: "We work every day to improve this part of the service.",
+    searchTipConfirm: "I understand",
     whatsappTemplate:
       "Hi, I found your contact through the Verifyzon directory and would love to collaborate. Verifyzon helps providers connect with ID-verified reviewers through a safer workflow. If you want to join and manage your presence there, start here: {inviteUrl}",
   },

@@ -516,13 +516,13 @@ export function ProviderContactGrid({ contacts, initialContactedIds, language, r
       {showSearchTip ? (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-[#131316]/55 p-4 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-[1.8rem] border border-[#eadfd6] bg-[linear-gradient(180deg,#fffdfa_0%,#fff7f1_100%)] p-6 shadow-[0_28px_90px_rgba(19,19,22,0.22)]">
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#dc4f1f]">Search tip</p>
-            <h3 className="mt-3 text-2xl font-bold text-[#131316]">Finding the right profile can take a moment</h3>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#dc4f1f]">{copy.searchTipEyebrow}</p>
+            <h3 className="mt-3 text-2xl font-bold text-[#131316]">{copy.searchTipTitle}</h3>
             <p className="mt-4 text-sm leading-7 text-[#62564a]">
-              We understand it can be difficult to find users on Facebook. We recommend typing keywords next to the username and searching calmly through each profile until you find the right one.
+              {copy.searchTipBody}
             </p>
             <p className="mt-3 text-sm leading-7 text-[#62564a]">
-              We work every day to improve this part of the service.
+              {copy.searchTipFootnote}
             </p>
             <button
               type="button"
@@ -534,7 +534,7 @@ export function ProviderContactGrid({ contacts, initialContactedIds, language, r
                 }
               }}
             >
-              I understand
+              {copy.searchTipConfirm}
             </button>
           </div>
         </div>
