@@ -167,7 +167,7 @@ export default async function AdminNotificationsPage() {
   }));
 
   return (
-    <div className="min-h-screen bg-[#0f0f10]">
+    <div className="min-h-screen">
       <SiteHeader
         showAdminNotifications
         menuItems={[

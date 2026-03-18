@@ -52,50 +52,50 @@ export function AdminNotificationInbox({ items, supportItems }: AdminNotificatio
   }
 
   return (
-    <section className="overflow-hidden rounded-[2rem] bg-[#121212] text-white shadow-[0_30px_80px_rgba(0,0,0,0.35)]">
-      <div className="px-6 pb-4 pt-8">
+    <section className="overflow-hidden rounded-[2rem] border border-[#eadfd6] bg-[linear-gradient(180deg,#fffdfa_0%,#f9f4ee_100%)] text-[#131316] shadow-[0_24px_60px_rgba(35,22,13,0.08)]">
+      <div className="px-5 pb-3 pt-6 sm:px-6">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-[0.95rem] font-medium text-white/55">Admin inbox</p>
-            <h1 className="mt-2 text-[3rem] font-semibold leading-none tracking-[-0.04em]">Inbox</h1>
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#8f857b]">Admin inbox</p>
+            <h1 className="mt-2 text-[2rem] font-bold leading-none tracking-[-0.03em] sm:text-[2.35rem]">Inbox</h1>
           </div>
           <Link
             href="/admin?section=support"
-            className="inline-flex items-center gap-2 rounded-full bg-white/8 px-4 py-2 text-sm font-semibold text-white/85 transition hover:bg-white/12"
+            className="inline-flex items-center gap-2 rounded-full border border-[#eadfd6] bg-white px-4 py-2 text-sm font-semibold text-[#62564a] transition hover:border-[#dc4f1f] hover:text-[#dc4f1f]"
           >
             <CircleHelp className="h-4 w-4" />
             Help
           </Link>
         </div>
 
-        <div className="mt-7 grid grid-cols-2 border-b border-white/10">
+        <div className="mt-6 grid grid-cols-2 border-b border-[#eadfd6]">
           <button
             type="button"
             onClick={() => {
               setActiveTab("notifications");
               markSeen();
             }}
-            className={`flex items-center justify-between gap-3 border-b-2 px-1 pb-4 text-left text-[2rem] font-semibold tracking-[-0.04em] transition ${
-              activeTab === "notifications" ? "border-white text-white" : "border-transparent text-white/45"
+            className={`flex items-center justify-between gap-3 border-b-2 px-1 pb-3 text-left text-[1.1rem] font-semibold tracking-[-0.03em] transition sm:text-[1.35rem] ${
+              activeTab === "notifications" ? "border-[#dc4f1f] text-[#131316]" : "border-transparent text-[#8f857b]"
             }`}
           >
             <span>Notifications</span>
-            <span className="rounded-full bg-[#2958c8] px-4 py-1 text-base font-bold text-white">{unreadCount > 9 ? "9+" : unreadCount}</span>
+            <span className="rounded-full bg-[#ffefe7] px-3 py-1 text-xs font-bold text-[#dc4f1f] sm:text-sm">{unreadCount > 9 ? "9+" : unreadCount}</span>
           </button>
           <button
             type="button"
             onClick={() => setActiveTab("support")}
-            className={`flex items-center justify-between gap-3 border-b-2 px-1 pb-4 text-left text-[2rem] font-semibold tracking-[-0.04em] transition ${
-              activeTab === "support" ? "border-white text-white" : "border-transparent text-white/45"
+            className={`flex items-center justify-between gap-3 border-b-2 px-1 pb-3 text-left text-[1.1rem] font-semibold tracking-[-0.03em] transition sm:text-[1.35rem] ${
+              activeTab === "support" ? "border-[#dc4f1f] text-[#131316]" : "border-transparent text-[#8f857b]"
             }`}
           >
             <span>Support</span>
-            <span className="text-base font-bold text-white/65">{supportItems.length > 9 ? "9+" : supportItems.length}</span>
+            <span className="text-xs font-bold text-[#8f857b] sm:text-sm">{supportItems.length > 9 ? "9+" : supportItems.length}</span>
           </button>
         </div>
       </div>
 
-      <div className="divide-y divide-white/10">
+      <div className="divide-y divide-[#eadfd6]">
         {activeTab === "notifications"
           ? items.map((item) => {
               const isUnread = !seenStamp || new Date(item.createdAt).getTime() > new Date(seenStamp).getTime();
@@ -104,10 +104,10 @@ export function AdminNotificationInbox({ items, supportItems }: AdminNotificatio
                   key={item.id}
                   href={item.href}
                   onClick={markSeen}
-                  className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-4 px-6 py-5 transition hover:bg-white/4"
+                  className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-4 px-5 py-4 transition hover:bg-[#fff7f2] sm:px-6"
                 >
                   <div className="flex items-start gap-4">
-                    <div className="mt-1 text-white/85">
+                    <div className="mt-1 text-[#62564a]">
                       {item.kind === "support" ? (
                         <LifeBuoy className="h-5 w-5" />
                       ) : item.kind === "report" ? (
@@ -119,12 +119,12 @@ export function AdminNotificationInbox({ items, supportItems }: AdminNotificatio
                       )}
                     </div>
                     <div className="min-w-0">
-                      <p className="text-[1rem] font-semibold leading-tight text-white">{item.title}</p>
-                      <p className="mt-1 text-[0.95rem] leading-snug text-white/70">{item.body}</p>
+                      <p className="text-[0.98rem] font-semibold leading-tight text-[#131316]">{item.title}</p>
+                      <p className="mt-1 text-[0.9rem] leading-snug text-[#62564a]">{item.body}</p>
                     </div>
                   </div>
-                  <span className="text-[0.95rem] font-semibold text-white/75">{formatRelativeTime(item.createdAt)}</span>
-                  <span className={`h-3 w-3 rounded-full ${isUnread ? "bg-[#4b7cff]" : "bg-transparent"}`} />
+                  <span className="text-[0.82rem] font-semibold text-[#8f857b] sm:text-[0.92rem]">{formatRelativeTime(item.createdAt)}</span>
+                  <span className={`h-2.5 w-2.5 rounded-full ${isUnread ? "bg-[#4b7cff]" : "bg-transparent"}`} />
                 </Link>
               );
             })
@@ -132,28 +132,28 @@ export function AdminNotificationInbox({ items, supportItems }: AdminNotificatio
               <Link
                 key={item.id}
                 href={item.href}
-                className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 px-6 py-5 transition hover:bg-white/4"
+                className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 px-5 py-4 transition hover:bg-[#fff7f2] sm:px-6"
               >
                 <div className="flex items-start gap-4">
-                  <div className="mt-1 text-white/85">
+                  <div className="mt-1 text-[#62564a]">
                     <LifeBuoy className="h-5 w-5" />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-[1rem] font-semibold leading-tight text-white">{item.subject}</p>
-                    <p className="mt-1 text-[0.95rem] leading-snug text-white/70">
-                      {item.userLabel} • {item.status.replace(/_/g, " ")} • {item.priority}
+                    <p className="text-[0.98rem] font-semibold leading-tight text-[#131316]">{item.subject}</p>
+                    <p className="mt-1 text-[0.9rem] leading-snug text-[#62564a]">
+                      {item.userLabel} · {item.status.replace(/_/g, " ")} · {item.priority}
                     </p>
                   </div>
                 </div>
-                <span className="text-[0.95rem] font-semibold text-white/75">{formatRelativeTime(item.lastActivityAt)}</span>
+                <span className="text-[0.82rem] font-semibold text-[#8f857b] sm:text-[0.92rem]">{formatRelativeTime(item.lastActivityAt)}</span>
               </Link>
             ))}
 
         {activeTab === "notifications" && !items.length ? (
-          <div className="px-6 py-8 text-white/70">No notifications yet.</div>
+          <div className="px-6 py-8 text-[#62564a]">No notifications yet.</div>
         ) : null}
         {activeTab === "support" && !supportItems.length ? (
-          <div className="px-6 py-8 text-white/70">No support conversations yet.</div>
+          <div className="px-6 py-8 text-[#62564a]">No support conversations yet.</div>
         ) : null}
       </div>
     </section>
