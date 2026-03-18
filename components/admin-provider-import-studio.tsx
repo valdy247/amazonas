@@ -238,6 +238,7 @@ export function AdminProviderImportStudio() {
   const [manualCropHeight, setManualCropHeight] = useState(9);
   const [dragState, setDragState] = useState<DragState>(null);
   const [progress, setProgress] = useState<ProgressState>(null);
+  const [visualProgressPercent, setVisualProgressPercent] = useState<number | null>(null);
   const [isExtracting, startExtract] = useTransition();
   const [isImporting, startImport] = useTransition();
 
@@ -246,7 +247,15 @@ export function AdminProviderImportStudio() {
   const bulkTextMode = source === "bulk_text";
   const currentManualImage = manualImages[manualIndex] || null;
   const manualCropWidthMax = Math.max(25, 100 - manualCropLeft);
-  const progressPercent = progress ? Math.max(0, Math.min(100, Math.round((progress.completed / Math.max(progress.total, 1)) * 100))) : 0;
+  const progressPercent = progress
+    ? Math.max(
+        0,
+        Math.min(
+          100,
+          Math.round(visualProgressPercent ?? (progress.completed / Math.max(progress.total, 1)) * 100)
+        )
+      )
+    : 0;
   const progressEtaSeconds = useMemo(() => {
     if (!progress || progress.completed <= 0 || progress.completed >= progress.total) {
       return null;
@@ -340,12 +349,50 @@ export function AdminProviderImportStudio() {
     };
   }, [dragState, manualCropHeight, manualCropLeft, manualCropWidth]);
 
+  useEffect(() => {
+    if (!progress) {
+      setVisualProgressPercent(null);
+      return;
+    }
+
+    const actualPercent = (progress.completed / Math.max(progress.total, 1)) * 100;
+
+    if (progress.completed >= progress.total) {
+      setVisualProgressPercent(100);
+      return;
+    }
+
+    setVisualProgressPercent((current) => {
+      if (current == null) {
+        return Math.max(4, actualPercent);
+      }
+
+      return Math.max(current, actualPercent);
+    });
+
+    const interval = window.setInterval(() => {
+      setVisualProgressPercent((current) => {
+        const base = current ?? actualPercent;
+        const nextConfirmedPercent = ((progress.completed + 1) / Math.max(progress.total, 1)) * 100;
+        const visualCap = Math.max(actualPercent, nextConfirmedPercent - 2);
+
+        if (base >= visualCap) {
+          return visualCap;
+        }
+
+        return Math.min(visualCap, base + Math.max(0.8, (visualCap - base) * 0.28));
+      });
+    }, 180);
+
+    return () => window.clearInterval(interval);
+  }, [progress]);
+
   async function runExtractionFromPreparedFiles(
     prepared: File[],
     previewMap?: Map<string, string>
   ) {
     const preparedByName = new Map(prepared.map((file) => [file.name, file]));
-    const chunkSize = 8;
+    const chunkSize = 1;
     const aggregated: PreviewRow[] = [];
     const startedAt = Date.now();
 
@@ -356,6 +403,7 @@ export function AdminProviderImportStudio() {
       startedAt,
       label: "Preparing AI extraction",
     });
+    setVisualProgressPercent(4);
 
     for (let index = 0; index < prepared.length; index += chunkSize) {
       const chunk = prepared.slice(index, index + chunkSize);
@@ -410,6 +458,7 @@ export function AdminProviderImportStudio() {
         : "No se detectaron contactos utiles en esas capturas."
     );
     setProgress(null);
+    setVisualProgressPercent(null);
   }
 
   async function handleFiles(files: FileList | null) {
@@ -438,6 +487,7 @@ export function AdminProviderImportStudio() {
           setManualIndex(0);
           setRows([]);
           setProgress(null);
+          setVisualProgressPercent(null);
           setStatus("Haz clic en cada fila que quieras recortar. Puedes avanzar imagen por imagen.");
           return;
         }
@@ -445,6 +495,7 @@ export function AdminProviderImportStudio() {
         await runExtractionFromPreparedFiles(prepared);
       } catch (error) {
         setProgress(null);
+        setVisualProgressPercent(null);
         setStatus(error instanceof Error ? error.message : "No se pudieron procesar las capturas.");
       }
     });
@@ -467,6 +518,7 @@ export function AdminProviderImportStudio() {
           startedAt,
           label: "Processing text with AI",
         });
+        setVisualProgressPercent(12);
         const formData = new FormData();
         formData.set("source", "bulk_text");
         formData.set("text", bulkText);
@@ -495,8 +547,10 @@ export function AdminProviderImportStudio() {
             : "No se detectaron contactos utiles en ese texto."
         );
         setProgress(null);
+        setVisualProgressPercent(null);
       } catch (error) {
         setProgress(null);
+        setVisualProgressPercent(null);
         setStatus(error instanceof Error ? error.message : "No se pudo procesar el texto.");
       }
     });
@@ -565,6 +619,7 @@ export function AdminProviderImportStudio() {
           startedAt: Date.now(),
           label: "Preparing manual crops",
         });
+        setVisualProgressPercent(4);
         const cropPreviewByFileName = new Map<string, string>();
         const croppedFiles = (
           await Promise.all(
@@ -584,6 +639,7 @@ export function AdminProviderImportStudio() {
         await runExtractionFromPreparedFiles(croppedFiles, cropPreviewByFileName);
       } catch (error) {
         setProgress(null);
+        setVisualProgressPercent(null);
         setStatus(error instanceof Error ? error.message : "No se pudieron procesar los recortes manuales.");
       }
     });
@@ -623,6 +679,7 @@ export function AdminProviderImportStudio() {
           startedAt,
           label: "Importing providers",
         });
+        setVisualProgressPercent(14);
         const response = await fetch("/api/admin/provider-import/commit", {
           method: "POST",
           headers: {
@@ -663,8 +720,10 @@ export function AdminProviderImportStudio() {
         setStatus([data.summary, skippedText].filter(Boolean).join(" "));
         setRows([]);
         setProgress(null);
+        setVisualProgressPercent(null);
       } catch (error) {
         setProgress(null);
+        setVisualProgressPercent(null);
         setStatus(error instanceof Error ? error.message : "No se pudo completar la importacion.");
       }
     });
