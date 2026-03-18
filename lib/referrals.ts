@@ -25,7 +25,7 @@ export function normalizeReferralCode(value: unknown) {
 
 export function buildReferralCodeFromUserId(userId: string) {
   const compact = userId.replace(/-/g, "").toUpperCase();
-  return `RT${compact.slice(0, 6)}`;
+  return `RT${compact.slice(0, 8)}`;
 }
 
 export async function ensureReferralCode(userId: string, currentCode?: string | null) {
@@ -34,10 +34,31 @@ export async function ensureReferralCode(userId: string, currentCode?: string | 
     return normalizedCode;
   }
 
-  const nextCode = buildReferralCodeFromUserId(userId);
   const admin = createAdminClient();
-  await admin.from("profiles").update({ referral_code: nextCode }).eq("id", userId).is("referral_code", null);
-  return nextCode;
+  const baseCode = buildReferralCodeFromUserId(userId);
+
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const suffix = attempt === 0 ? "" : String(hashReferralSeed(`${userId}:${attempt}`)).slice(0, 2).padStart(2, "0");
+    const nextCode = `${baseCode}${suffix}`;
+    const { error } = await admin.from("profiles").update({ referral_code: nextCode }).eq("id", userId).is("referral_code", null);
+
+    if (error) {
+      if (error.code === "23505") {
+        continue;
+      }
+      break;
+    }
+
+    const { data: savedProfile } = await admin.from("profiles").select("referral_code").eq("id", userId).maybeSingle();
+    const savedCode = normalizeReferralCode(savedProfile?.referral_code);
+    if (savedCode) {
+      return savedCode;
+    }
+  }
+
+  const { data: existingProfile } = await admin.from("profiles").select("referral_code").eq("id", userId).maybeSingle();
+  const savedCode = normalizeReferralCode(existingProfile?.referral_code);
+  return savedCode || baseCode;
 }
 
 export function getReferralMonthKey(referenceDate = new Date()) {

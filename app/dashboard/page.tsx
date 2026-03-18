@@ -660,10 +660,15 @@ export default async function DashboardPage({
       return contact;
     });
 
-    const randomizedContacts = sortItemsForViewer(contacts, user.id);
-    const selectedIds = new Set(randomizedContacts.slice(0, providerAccessLimit).map((contact) => contact.id));
+    const registeredContacts = contacts.filter((contact) => contact.source === "registered");
+    const directoryContacts = contacts.filter((contact) => contact.source !== "registered");
+    const randomizedDirectoryContacts = sortItemsForViewer(directoryContacts, user.id);
+    const selectedIds = new Set([
+      ...registeredContacts.map((contact) => contact.id),
+      ...randomizedDirectoryContacts.slice(0, providerAccessLimit).map((contact) => contact.id),
+    ]);
     contactedIds.forEach((contactId) => selectedIds.add(contactId));
-    contacts = randomizedContacts.filter((contact) => selectedIds.has(contact.id));
+    contacts = [...registeredContacts, ...randomizedDirectoryContacts].filter((contact) => selectedIds.has(contact.id));
     contactedIds = contactedIds.filter((contactId) => selectedIds.has(contactId));
   }
 

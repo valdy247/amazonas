@@ -41,12 +41,17 @@ export default async function ProfilePage() {
     .eq("id", user.id)
     .single();
 
+  if (profile?.role === "admin") {
+    redirect("/admin");
+  }
+
   if (!profile?.role || profile.role === "pending") {
     redirect("/onboarding");
   }
 
   const metadata = (user.user_metadata || {}) as Record<string, unknown>;
   const fallbackName = splitFullName(profile?.full_name);
+  const rawRole = typeof profile?.role === "string" ? profile.role : "reviewer";
   const profileData = mergeProfileData(profile?.profile_data, {
     country: typeof metadata.country === "string" ? metadata.country : "",
     experienceLevel: typeof metadata.experience_level === "string" ? metadata.experience_level : "new",
@@ -71,8 +76,9 @@ export default async function ProfilePage() {
       <main className="container-x py-4 sm:py-6">
         <ProfileEditor
           email={user.email}
+          panelHref={rawRole === "admin" ? "/admin" : "/dashboard"}
           initialValues={{
-            role: normalizeUserRole(profile.role),
+            role: rawRole === "admin" ? "admin" : normalizeUserRole(profile.role),
             firstName:
               fallbackName.firstName ||
               (typeof metadata.first_name === "string" ? metadata.first_name : ""),

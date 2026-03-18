@@ -10,8 +10,9 @@ import { LANGUAGE_OPTIONS, normalizeLanguage, profileCopy, type AppLanguage } fr
 
 type ProfileEditorProps = {
   email?: string | null;
+  panelHref?: string;
   initialValues: {
-    role: UserRole;
+    role: UserRole | "admin";
     firstName: string;
     lastName: string;
     phone: string;
@@ -31,7 +32,7 @@ type ProfileEditorProps = {
 
 const phoneRegex = /^\+?[0-9()\-\s]{8,20}$/;
 
-export function ProfileEditor({ email, initialValues }: ProfileEditorProps) {
+export function ProfileEditor({ email, panelHref = "/dashboard", initialValues }: ProfileEditorProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -39,6 +40,7 @@ export function ProfileEditor({ email, initialValues }: ProfileEditorProps) {
   const [values, setValues] = useState(initialValues);
   const copy = profileCopy[values.preferredLanguage];
   const interestOptions = getInterestOptions(values.preferredLanguage);
+  const isAdmin = values.role === "admin";
 
   function updateValue<K extends keyof typeof values>(key: K, value: (typeof values)[K]) {
     setValues((current) => ({ ...current, [key]: value }));
@@ -58,17 +60,17 @@ export function ProfileEditor({ email, initialValues }: ProfileEditorProps) {
     setError(null);
     setSaved(null);
 
-    if (!phoneRegex.test(values.phone.trim())) {
+    if (values.phone.trim() && !phoneRegex.test(values.phone.trim())) {
       setError(copy.invalidPhone);
       return;
     }
 
-    if (!values.country) {
+    if (!isAdmin && !values.country) {
       setError(copy.selectCountry);
       return;
     }
 
-    if (values.interests.length < 3) {
+    if (!isAdmin && values.interests.length < 3) {
       setError(copy.selectInterests);
       return;
     }
@@ -324,7 +326,7 @@ export function ProfileEditor({ email, initialValues }: ProfileEditorProps) {
         <button type="submit" disabled={loading} className="btn-primary h-12 w-full">
           {loading ? copy.saving : copy.saveChanges}
         </button>
-        <Link href="/dashboard" className="btn-secondary h-12 w-full">
+        <Link href={panelHref} className="btn-secondary h-12 w-full">
           {copy.goDashboard}
         </Link>
       </div>

@@ -40,6 +40,10 @@ export default async function OnboardingPage() {
     .eq("id", user.id)
     .single();
 
+  if (profile?.role === "admin") {
+    redirect("/admin");
+  }
+
   if (profile?.role && profile.role !== "pending") {
     redirect("/profile");
   }
