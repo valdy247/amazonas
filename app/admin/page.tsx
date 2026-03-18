@@ -649,7 +649,6 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
           { href: "/admin?section=imports", label: "Importaciones" },
           { href: "/admin?section=quality", label: "Calidad" },
           { href: "/admin?section=users", label: "Usuarios" },
-          { href: "/admin/contact-health", label: "Salud contactos" },
           { href: "/admin?section=support", label: "Soporte" },
           { href: "/profile", label: "Editar perfil" },
         ]}
@@ -836,11 +835,8 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                 </div>
                 <div className="card p-4">
                   <p className="text-xs uppercase tracking-[0.18em] text-[#8f857b]">Chequeo tecnico</p>
-                  <h2 className="mt-2 font-bold">Salud de contactos</h2>
-                  <p className="mt-2 text-sm text-[#62626d]">Revision aparte para validar enlaces vivos y contactos rotos sin llenar la vista principal de proveedores.</p>
-                  <Link href="/admin/contact-health" className="btn-secondary mt-4 inline-flex">
-                    Abrir salud contactos
-                  </Link>
+                  <h2 className="mt-2 font-bold">Chequeo continuo</h2>
+                  <p className="mt-2 text-sm text-[#62626d]">Todo contacto nuevo, editado o importado pasa por el mismo filtro de calidad para limpiar enlaces, rechazar numeros malos y evitar duplicados.</p>
                 </div>
               </div>
               <div className="card p-4">

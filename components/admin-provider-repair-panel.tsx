@@ -1,7 +1,8 @@
 "use client";
 
-import { useActionState, useMemo, useState, useTransition } from "react";
-import { updateProviderContactAction, type AdminActionState } from "@/app/admin/actions";
+import { useActionState, useEffect, useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { runProviderQualitySweepAction, updateProviderContactAction, type AdminActionState } from "@/app/admin/actions";
 import { buildProviderRepairSuggestion, type ProviderRepairSuggestion } from "@/lib/provider-repair";
 import { getContactFieldValues } from "@/lib/provider-contact";
 
@@ -25,11 +26,13 @@ type AiSuggestion = ProviderRepairSuggestion & { aiReason?: string };
 const INITIAL_ACTION_STATE: AdminActionState = { status: "idle", message: "" };
 
 export function AdminProviderRepairPanel({ contacts }: AdminProviderRepairPanelProps) {
+  const router = useRouter();
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [visibleCount, setVisibleCount] = useState(10);
   const [aiSuggestions, setAiSuggestions] = useState<Record<number, AiSuggestion>>({});
   const [isPending, startTransition] = useTransition();
   const [actionState, repairAction, isRepairPending] = useActionState(updateProviderContactAction, INITIAL_ACTION_STATE);
+  const [sweepState, sweepAction, isSweepPending] = useActionState(runProviderQualitySweepAction, INITIAL_ACTION_STATE);
 
   const suggestions = useMemo(
     () =>
@@ -49,6 +52,12 @@ export function AdminProviderRepairPanel({ contacts }: AdminProviderRepairPanelP
   const whatsappPrefixMatch = selectedSuggestion?.whatsapp.match(/^\+\d{1,3}/);
   const whatsappPrefix = whatsappPrefixMatch?.[0] || "";
   const whatsappNumber = selectedSuggestion?.whatsapp.replace(/^\+\d{1,3}/, "") || "";
+
+  useEffect(() => {
+    if (actionState.status === "success" || sweepState.status === "success") {
+      router.refresh();
+    }
+  }, [actionState.status, router, sweepState.status]);
 
   function requestAi(contact: ContactRow) {
     startTransition(async () => {
@@ -104,11 +113,19 @@ export function AdminProviderRepairPanel({ contacts }: AdminProviderRepairPanelP
       <div className="rounded-[1.2rem] border border-[#eadfd6] bg-[#fcfaf7] p-3">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <p className="text-sm font-semibold text-[#131316]">Repair Center</p>
-            <p className="mt-1 text-xs text-[#62564a]">Limpieza automatica y revision asistida para enlaces, emails, telefonos y duplicados.</p>
+            <p className="text-sm font-semibold text-[#131316]">Centro de calidad</p>
+            <p className="mt-1 text-xs text-[#62564a]">Limpieza automatica, deduplicacion y validacion basica de enlaces, emails y telefonos.</p>
           </div>
-          <span className="rounded-full bg-[#fff2eb] px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.16em] text-[#dc4f1f]">
-            {suggestions.length} fixes
+          <form action={sweepAction}>
+            <button className="btn-secondary" type="submit">
+              {isSweepPending ? "Chequeando..." : "Chequear todo"}
+            </button>
+          </form>
+        </div>
+        <div className="mt-3 flex items-center justify-between gap-3 rounded-[1rem] bg-[#fff8f4] px-3 py-3 text-xs text-[#62564a]">
+          <span>{suggestions.length} contactos con ajustes detectados</span>
+          <span className="rounded-full bg-[#fff2eb] px-3 py-1.5 font-bold uppercase tracking-[0.16em] text-[#dc4f1f]">
+            {contacts.length} total
           </span>
         </div>
 
@@ -135,6 +152,12 @@ export function AdminProviderRepairPanel({ contacts }: AdminProviderRepairPanelP
           >
             Mostrar 10 mas
           </button>
+        ) : null}
+        {sweepState.status === "success" ? (
+          <p className="mt-3 text-sm font-semibold text-[#177a52]">{sweepState.message}</p>
+        ) : null}
+        {sweepState.status === "error" ? (
+          <p className="mt-3 text-sm font-semibold text-[#c24d3a]">{sweepState.message}</p>
         ) : null}
       </div>
 

@@ -5,6 +5,7 @@ import {
   getPrimaryContactUrl,
   normalizeContactValue,
 } from "@/lib/provider-contact";
+import { sanitizeProviderDraft } from "@/lib/provider-quality";
 import type { createAdminClient } from "@/lib/supabase/admin";
 
 export type ProviderImportSource =
@@ -197,15 +198,16 @@ export async function createProviderContactRecord(
   input: ProviderImportDraft
 ) {
   const normalizedInput = normalizeImportedDraft(input);
-  const email = normalizedInput.email;
-  const whatsapp = normalizedInput.whatsapp;
-  const instagram = normalizedInput.instagram;
-  const messenger = normalizedInput.messenger;
-  const facebook = normalizedInput.facebook;
+  const sanitized = sanitizeProviderDraft(normalizedInput);
+  const email = sanitized.email;
+  const whatsapp = sanitized.whatsapp;
+  const instagram = sanitized.instagram;
+  const messenger = sanitized.messenger;
+  const facebook = sanitized.facebook;
   const avatarDataUrl = normalizedInput.avatarDataUrl;
   const notes = normalizedInput.notes;
   const contactMethods = buildContactMethodsFromFields({ email, whatsapp, instagram, messenger, facebook });
-  const methodCount = [email, whatsapp, instagram, messenger, facebook].filter(Boolean).length;
+  const methodCount = sanitized.validMethodCount;
 
   if (!methodCount) {
     throw new Error("Debes agregar al menos un metodo de contacto.");

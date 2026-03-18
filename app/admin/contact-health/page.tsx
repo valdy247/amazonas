@@ -53,10 +53,9 @@ export default async function AdminContactHealthPage() {
       <SiteHeader
         menuItems={[
           { href: "/dashboard", label: "Inicio" },
+          { href: "/admin?section=summary", label: "Resumen" },
+          { href: "/admin?section=quality", label: "Calidad" },
           { href: "/admin?section=providers", label: "Proveedores" },
-          { href: "/admin/contact-health", label: "Salud contactos" },
-          { href: "/admin?section=providers#repair-center", label: "Saneamiento" },
-          { href: "/admin?section=metrics", label: "Metricas" },
           { href: "/admin?section=support", label: "Soporte" },
         ]}
       />
