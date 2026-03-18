@@ -10,6 +10,8 @@ import {
   type AdminNotificationItem,
   type AdminSupportInboxItem,
 } from "@/lib/admin-notifications";
+import { navigationCopy, normalizeLanguage } from "@/lib/i18n";
+import { getRequestAppLanguage } from "@/lib/request-language-server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -64,10 +66,12 @@ export default async function AdminNotificationsPage() {
     redirect("/auth");
   }
 
-  const { data: profile } = await supabase.from("profiles").select("role, email").eq("id", user.id).single();
+  const { data: profile } = await supabase.from("profiles").select("role, email, preferred_language").eq("id", user.id).single();
   if (!hasAdminAccess(profile?.role, profile?.email || user.email)) {
     redirect("/dashboard");
   }
+  const language = normalizeLanguage(profile?.preferred_language || (await getRequestAppLanguage()));
+  const nav = navigationCopy[language];
 
   const admin = createAdminClient();
   const [auditResult, profileResult, failedMembershipsResult, webhookErrorsResult, supportThreadsResult] = await Promise.all([
@@ -124,24 +128,24 @@ export default async function AdminNotificationsPage() {
 
   const items: AdminNotificationItem[] = [
     ...auditRows
-      .map((row) =>
-        buildAuditNotification({
-          ...row,
-          actorName: row.admin_id ? profileMap.get(row.admin_id)?.full_name : null,
-          actorEmail: row.admin_id ? profileMap.get(row.admin_id)?.email : null,
-          targetName: row.target_user_id ? profileMap.get(row.target_user_id)?.full_name : null,
-          targetEmail: row.target_user_id ? profileMap.get(row.target_user_id)?.email : null,
-        })
+        .map((row) =>
+          buildAuditNotification({
+            ...row,
+            actorName: row.admin_id ? profileMap.get(row.admin_id)?.full_name : null,
+            actorEmail: row.admin_id ? profileMap.get(row.admin_id)?.email : null,
+            targetName: row.target_user_id ? profileMap.get(row.target_user_id)?.full_name : null,
+            targetEmail: row.target_user_id ? profileMap.get(row.target_user_id)?.email : null,
+          }, language)
       )
       .filter((item): item is AdminNotificationItem => Boolean(item)),
-    ...recentProfiles.filter((item) => item.role !== "admin").map((item) => buildSignupNotification(item)),
+    ...recentProfiles.filter((item) => item.role !== "admin").map((item) => buildSignupNotification(item, language)),
     ...failedMemberships.map((item) =>
       buildFailedPaymentNotification({
         userId: item.user_id,
         userName: profileMap.get(item.user_id)?.full_name,
         userEmail: profileMap.get(item.user_id)?.email,
         createdAt: item.last_payment_failed_at || item.updated_at || new Date().toISOString(),
-      })
+      }, language)
     ),
     ...webhookErrors.map((item) =>
       buildWebhookErrorNotification({
@@ -150,7 +154,7 @@ export default async function AdminNotificationsPage() {
         statusCode: item.status_code,
         referenceId: item.reference_id,
         createdAt: item.created_at,
-      })
+      }, language)
     ),
   ]
     .sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime())
@@ -169,18 +173,19 @@ export default async function AdminNotificationsPage() {
   return (
     <div className="min-h-screen">
       <SiteHeader
+        language={language}
         showAdminNotifications
         menuItems={[
-          { href: "/dashboard", label: "Inicio" },
-          { href: "/admin?section=summary", label: "Resumen" },
-          { href: "/admin/notifications", label: "Inbox admin" },
-          { href: "/admin?section=support", label: "Soporte" },
-          { href: "/profile", label: "Editar perfil" },
+          { href: "/dashboard", label: nav.goToDashboard },
+          { href: "/admin?section=summary", label: language === "en" ? "Summary" : "Resumen" },
+          { href: "/admin/notifications", label: language === "en" ? "Admin inbox" : "Inbox admin" },
+          { href: "/admin?section=support", label: language === "en" ? "Support" : "Soporte" },
+          { href: "/profile", label: nav.editProfile },
         ]}
       />
 
       <main className="container-x py-8">
-        <AdminNotificationInbox items={items} supportItems={supportItems} />
+        <AdminNotificationInbox items={items} supportItems={supportItems} language={language} />
       </main>
     </div>
   );

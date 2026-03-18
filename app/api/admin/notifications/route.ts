@@ -8,6 +8,7 @@ import {
   buildSignupNotification,
   buildWebhookErrorNotification,
 } from "@/lib/admin-notifications";
+import { normalizeLanguage } from "@/lib/i18n";
 import { buildDuplicateContactGroups } from "@/lib/provider-quality";
 import type { AdminNotificationItem, AdminSupportInboxItem } from "@/lib/admin-notifications";
 
@@ -71,10 +72,11 @@ export async function GET() {
       return NextResponse.json({ error: "No autorizado." }, { status: 401 });
     }
 
-    const { data: profile } = await supabase.from("profiles").select("role, email").eq("id", user.id).single();
+    const { data: profile } = await supabase.from("profiles").select("role, email, preferred_language").eq("id", user.id).single();
     if (!hasAdminAccess(profile?.role, profile?.email || user.email)) {
       return NextResponse.json({ error: "Solo admin." }, { status: 403 });
     }
+    const language = normalizeLanguage(profile?.preferred_language);
 
     const admin = createAdminClient();
     const [
@@ -153,19 +155,19 @@ export async function GET() {
             actorEmail: row.admin_id ? profileMap.get(row.admin_id)?.email : null,
             targetName: row.target_user_id ? profileMap.get(row.target_user_id)?.full_name : null,
             targetEmail: row.target_user_id ? profileMap.get(row.target_user_id)?.email : null,
-          })
+          }, language)
         )
         .filter(Boolean),
       ...recentProfiles
         .filter((item) => item.role !== "admin")
-        .map((item) => buildSignupNotification(item)),
+        .map((item) => buildSignupNotification(item, language)),
       ...failedMemberships.map((item) =>
         buildFailedPaymentNotification({
           userId: item.user_id,
           userName: profileMap.get(item.user_id)?.full_name,
           userEmail: profileMap.get(item.user_id)?.email,
           createdAt: item.last_payment_failed_at || item.updated_at || new Date().toISOString(),
-        })
+        }, language)
       ),
       ...webhookErrors.map((item) =>
         buildWebhookErrorNotification({
@@ -174,7 +176,7 @@ export async function GET() {
           statusCode: item.status_code,
           referenceId: item.reference_id,
           createdAt: item.created_at,
-        })
+        }, language)
       ),
     ]
       .filter((item): item is AdminNotificationItem => Boolean(item))
@@ -207,7 +209,7 @@ export async function GET() {
   } catch (error) {
     return NextResponse.json(
       {
-        error: error instanceof Error ? error.message : "No se pudieron cargar las notificaciones.",
+        error: error instanceof Error ? error.message : "Could not load notifications.",
       },
       { status: 500 }
     );

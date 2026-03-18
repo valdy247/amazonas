@@ -260,17 +260,17 @@ export function SupportCenter({ currentUserId, language, isAdmin = false, thread
               className="input"
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder="Buscar por asunto, usuario o correo"
+              placeholder={copy.searchPlaceholder}
             />
             <div className="grid gap-2 sm:grid-cols-2">
               <select className="input" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
-                <option value="all">Todos los estados</option>
+                <option value="all">{copy.allStatuses}</option>
                 <option value="open">{getSupportStatusLabel("open", language)}</option>
                 <option value="in_progress">{getSupportStatusLabel("in_progress", language)}</option>
                 <option value="resolved">{getSupportStatusLabel("resolved", language)}</option>
               </select>
               <select className="input" value={priorityFilter} onChange={(event) => setPriorityFilter(event.target.value)}>
-                <option value="all">Todas las prioridades</option>
+                <option value="all">{copy.allPriorities}</option>
                 <option value="low">{getSupportPriorityLabel("low", language)}</option>
                 <option value="normal">{getSupportPriorityLabel("normal", language)}</option>
                 <option value="high">{getSupportPriorityLabel("high", language)}</option>

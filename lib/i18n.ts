@@ -860,6 +860,9 @@ export const supportCopy = {
     sendReset: "Enviar recuperación",
     updateEmail: "Cambiar email",
     newEmailPlaceholder: "nuevo@correo.com",
+    searchPlaceholder: "Buscar por asunto, usuario o correo",
+    allStatuses: "Todos los estados",
+    allPriorities: "Todas las prioridades",
   },
   en: {
     title: "Support",
@@ -892,6 +895,40 @@ export const supportCopy = {
     sendReset: "Send recovery",
     updateEmail: "Change email",
     newEmailPlaceholder: "new@email.com",
+    searchPlaceholder: "Search by subject, user, or email",
+    allStatuses: "All statuses",
+    allPriorities: "All priorities",
+  },
+} as const;
+
+export const adminInboxCopy = {
+  es: {
+    eyebrow: "Inbox admin",
+    title: "Inbox",
+    help: "Ayuda",
+    notifications: "Notificaciones",
+    support: "Soporte",
+    noNotifications: "Todavia no hay notificaciones.",
+    noSupport: "Todavia no hay conversaciones de soporte.",
+    justNow: "ahora mismo",
+    minutesAgo: (value: number) => `hace ${value} min`,
+    hoursAgo: (value: number) => `hace ${value} h`,
+    daysAgo: (value: number) => `hace ${value} dia${value === 1 ? "" : "s"}`,
+    weeksAgo: (value: number) => `hace ${value} semana${value === 1 ? "" : "s"}`,
+  },
+  en: {
+    eyebrow: "Admin inbox",
+    title: "Inbox",
+    help: "Help",
+    notifications: "Notifications",
+    support: "Support",
+    noNotifications: "No notifications yet.",
+    noSupport: "No support conversations yet.",
+    justNow: "just now",
+    minutesAgo: (value: number) => `${value} min ago`,
+    hoursAgo: (value: number) => `${value} hour${value === 1 ? "" : "s"} ago`,
+    daysAgo: (value: number) => `${value} day${value === 1 ? "" : "s"} ago`,
+    weeksAgo: (value: number) => `${value} week${value === 1 ? "" : "s"} ago`,
   },
 } as const;
 

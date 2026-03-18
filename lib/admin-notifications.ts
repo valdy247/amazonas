@@ -1,3 +1,5 @@
+import { normalizeLanguage, type AppLanguage } from "@/lib/i18n";
+
 export type AdminNotificationItem = {
   id: string;
   kind:
@@ -32,31 +34,139 @@ export type AdminSupportInboxItem = {
   href: string;
 };
 
-function displayName(name?: string | null, email?: string | null) {
-  return String(name || email || "Usuario").trim();
+const ADMIN_NOTIFICATION_COPY = {
+  es: {
+    unknownUser: "Usuario",
+    provider: "Proveedor",
+    reviewer: "Reseñador",
+    tester: "Tester",
+    admin: "Admin",
+    importCompleted: "Importación completada",
+    importCompletedBody: (actor: string, createdCount: number | string, skippedCount: number | string) =>
+      `${actor} importó ${createdCount || 0} proveedores y omitió ${skippedCount || 0}.`,
+    newSupportTicket: "Nuevo ticket de soporte",
+    newSupportTicketBody: (target: string, subject: string) => `${target} abrió el caso "${subject}".`,
+    newSupportReply: "Respuesta nueva en soporte",
+    newSupportReplyBody: (target: string) => `${target} respondió en un ticket existente.`,
+    newProviderReport: "Nuevo reporte de proveedor",
+    newProviderReportBody: (reportType: string) => `Se marcó un contacto como ${reportType || "requiere revisión"}.`,
+    removalRequest: "Solicitud de eliminación",
+    removalRequestBody: (channel: string) => `Nuevo pedido para revisar ${channel || "contacto"} del directorio.`,
+    providerAdded: "Proveedor agregado",
+    providerAddedBody: (actor: string, title: string) => `${actor} creó ${title || "un proveedor"} en el directorio.`,
+    providerUpdated: "Proveedor actualizado",
+    providerUpdatedBody: (actor: string, contactId: string) => `${actor} actualizó el contacto #${contactId}.`,
+    providerDeleted: "Proveedor eliminado",
+    providerDeletedBody: (actor: string, contactId: string) => `${actor} eliminó el contacto #${contactId}.`,
+    duplicateRemoved: "Duplicado eliminado",
+    duplicateRemovedFallback: "Se eliminó un proveedor duplicado durante calidad.",
+    userStatusUpdated: "Estado de usuario actualizado",
+    userStatusUpdatedBody: (actor: string, target: string) => `${actor} cambió membresía o KYC de ${target}.`,
+    newAdminAssigned: "Nuevo admin asignado",
+    newAdminAssignedBody: (actor: string, target: string) => `${actor} promovió a ${target} como admin.`,
+    emailUpdated: "Email actualizado",
+    emailUpdatedBody: (actor: string, target: string) => `${actor} cambió el correo de ${target}.`,
+    adminMarkedContact: "Admin marcó un contacto",
+    adminMarkedContactBody: (actor: string, contactId: string, reportType: string) =>
+      `${actor} marcó el contacto #${contactId} como ${reportType || "revisión"}.`,
+    reportReviewed: "Reporte revisado",
+    reportReviewedBody: (actor: string) => `${actor} actualizó la revisión de un contacto reportado.`,
+    removalReviewed: "Solicitud de baja revisada",
+    removalReviewedBody: (actor: string) => `${actor} actualizó una solicitud de eliminación del directorio.`,
+    newUser: "Nuevo usuario registrado",
+    newUserBody: (roleLabel: string, userLabel: string) => `${roleLabel}: ${userLabel}`,
+    paymentFailed: "Cobro fallido",
+    paymentFailedBody: (userLabel: string) => `${userLabel} tiene un fallo de cobro en membresía.`,
+    webhookError: "Webhook con error",
+    webhookErrorBody: (provider: string, statusCode: number, eventType?: string | null) =>
+      `${provider} devolvió ${statusCode}${eventType ? ` en ${eventType}` : ""}.`,
+  },
+  en: {
+    unknownUser: "User",
+    provider: "Provider",
+    reviewer: "Reviewer",
+    tester: "Tester",
+    admin: "Admin",
+    importCompleted: "Import completed",
+    importCompletedBody: (actor: string, createdCount: number | string, skippedCount: number | string) =>
+      `${actor} imported ${createdCount || 0} providers and skipped ${skippedCount || 0}.`,
+    newSupportTicket: "New support ticket",
+    newSupportTicketBody: (target: string, subject: string) => `${target} opened the case "${subject}".`,
+    newSupportReply: "New support reply",
+    newSupportReplyBody: (target: string) => `${target} replied in an existing ticket.`,
+    newProviderReport: "New provider report",
+    newProviderReportBody: (reportType: string) => `A contact was flagged as ${reportType || "needs review"}.`,
+    removalRequest: "Removal request",
+    removalRequestBody: (channel: string) => `A new request was submitted to review ${channel || "a contact"} in the directory.`,
+    providerAdded: "Provider added",
+    providerAddedBody: (actor: string, title: string) => `${actor} created ${title || "a provider"} in the directory.`,
+    providerUpdated: "Provider updated",
+    providerUpdatedBody: (actor: string, contactId: string) => `${actor} updated contact #${contactId}.`,
+    providerDeleted: "Provider deleted",
+    providerDeletedBody: (actor: string, contactId: string) => `${actor} deleted contact #${contactId}.`,
+    duplicateRemoved: "Duplicate removed",
+    duplicateRemovedFallback: "A duplicate provider was removed during quality review.",
+    userStatusUpdated: "User status updated",
+    userStatusUpdatedBody: (actor: string, target: string) => `${actor} changed membership or KYC for ${target}.`,
+    newAdminAssigned: "New admin assigned",
+    newAdminAssignedBody: (actor: string, target: string) => `${actor} promoted ${target} to admin.`,
+    emailUpdated: "Email updated",
+    emailUpdatedBody: (actor: string, target: string) => `${actor} changed the email for ${target}.`,
+    adminMarkedContact: "Admin flagged a contact",
+    adminMarkedContactBody: (actor: string, contactId: string, reportType: string) =>
+      `${actor} marked contact #${contactId} as ${reportType || "review"}.`,
+    reportReviewed: "Report reviewed",
+    reportReviewedBody: (actor: string) => `${actor} updated the review of a reported contact.`,
+    removalReviewed: "Removal request reviewed",
+    removalReviewedBody: (actor: string) => `${actor} updated a directory removal request.`,
+    newUser: "New user registered",
+    newUserBody: (roleLabel: string, userLabel: string) => `${roleLabel}: ${userLabel}`,
+    paymentFailed: "Payment failed",
+    paymentFailedBody: (userLabel: string) => `${userLabel} has a failed membership charge.`,
+    webhookError: "Webhook error",
+    webhookErrorBody: (provider: string, statusCode: number, eventType?: string | null) =>
+      `${provider} returned ${statusCode}${eventType ? ` on ${eventType}` : ""}.`,
+  },
+} as const;
+
+function getAdminNotificationCopy(language: AppLanguage) {
+  return ADMIN_NOTIFICATION_COPY[normalizeLanguage(language)];
 }
 
-function roleLabel(role?: string | null) {
+function scalarValue(value: unknown, fallback = "") {
+  return typeof value === "string" || typeof value === "number" ? value : fallback;
+}
+
+function displayName(language: AppLanguage, name?: string | null, email?: string | null) {
+  return String(name || email || getAdminNotificationCopy(language).unknownUser).trim();
+}
+
+function roleLabel(language: AppLanguage, role?: string | null) {
+  const copy = getAdminNotificationCopy(language);
   const normalized = String(role || "").trim().toLowerCase();
-  if (normalized === "provider") return "Proveedor";
-  if (normalized === "reviewer") return "Reseñador";
-  if (normalized === "tester") return "Tester";
-  if (normalized === "admin") return "Admin";
-  return "Usuario";
+  if (normalized === "provider") return copy.provider;
+  if (normalized === "reviewer") return copy.reviewer;
+  if (normalized === "tester") return copy.tester;
+  if (normalized === "admin") return copy.admin;
+  return copy.unknownUser;
 }
 
-export function buildAuditNotification(input: {
-  id: number;
-  action: string;
-  created_at: string;
-  metadata?: Record<string, unknown> | null;
-  actorName?: string | null;
-  actorEmail?: string | null;
-  targetName?: string | null;
-  targetEmail?: string | null;
-}): AdminNotificationItem | null {
-  const actor = displayName(input.actorName, input.actorEmail);
-  const target = displayName(input.targetName, input.targetEmail);
+export function buildAuditNotification(
+  input: {
+    id: number;
+    action: string;
+    created_at: string;
+    metadata?: Record<string, unknown> | null;
+    actorName?: string | null;
+    actorEmail?: string | null;
+    targetName?: string | null;
+    targetEmail?: string | null;
+  },
+  language: AppLanguage
+): AdminNotificationItem | null {
+  const copy = getAdminNotificationCopy(language);
+  const actor = displayName(language, input.actorName, input.actorEmail);
+  const target = displayName(language, input.targetName, input.targetEmail);
   const metadata = input.metadata || {};
 
   switch (input.action) {
@@ -64,8 +174,8 @@ export function buildAuditNotification(input: {
       return {
         id: `audit:${input.id}`,
         kind: "audit",
-        title: "Importacion completada",
-        body: `${actor} importo ${metadata.createdCount || 0} proveedores y omitio ${metadata.skippedCount || 0}.`,
+        title: copy.importCompleted,
+        body: copy.importCompletedBody(actor, Number(scalarValue(metadata.createdCount, "0")), Number(scalarValue(metadata.skippedCount, "0"))),
         href: "/admin?section=imports",
         createdAt: input.created_at,
       };
@@ -73,8 +183,8 @@ export function buildAuditNotification(input: {
       return {
         id: `audit:${input.id}`,
         kind: "support",
-        title: "Nuevo ticket de soporte",
-        body: `${target} abrio el caso "${String(metadata.subject || "Sin asunto")}".`,
+        title: copy.newSupportTicket,
+        body: copy.newSupportTicketBody(target, String(scalarValue(metadata.subject, language === "en" ? "Untitled" : "Sin asunto"))),
         href: "/admin?section=support",
         createdAt: input.created_at,
       };
@@ -82,8 +192,8 @@ export function buildAuditNotification(input: {
       return {
         id: `audit:${input.id}`,
         kind: "support",
-        title: "Respuesta nueva en soporte",
-        body: `${target} respondio en un ticket existente.`,
+        title: copy.newSupportReply,
+        body: copy.newSupportReplyBody(target),
         href: "/admin?section=support",
         createdAt: input.created_at,
       };
@@ -91,8 +201,8 @@ export function buildAuditNotification(input: {
       return {
         id: `audit:${input.id}`,
         kind: "report",
-        title: "Nuevo reporte de proveedor",
-        body: `Se marco un contacto como ${String(metadata.reportType || "requiere revision")}.`,
+        title: copy.newProviderReport,
+        body: copy.newProviderReportBody(String(scalarValue(metadata.reportType))),
         href: "/admin?section=quality",
         createdAt: input.created_at,
       };
@@ -100,8 +210,8 @@ export function buildAuditNotification(input: {
       return {
         id: `audit:${input.id}`,
         kind: "report",
-        title: "Solicitud de eliminacion",
-        body: `Nuevo pedido para revisar ${String(metadata.contactChannel || "contacto")} del directorio.`,
+        title: copy.removalRequest,
+        body: copy.removalRequestBody(String(scalarValue(metadata.contactChannel))),
         href: "/admin?section=quality",
         createdAt: input.created_at,
       };
@@ -109,8 +219,8 @@ export function buildAuditNotification(input: {
       return {
         id: `audit:${input.id}`,
         kind: "audit",
-        title: "Proveedor agregado",
-        body: `${actor} creo ${String(metadata.title || "un proveedor")} en el directorio.`,
+        title: copy.providerAdded,
+        body: copy.providerAddedBody(actor, String(scalarValue(metadata.title))),
         href: "/admin?section=providers",
         createdAt: input.created_at,
       };
@@ -118,8 +228,8 @@ export function buildAuditNotification(input: {
       return {
         id: `audit:${input.id}`,
         kind: "audit",
-        title: "Proveedor actualizado",
-        body: `${actor} actualizo el contacto #${String(metadata.contactId || "")}.`,
+        title: copy.providerUpdated,
+        body: copy.providerUpdatedBody(actor, String(scalarValue(metadata.contactId))),
         href: "/admin?section=providers",
         createdAt: input.created_at,
       };
@@ -127,8 +237,8 @@ export function buildAuditNotification(input: {
       return {
         id: `audit:${input.id}`,
         kind: "audit",
-        title: "Proveedor eliminado",
-        body: `${actor} elimino el contacto #${String(metadata.contactId || "")}.`,
+        title: copy.providerDeleted,
+        body: copy.providerDeletedBody(actor, String(scalarValue(metadata.contactId))),
         href: "/admin?section=providers",
         createdAt: input.created_at,
       };
@@ -136,8 +246,8 @@ export function buildAuditNotification(input: {
       return {
         id: `audit:${input.id}`,
         kind: "audit",
-        title: "Duplicado eliminado",
-        body: String(metadata.duplicateMessage || "Se elimino un proveedor duplicado durante calidad."),
+        title: copy.duplicateRemoved,
+        body: String(scalarValue(metadata.duplicateMessage, copy.duplicateRemovedFallback)),
         href: "/admin?section=quality",
         createdAt: input.created_at,
       };
@@ -145,8 +255,8 @@ export function buildAuditNotification(input: {
       return {
         id: `audit:${input.id}`,
         kind: "billing",
-        title: "Estado de usuario actualizado",
-        body: `${actor} cambio membresia o KYC de ${target}.`,
+        title: copy.userStatusUpdated,
+        body: copy.userStatusUpdatedBody(actor, target),
         href: "/admin?section=users",
         createdAt: input.created_at,
       };
@@ -154,8 +264,8 @@ export function buildAuditNotification(input: {
       return {
         id: `audit:${input.id}`,
         kind: "audit",
-        title: "Nuevo admin asignado",
-        body: `${actor} promovio a ${String(metadata.email || target)} como admin.`,
+        title: copy.newAdminAssigned,
+        body: copy.newAdminAssignedBody(actor, String(scalarValue(metadata.email, target))),
         href: "/admin?section=users",
         createdAt: input.created_at,
       };
@@ -163,8 +273,8 @@ export function buildAuditNotification(input: {
       return {
         id: `audit:${input.id}`,
         kind: "audit",
-        title: "Email actualizado",
-        body: `${actor} cambio el correo de ${target}.`,
+        title: copy.emailUpdated,
+        body: copy.emailUpdatedBody(actor, target),
         href: "/admin?section=users",
         createdAt: input.created_at,
       };
@@ -172,8 +282,8 @@ export function buildAuditNotification(input: {
       return {
         id: `audit:${input.id}`,
         kind: "report",
-        title: "Admin marco un contacto",
-        body: `${actor} marco el contacto #${String(metadata.contactId || "")} como ${String(metadata.reportType || "revision")}.`,
+        title: copy.adminMarkedContact,
+        body: copy.adminMarkedContactBody(actor, String(scalarValue(metadata.contactId)), String(scalarValue(metadata.reportType))),
         href: "/admin?section=quality",
         createdAt: input.created_at,
       };
@@ -181,8 +291,8 @@ export function buildAuditNotification(input: {
       return {
         id: `audit:${input.id}`,
         kind: "report",
-        title: "Reporte revisado",
-        body: `${actor} actualizo la revision de un contacto reportado.`,
+        title: copy.reportReviewed,
+        body: copy.reportReviewedBody(actor),
         href: "/admin?section=quality",
         createdAt: input.created_at,
       };
@@ -190,8 +300,8 @@ export function buildAuditNotification(input: {
       return {
         id: `audit:${input.id}`,
         kind: "report",
-        title: "Solicitud de baja revisada",
-        body: `${actor} actualizo una solicitud de eliminacion del directorio.`,
+        title: copy.removalReviewed,
+        body: copy.removalReviewedBody(actor),
         href: "/admin?section=quality",
         createdAt: input.created_at,
       };
@@ -200,51 +310,63 @@ export function buildAuditNotification(input: {
   }
 }
 
-export function buildSignupNotification(input: {
-  id: string;
-  full_name?: string | null;
-  email?: string | null;
-  role?: string | null;
-  created_at: string;
-}): AdminNotificationItem {
+export function buildSignupNotification(
+  input: {
+    id: string;
+    full_name?: string | null;
+    email?: string | null;
+    role?: string | null;
+    created_at: string;
+  },
+  language: AppLanguage
+): AdminNotificationItem {
+  const copy = getAdminNotificationCopy(language);
   return {
     id: `signup:${input.id}`,
     kind: "user_signup",
-    title: "Nuevo usuario registrado",
-    body: `${roleLabel(input.role)}: ${displayName(input.full_name, input.email)}`,
+    title: copy.newUser,
+    body: copy.newUserBody(roleLabel(language, input.role), displayName(language, input.full_name, input.email)),
     href: `/admin?section=users&user_q=${encodeURIComponent(String(input.email || input.id))}`,
     createdAt: input.created_at,
   };
 }
 
-export function buildFailedPaymentNotification(input: {
-  userId: string;
-  userName?: string | null;
-  userEmail?: string | null;
-  createdAt: string;
-}): AdminNotificationItem {
+export function buildFailedPaymentNotification(
+  input: {
+    userId: string;
+    userName?: string | null;
+    userEmail?: string | null;
+    createdAt: string;
+  },
+  language: AppLanguage
+): AdminNotificationItem {
+  const copy = getAdminNotificationCopy(language);
   return {
     id: `payment-failed:${input.userId}:${input.createdAt}`,
     kind: "billing",
-    title: "Cobro fallido",
-    body: `${displayName(input.userName, input.userEmail)} tiene un fallo de cobro en membresia.`,
+    title: copy.paymentFailed,
+    body: copy.paymentFailedBody(displayName(language, input.userName, input.userEmail)),
     href: `/admin?section=users&user_q=${encodeURIComponent(String(input.userEmail || input.userId))}`,
     createdAt: input.createdAt,
   };
 }
 
-export function buildWebhookErrorNotification(input: {
-  provider: string;
-  eventType?: string | null;
-  statusCode: number;
-  referenceId?: string | null;
-  createdAt: string;
-}): AdminNotificationItem {
+export function buildWebhookErrorNotification(
+  input: {
+    provider: string;
+    eventType?: string | null;
+    statusCode: number;
+    referenceId?: string | null;
+    createdAt: string;
+  },
+  language: AppLanguage
+): AdminNotificationItem {
+  const copy = getAdminNotificationCopy(language);
   return {
     id: `webhook:${input.provider}:${input.referenceId || input.createdAt}`,
     kind: "webhook",
-    title: "Webhook con error",
-    body: `${input.provider} devolvio ${input.statusCode}${input.eventType ? ` en ${input.eventType}` : ""}.`,
+    title: copy.webhookError,
+    body: copy.webhookErrorBody(input.provider, input.statusCode, input.eventType),
     href: "/admin?section=summary",
     createdAt: input.createdAt,
   };
