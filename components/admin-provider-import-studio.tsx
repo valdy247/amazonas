@@ -42,6 +42,14 @@ type DragState = {
   startY: number;
 } | null;
 
+type ProgressState = {
+  phase: "extract" | "import";
+  completed: number;
+  total: number;
+  startedAt: number;
+  label: string;
+} | null;
+
 const SOURCE_OPTIONS: Array<{ value: ProviderImportSource; label: string }> = [
   { value: "messenger", label: "Messenger" },
   { value: "facebook", label: "Facebook" },
@@ -229,6 +237,7 @@ export function AdminProviderImportStudio() {
   const [manualCropWidth, setManualCropWidth] = useState(54);
   const [manualCropHeight, setManualCropHeight] = useState(9);
   const [dragState, setDragState] = useState<DragState>(null);
+  const [progress, setProgress] = useState<ProgressState>(null);
   const [isExtracting, startExtract] = useTransition();
   const [isImporting, startImport] = useTransition();
 
@@ -237,6 +246,33 @@ export function AdminProviderImportStudio() {
   const bulkTextMode = source === "bulk_text";
   const currentManualImage = manualImages[manualIndex] || null;
   const manualCropWidthMax = Math.max(25, 100 - manualCropLeft);
+  const progressPercent = progress ? Math.max(0, Math.min(100, Math.round((progress.completed / Math.max(progress.total, 1)) * 100))) : 0;
+  const progressEtaSeconds = useMemo(() => {
+    if (!progress || progress.completed <= 0 || progress.completed >= progress.total) {
+      return null;
+    }
+
+    const elapsedSeconds = Math.max(1, (Date.now() - progress.startedAt) / 1000);
+    const rate = progress.completed / elapsedSeconds;
+    if (!Number.isFinite(rate) || rate <= 0) {
+      return null;
+    }
+
+    return Math.max(1, Math.round((progress.total - progress.completed) / rate));
+  }, [progress]);
+
+  function formatEta(seconds: number | null) {
+    if (!seconds) {
+      return "Calculating time remaining...";
+    }
+
+    if (seconds < 60) {
+      return `About ${seconds}s remaining`;
+    }
+
+    const minutes = Math.ceil(seconds / 60);
+    return `About ${minutes} min remaining`;
+  }
 
   useEffect(() => {
     setManualCropWidth((current) => Math.min(current, manualCropWidthMax));
@@ -311,6 +347,15 @@ export function AdminProviderImportStudio() {
     const preparedByName = new Map(prepared.map((file) => [file.name, file]));
     const chunkSize = 8;
     const aggregated: PreviewRow[] = [];
+    const startedAt = Date.now();
+
+    setProgress({
+      phase: "extract",
+      completed: 0,
+      total: prepared.length,
+      startedAt,
+      label: "Preparing AI extraction",
+    });
 
     for (let index = 0; index < prepared.length; index += chunkSize) {
       const chunk = prepared.slice(index, index + chunkSize);
@@ -345,6 +390,13 @@ export function AdminProviderImportStudio() {
             );
 
       aggregated.push(...flattenedRows);
+      setProgress({
+        phase: "extract",
+        completed: Math.min(index + chunk.length, prepared.length),
+        total: prepared.length,
+        startedAt,
+        label: "Processing captures with AI",
+      });
       setStatus(`Procesadas ${Math.min(index + chunk.length, prepared.length)} de ${prepared.length} capturas...`);
     }
 
@@ -357,6 +409,7 @@ export function AdminProviderImportStudio() {
         ? `Listo. Detectamos ${deduped.length} proveedores potenciales. Revisa la lista antes de importar.`
         : "No se detectaron contactos utiles en esas capturas."
     );
+    setProgress(null);
   }
 
   async function handleFiles(files: FileList | null) {
@@ -384,12 +437,14 @@ export function AdminProviderImportStudio() {
           setManualImages(images);
           setManualIndex(0);
           setRows([]);
+          setProgress(null);
           setStatus("Haz clic en cada fila que quieras recortar. Puedes avanzar imagen por imagen.");
           return;
         }
 
         await runExtractionFromPreparedFiles(prepared);
       } catch (error) {
+        setProgress(null);
         setStatus(error instanceof Error ? error.message : "No se pudieron procesar las capturas.");
       }
     });
@@ -404,6 +459,14 @@ export function AdminProviderImportStudio() {
     setStatus("");
     startExtract(async () => {
       try {
+        const startedAt = Date.now();
+        setProgress({
+          phase: "extract",
+          completed: 0,
+          total: Math.max(1, bulkText.length),
+          startedAt,
+          label: "Processing text with AI",
+        });
         const formData = new FormData();
         formData.set("source", "bulk_text");
         formData.set("text", bulkText);
@@ -418,13 +481,22 @@ export function AdminProviderImportStudio() {
           throw new Error(data.error || "No se pudo procesar el texto.");
         }
 
+        setProgress({
+          phase: "extract",
+          completed: Math.max(1, bulkText.length),
+          total: Math.max(1, bulkText.length),
+          startedAt,
+          label: "Processing text with AI",
+        });
         setRows(data.rows || []);
         setStatus(
           (data.rows || []).length
             ? `Listo. Detectamos ${(data.rows || []).length} proveedores potenciales desde el texto.`
             : "No se detectaron contactos utiles en ese texto."
         );
+        setProgress(null);
       } catch (error) {
+        setProgress(null);
         setStatus(error instanceof Error ? error.message : "No se pudo procesar el texto.");
       }
     });
@@ -485,6 +557,14 @@ export function AdminProviderImportStudio() {
 
     startExtract(async () => {
       try {
+        const totalCrops = manualImages.reduce((sum, image) => sum + image.crops.length, 0);
+        setProgress({
+          phase: "extract",
+          completed: 0,
+          total: Math.max(1, totalCrops),
+          startedAt: Date.now(),
+          label: "Preparing manual crops",
+        });
         const cropPreviewByFileName = new Map<string, string>();
         const croppedFiles = (
           await Promise.all(
@@ -503,6 +583,7 @@ export function AdminProviderImportStudio() {
 
         await runExtractionFromPreparedFiles(croppedFiles, cropPreviewByFileName);
       } catch (error) {
+        setProgress(null);
         setStatus(error instanceof Error ? error.message : "No se pudieron procesar los recortes manuales.");
       }
     });
@@ -533,6 +614,15 @@ export function AdminProviderImportStudio() {
 
     startImport(async () => {
       try {
+        const importableCount = rows.filter((row) => !row.duplicateMessage && row.value.trim()).length;
+        const startedAt = Date.now();
+        setProgress({
+          phase: "import",
+          completed: 0,
+          total: Math.max(1, importableCount),
+          startedAt,
+          label: "Importing providers",
+        });
         const response = await fetch("/api/admin/provider-import/commit", {
           method: "POST",
           headers: {
@@ -562,10 +652,19 @@ export function AdminProviderImportStudio() {
           throw new Error(data.error || "No se pudo completar la importacion.");
         }
 
+        setProgress({
+          phase: "import",
+          completed: Math.max(1, importableCount),
+          total: Math.max(1, importableCount),
+          startedAt,
+          label: "Importing providers",
+        });
         const skippedText = (data.skipped || []).slice(0, 4).map((item) => `${item.value}: ${item.reason}`).join(" | ");
         setStatus([data.summary, skippedText].filter(Boolean).join(" "));
         setRows([]);
+        setProgress(null);
       } catch (error) {
+        setProgress(null);
         setStatus(error instanceof Error ? error.message : "No se pudo completar la importacion.");
       }
     });
@@ -800,9 +899,30 @@ export function AdminProviderImportStudio() {
           </div>
         ) : null}
 
-        {(isExtracting || isImporting) && (
-          <div className="rounded-[1.2rem] border border-[#eadfd6] bg-white px-4 py-3 text-sm text-[#62564a]">
-            {isExtracting ? (bulkTextMode ? "Procesando texto con IA..." : "Procesando capturas con IA...") : "Importando proveedores..."}
+        {(isExtracting || isImporting || progress) && (
+          <div className="rounded-[1.2rem] border border-[#eadfd6] bg-white px-4 py-4">
+            <div className="flex items-center justify-between gap-3 text-sm">
+              <p className="font-semibold text-[#131316]">
+                {progress?.label || (isExtracting ? (bulkTextMode ? "Processing text with AI" : "Processing captures with AI") : "Importing providers")}
+              </p>
+              <span className="text-[#62564a]">{progressPercent}%</span>
+            </div>
+            <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#f2e6db]">
+              <div
+                className="h-full rounded-full bg-[linear-gradient(90deg,#ff6c38_0%,#ff895f_100%)] transition-[width] duration-300"
+                style={{ width: `${Math.max(progressPercent, 8)}%` }}
+              />
+            </div>
+            <div className="mt-3 flex items-center justify-between gap-3 text-xs text-[#62564a]">
+              <span>
+                {progress
+                  ? `${Math.min(progress.completed, progress.total)} of ${progress.total} completed`
+                  : isImporting
+                    ? "Finishing import..."
+                    : "Starting..."}
+              </span>
+              <span>{formatEta(progressEtaSeconds)}</span>
+            </div>
           </div>
         )}
       </div>
