@@ -350,6 +350,18 @@ export function AdminProviderImportStudio() {
     }, 2200);
   }
 
+  function resetImportDraft() {
+    setRows([]);
+    setManualImages([]);
+    setManualIndex(0);
+    setBulkText("");
+    setProgress(null);
+    setVisualProgressPercent(null);
+    setDisplayProgressPercent(0);
+    setReadyNotice("");
+    setStatus("");
+  }
+
   useEffect(() => {
     setManualCropWidth((current) => Math.min(current, manualCropWidthMax));
   }, [manualCropWidthMax]);
@@ -1123,7 +1135,18 @@ export function AdminProviderImportStudio() {
         ) : null}
 
         {status ? (
-          <div className="rounded-[1.2rem] border border-[#eadfd6] bg-white px-4 py-3 text-sm text-[#62564a]">{status}</div>
+          <div className="flex items-start justify-between gap-3 rounded-[1.2rem] border border-[#eadfd6] bg-white px-4 py-3 text-sm text-[#62564a]">
+            <span className="min-w-0 flex-1">{status}</span>
+            {!isExtracting && !isImporting && !progress ? (
+              <button
+                type="button"
+                className="shrink-0 rounded-full border border-[#eadfd6] px-3 py-1 text-xs font-semibold text-[#62564a]"
+                onClick={resetImportDraft}
+              >
+                X
+              </button>
+            ) : null}
+          </div>
         ) : null}
 
         {readyNotice ? (
@@ -1139,9 +1162,19 @@ export function AdminProviderImportStudio() {
                 <p className="text-sm font-semibold text-[#131316]">{socialManualMode && !bulkTextMode ? "4. Revisar antes de importar" : "3. Revisar antes de importar"}</p>
                 <p className="mt-1 text-xs text-[#62564a]">Los alias se generaran solos. Si ves un duplicado, lo dejamos fuera del lote.</p>
               </div>
-              <button className="btn-primary" type="button" onClick={importRows} disabled={isImporting || !rows.some((row) => !row.duplicateMessage)}>
-                {isImporting ? "Importando..." : `Importar ${rows.filter((row) => !row.duplicateMessage).length} proveedores`}
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-[#eadfd6] text-lg font-semibold text-[#62564a]"
+                  onClick={resetImportDraft}
+                  aria-label="Cancelar revision"
+                >
+                  ×
+                </button>
+                <button className="btn-primary" type="button" onClick={importRows} disabled={isImporting || !rows.some((row) => !row.duplicateMessage)}>
+                  {isImporting ? "Importando..." : `Importar ${rows.filter((row) => !row.duplicateMessage).length} proveedores`}
+                </button>
+              </div>
             </div>
 
             <div className="mt-4 space-y-2">
