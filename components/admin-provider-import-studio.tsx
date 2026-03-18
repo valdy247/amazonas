@@ -3,7 +3,15 @@
 import { useEffect, useMemo, useState, useTransition, type PointerEvent as ReactPointerEvent } from "react";
 import { CompactSelect } from "@/components/compact-select";
 
-type ProviderImportSource = "messenger" | "facebook" | "instagram" | "whatsapp" | "email" | "bulk_text" | "csv_contacts";
+type ProviderImportSource =
+  | "messenger"
+  | "facebook"
+  | "instagram"
+  | "whatsapp"
+  | "email"
+  | "bulk_text"
+  | "csv_contacts"
+  | "chat_export_zip";
 
 type PreviewRow = {
   id: string;
@@ -58,6 +66,7 @@ const SOURCE_OPTIONS: Array<{ value: ProviderImportSource; label: string }> = [
   { value: "email", label: "Email" },
   { value: "bulk_text", label: "Texto masivo" },
   { value: "csv_contacts", label: "CSV de contactos" },
+  { value: "chat_export_zip", label: "ZIP de chat" },
 ];
 
 async function compressImage(file: File, index: number) {
@@ -257,6 +266,7 @@ export function AdminProviderImportStudio() {
   const socialManualMode = source === "messenger" || source === "facebook";
   const bulkTextMode = source === "bulk_text";
   const csvMode = source === "csv_contacts";
+  const chatZipMode = source === "chat_export_zip";
   const currentManualImage = manualImages[manualIndex] || null;
   const manualCropWidthMax = Math.max(25, 100 - manualCropLeft);
   const progressPercent = progress
@@ -500,7 +510,7 @@ export function AdminProviderImportStudio() {
   }
 
   async function handleFiles(files: FileList | null) {
-    if (bulkTextMode || csvMode) {
+    if (bulkTextMode || csvMode || chatZipMode) {
       return;
     }
 
@@ -647,6 +657,62 @@ export function AdminProviderImportStudio() {
         setProgress(null);
         setVisualProgressPercent(null);
         setStatus(error instanceof Error ? error.message : "No se pudo procesar el CSV.");
+      }
+    });
+  }
+
+  function extractFromChatZip(file: File | null) {
+    if (!file) {
+      setStatus("Selecciona el ZIP antes de procesarlo.");
+      return;
+    }
+
+    setStatus("");
+    startExtract(async () => {
+      try {
+        const startedAt = Date.now();
+        setProgress({
+          phase: "extract",
+          completed: 0,
+          total: Math.max(1, file.size),
+          startedAt,
+          label: "Processing exported chat ZIP",
+        });
+        setVisualProgressPercent(12);
+
+        const formData = new FormData();
+        formData.set("source", "chat_export_zip");
+        formData.set("zip", file);
+
+        const response = await fetch("/api/admin/provider-import/extract", {
+          method: "POST",
+          body: formData,
+        });
+        const data = (await response.json()) as { rows?: PreviewRow[]; error?: string };
+
+        if (!response.ok) {
+          throw new Error(data.error || "No se pudo procesar el ZIP.");
+        }
+
+        setProgress({
+          phase: "extract",
+          completed: Math.max(1, file.size),
+          total: Math.max(1, file.size),
+          startedAt,
+          label: "Processing exported chat ZIP",
+        });
+        setRows(data.rows || []);
+        setStatus(
+          (data.rows || []).length
+            ? `Listo. Detectamos ${(data.rows || []).length} proveedores potenciales desde el chat exportado.`
+            : "No se detectaron contactos utiles en ese chat exportado."
+        );
+        setProgress(null);
+        setVisualProgressPercent(null);
+      } catch (error) {
+        setProgress(null);
+        setVisualProgressPercent(null);
+        setStatus(error instanceof Error ? error.message : "No se pudo procesar el ZIP.");
       }
     });
   }
@@ -854,13 +920,15 @@ export function AdminProviderImportStudio() {
 
         <div className="rounded-[1.3rem] border border-dashed border-[#d8c8b8] bg-[#fffaf5] p-4">
           <p className="text-sm font-semibold text-[#131316]">
-            2. {bulkTextMode ? "Pega el texto masivo" : csvMode ? "Sube el CSV de contactos" : "Sube todas las capturas"}
+            2. {bulkTextMode ? "Pega el texto masivo" : csvMode ? "Sube el CSV de contactos" : chatZipMode ? "Sube el ZIP del chat exportado" : "Sube todas las capturas"}
           </p>
           <p className="mt-1 text-xs leading-5 text-[#62564a]">
             {bulkTextMode
               ? "GPT extraera Facebook, correos y telefonos del bloque grande de texto y los convertira en proveedores."
               : csvMode
                 ? "Leemos el CSV estructurado, normalizamos Facebook, correos y telefonos, y marcamos duplicados antes de importar."
+                : chatZipMode
+                  ? "Leemos _chat.txt dentro del ZIP, filtramos mensajes con contexto de proveedor y te mostramos solo contactos candidatos para revisar."
               : "Puedes subir muchas a la vez. Las comprimimos y las enviamos por lotes para que el proceso sea mas estable."}
           </p>
           {bulkTextMode ? (
@@ -878,6 +946,17 @@ export function AdminProviderImportStudio() {
                 {isExtracting ? "Procesando..." : "Extraer desde texto"}
               </button>
             </>
+          ) : chatZipMode ? (
+            <label className="mt-3 flex cursor-pointer flex-col items-center justify-center rounded-[1.2rem] border border-[#eadfd6] bg-white px-4 py-6 text-center">
+              <span className="text-sm font-semibold text-[#131316]">Seleccionar ZIP</span>
+              <span className="mt-1 text-xs text-[#62564a]">ZIP exportado de WhatsApp con _chat.txt. Filtramos solo mensajes con contexto de proveedor.</span>
+              <input
+                type="file"
+                accept=".zip,application/zip"
+                className="sr-only"
+                onChange={(event) => extractFromChatZip(event.target.files?.[0] || null)}
+              />
+            </label>
           ) : csvMode ? (
             <label className="mt-3 flex cursor-pointer flex-col items-center justify-center rounded-[1.2rem] border border-[#eadfd6] bg-white px-4 py-6 text-center">
               <span className="text-sm font-semibold text-[#131316]">Seleccionar CSV</span>
@@ -1043,12 +1122,12 @@ export function AdminProviderImportStudio() {
                       </p>
                       <input
                         className="input mt-2"
-                        value={bulkTextMode || csvMode ? row.preview : row.value}
+                        value={bulkTextMode || csvMode || chatZipMode ? row.preview : row.value}
                         onChange={(event) => updateRow(row.id, event.target.value)}
                         placeholder="Contacto extraido"
-                        readOnly={bulkTextMode || csvMode}
+                        readOnly={bulkTextMode || csvMode || chatZipMode}
                       />
-                      {bulkTextMode || csvMode ? (
+                      {bulkTextMode || csvMode || chatZipMode ? (
                         <div className="mt-2 grid gap-2 sm:grid-cols-3">
                           {row.facebook ? <div className="rounded-[1rem] bg-[#fcfaf7] px-3 py-2 text-xs text-[#62564a]">Facebook: {row.facebook}</div> : null}
                           {row.email ? <div className="rounded-[1rem] bg-[#fcfaf7] px-3 py-2 text-xs text-[#62564a]">Email: {row.email}</div> : null}

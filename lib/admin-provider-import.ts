@@ -14,7 +14,8 @@ export type ProviderImportSource =
   | "whatsapp"
   | "email"
   | "bulk_text"
-  | "csv_contacts";
+  | "csv_contacts"
+  | "chat_export_zip";
 
 export type ProviderImportDraft = {
   email?: string | null;
@@ -95,6 +96,7 @@ export function normalizeImportedContactValue(source: ProviderImportSource, raw:
       return normalizeEmail(value);
     case "bulk_text":
     case "csv_contacts":
+    case "chat_export_zip":
       return value;
     default:
       return value;
