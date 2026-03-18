@@ -239,6 +239,7 @@ export function AdminProviderImportStudio() {
   const [dragState, setDragState] = useState<DragState>(null);
   const [progress, setProgress] = useState<ProgressState>(null);
   const [visualProgressPercent, setVisualProgressPercent] = useState<number | null>(null);
+  const [displayProgressPercent, setDisplayProgressPercent] = useState<number>(0);
   const [isExtracting, startExtract] = useTransition();
   const [isImporting, startImport] = useTransition();
 
@@ -352,6 +353,7 @@ export function AdminProviderImportStudio() {
   useEffect(() => {
     if (!progress) {
       setVisualProgressPercent(null);
+      setDisplayProgressPercent(0);
       return;
     }
 
@@ -386,6 +388,31 @@ export function AdminProviderImportStudio() {
 
     return () => window.clearInterval(interval);
   }, [progress]);
+
+  useEffect(() => {
+    if (!progress) {
+      setDisplayProgressPercent(0);
+      return;
+    }
+
+    const target = Math.max(0, Math.min(100, Math.round(progressPercent)));
+
+    if (target === displayProgressPercent) {
+      return;
+    }
+
+    const timeout = window.setTimeout(() => {
+      setDisplayProgressPercent((current) => {
+        if (current === target) {
+          return current;
+        }
+
+        return current < target ? current + 1 : current - 1;
+      });
+    }, 55);
+
+    return () => window.clearTimeout(timeout);
+  }, [displayProgressPercent, progress, progressPercent]);
 
   async function runExtractionFromPreparedFiles(
     prepared: File[],
@@ -964,12 +991,12 @@ export function AdminProviderImportStudio() {
               <p className="font-semibold text-[#131316]">
                 {progress?.label || (isExtracting ? (bulkTextMode ? "Processing text with AI" : "Processing captures with AI") : "Importing providers")}
               </p>
-              <span className="text-[#62564a]">{progressPercent}%</span>
+              <span className="text-[#62564a]">{displayProgressPercent}%</span>
             </div>
             <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#f2e6db]">
               <div
                 className="h-full rounded-full bg-[linear-gradient(90deg,#ff6c38_0%,#ff895f_100%)] transition-[width] duration-300"
-                style={{ width: `${Math.max(progressPercent, 8)}%` }}
+                style={{ width: `${Math.max(displayProgressPercent, 8)}%` }}
               />
             </div>
             <div className="mt-3 flex items-center justify-between gap-3 text-xs text-[#62564a]">
