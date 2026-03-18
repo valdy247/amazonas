@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useDeferredValue, useMemo, useState } from "react";
+import { type AppLanguage } from "@/lib/i18n";
 import { formatMembershipDate } from "@/lib/membership";
 import {
   sendPasswordRecoveryForUserAction,
@@ -41,6 +42,7 @@ type MemberRow = {
 type AdminUserManagerProps = {
   members: MemberRow[];
   initialQuery?: string;
+  language: AppLanguage;
 };
 
 const idleAdminActionState: AdminActionState = {
@@ -191,7 +193,7 @@ function AdminMembershipActions({ member }: { member: MemberRow }) {
   );
 }
 
-export function AdminUserManager({ members, initialQuery = "" }: AdminUserManagerProps) {
+export function AdminUserManager({ members, initialQuery = "", language }: AdminUserManagerProps) {
   const [query, setQuery] = useState(initialQuery);
   const [openUserId, setOpenUserId] = useState<string | null>(members[0]?.id ?? null);
   const [roleFilter, setRoleFilter] = useState("all");
@@ -360,15 +362,15 @@ export function AdminUserManager({ members, initialQuery = "" }: AdminUserManage
                     </p>
                     <p>
                       <span className="font-semibold text-[#131316]">Fin de periodo:</span>{" "}
-                      {formatMembershipDate(member.membershipCurrentPeriodEndAt, "es") || "Sin fecha"}
+                      {formatMembershipDate(member.membershipCurrentPeriodEndAt, language) || "Sin fecha"}
                     </p>
                     <p>
                       <span className="font-semibold text-[#131316]">Cancelada en:</span>{" "}
-                      {formatMembershipDate(member.membershipCanceledAt, "es") || "No cancelada"}
+                      {formatMembershipDate(member.membershipCanceledAt, language) || "No cancelada"}
                     </p>
                     <p>
                       <span className="font-semibold text-[#131316]">Ultimo fallo de cobro:</span>{" "}
-                      {formatMembershipDate(member.membershipLastPaymentFailedAt, "es") || "Sin fallos"}
+                      {formatMembershipDate(member.membershipLastPaymentFailedAt, language) || "Sin fallos"}
                     </p>
                     <p>
                       <span className="font-semibold text-[#131316]">Referencia KYC:</span>{" "}
@@ -422,7 +424,7 @@ export function AdminUserManager({ members, initialQuery = "" }: AdminUserManage
                                 {entry.type}
                               </span>
                             </div>
-                            <p className="mt-2 text-[11px] text-[#8f857b]">{formatMembershipDate(entry.at, "es") || entry.at}</p>
+                            <p className="mt-2 text-[11px] text-[#8f857b]">{formatMembershipDate(entry.at, language) || entry.at}</p>
                           </div>
                         ))
                       ) : (

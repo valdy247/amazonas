@@ -13,6 +13,8 @@ import { SupportCenter } from "@/components/support-center";
 import { SiteHeader } from "@/components/site-header";
 import { getComparableContactMethods } from "@/lib/provider-contact";
 import { hasAdminAccess } from "@/lib/admin";
+import { navigationCopy, normalizeLanguage } from "@/lib/i18n";
+import { getRequestAppLanguage } from "@/lib/request-language-server";
 import { createClient } from "@/lib/supabase/server";
 import { WHATSAPP_PREFIX_OPTIONS } from "@/lib/whatsapp-prefix-options";
 
@@ -123,15 +125,17 @@ type ProviderContactReviewGroup = {
   adminNote: string | null;
 };
 
-const ADMIN_SECTIONS = [
-  { id: "summary", label: "Resumen" },
-  { id: "providers", label: "Proveedores" },
-  { id: "imports", label: "Importaciones" },
-  { id: "quality", label: "Calidad" },
-  { id: "users", label: "Usuarios" },
-  { id: "support", label: "Soporte" },
-  { id: "options", label: "Opciones" },
-] as const;
+function getAdminSections(language: "es" | "en") {
+  return [
+    { id: "summary", label: language === "en" ? "Summary" : "Resumen" },
+    { id: "providers", label: language === "en" ? "Providers" : "Proveedores" },
+    { id: "imports", label: language === "en" ? "Imports" : "Importaciones" },
+    { id: "quality", label: language === "en" ? "Quality" : "Calidad" },
+    { id: "users", label: language === "en" ? "Users" : "Usuarios" },
+    { id: "support", label: language === "en" ? "Support" : "Soporte" },
+    { id: "options", label: language === "en" ? "Options" : "Opciones" },
+  ] as const;
+}
 
 type AdminPageProps = { searchParams?: Promise<Record<string, string | string[] | undefined>> };
 
@@ -201,13 +205,16 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   } = await supabase.auth.getUser();
   if (!user) redirect("/auth");
 
-  const { data: profile } = await supabase.from("profiles").select("role, email").eq("id", user.id).single();
+  const { data: profile } = await supabase.from("profiles").select("role, email, preferred_language").eq("id", user.id).single();
   if (!hasAdminAccess(profile?.role, profile?.email || user.email)) redirect("/dashboard");
+  const language = normalizeLanguage(profile?.preferred_language || (await getRequestAppLanguage()));
+  const nav = navigationCopy[language];
+  const adminSections = getAdminSections(language);
 
   const resolvedSearchParams = searchParams ? await searchParams : {};
   const requestedSection = resolveSearchValue(resolvedSearchParams.section);
   const userSearchQuery = resolveSearchValue(resolvedSearchParams.user_q).trim();
-  const activeSection = ADMIN_SECTIONS.some((section) => section.id === requestedSection)
+  const activeSection = adminSections.some((section) => section.id === requestedSection)
     ? requestedSection
     : "summary";
 
@@ -640,23 +647,24 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   }));
 
   return (
-    <div className="min-h-screen">
-      <SiteHeader
-        showAdminNotifications
-        menuItems={[
-          { href: "/dashboard", label: "Inicio" },
-          { href: "/admin?section=summary", label: "Resumen" },
-          { href: "/admin?section=providers", label: "Proveedores" },
-          { href: "/admin?section=imports", label: "Importaciones" },
-          { href: "/admin?section=quality", label: "Calidad" },
-          { href: "/admin?section=users", label: "Usuarios" },
-          { href: "/admin?section=support", label: "Soporte" },
-          { href: "/profile", label: "Editar perfil" },
+      <div className="min-h-screen">
+        <SiteHeader
+          language={language}
+          showAdminNotifications
+          menuItems={[
+          { href: "/dashboard", label: nav.goToDashboard },
+          { href: "/admin?section=summary", label: language === "en" ? "Summary" : "Resumen" },
+          { href: "/admin?section=providers", label: language === "en" ? "Providers" : "Proveedores" },
+          { href: "/admin?section=imports", label: language === "en" ? "Imports" : "Importaciones" },
+          { href: "/admin?section=quality", label: language === "en" ? "Quality" : "Calidad" },
+          { href: "/admin?section=users", label: language === "en" ? "Users" : "Usuarios" },
+          { href: "/admin?section=support", label: language === "en" ? "Support" : "Soporte" },
+          { href: "/profile", label: nav.editProfile },
         ]}
       />
       <main className="container-x space-y-7 pt-8 pb-6">
         <section className="pt-3">
-          <AdminSectionNav sections={ADMIN_SECTIONS} activeSection={activeSection} />
+          <AdminSectionNav sections={adminSections} activeSection={activeSection} />
         </section>
 
         <section className="rounded-[1.8rem] border border-[#1f1b17] bg-[linear-gradient(135deg,#201915_0%,#2c221a_55%,#3f2a1d_100%)] px-5 pb-5 pt-10 text-white shadow-[0_26px_80px_rgba(35,22,13,0.22)]">
@@ -985,6 +993,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
               </form>
               <AdminUserManager
                 initialQuery={userSearchQuery}
+                language={language}
                 members={members.map((member) => ({
                   id: member.id,
                   full_name: member.full_name,
@@ -1092,7 +1101,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
               </div>
               <SupportCenter
                 currentUserId={user.id}
-                language="es"
+                language={language}
                 isAdmin
                 threads={supportThreadRows.map((thread) => {
                   const profileForThread = supportProfileMap.get(thread.user_id);
