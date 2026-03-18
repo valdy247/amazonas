@@ -803,7 +803,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                   </div>
                 </div>
                 {contacts.length ? (
-                  <AdminProviderManager contacts={contacts} whatsappPrefixOptions={WHATSAPP_PREFIX_OPTIONS} duplicateGroups={duplicateGroups} />
+                  <AdminProviderManager contacts={contacts} whatsappPrefixOptions={WHATSAPP_PREFIX_OPTIONS} duplicateGroups={duplicateGroups} language={language} />
                 ) : (
                   <div className="mt-4 rounded-[1.2rem] border border-dashed border-[#e2d8cc] bg-[#fffaf5] p-5 text-sm text-[#62626d]">No hay contactos de proveedores cargados todavia.</div>
                 )}
