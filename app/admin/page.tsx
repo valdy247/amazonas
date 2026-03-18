@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { updateDirectoryRemovalRequest, updateProviderContactReportReview } from "@/app/admin/actions";
 import { AdminProviderCreateForm } from "@/components/admin-provider-create-form";
@@ -123,13 +124,13 @@ type ProviderContactReviewGroup = {
 };
 
 const ADMIN_SECTIONS = [
+  { id: "summary", label: "Resumen" },
   { id: "providers", label: "Proveedores" },
+  { id: "imports", label: "Importaciones" },
+  { id: "quality", label: "Calidad" },
   { id: "users", label: "Usuarios" },
-  { id: "options", label: "Opciones" },
-] as const;
-const ADMIN_EXTRA_SECTIONS = [
-  { id: "metrics", label: "Metricas" },
   { id: "support", label: "Soporte" },
+  { id: "options", label: "Opciones" },
 ] as const;
 
 type AdminPageProps = { searchParams?: Promise<Record<string, string | string[] | undefined>> };
@@ -206,9 +207,9 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   const resolvedSearchParams = searchParams ? await searchParams : {};
   const requestedSection = resolveSearchValue(resolvedSearchParams.section);
   const userSearchQuery = resolveSearchValue(resolvedSearchParams.user_q).trim();
-  const activeSection = [...ADMIN_SECTIONS, ...ADMIN_EXTRA_SECTIONS].some((section) => section.id === requestedSection)
+  const activeSection = ADMIN_SECTIONS.some((section) => section.id === requestedSection)
     ? requestedSection
-    : "providers";
+    : "summary";
 
   const [
     recentMembersResult,
@@ -643,16 +644,19 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       <SiteHeader
         menuItems={[
           { href: "/dashboard", label: "Inicio" },
+          { href: "/admin?section=summary", label: "Resumen" },
+          { href: "/admin?section=providers", label: "Proveedores" },
+          { href: "/admin?section=imports", label: "Importaciones" },
+          { href: "/admin?section=quality", label: "Calidad" },
+          { href: "/admin?section=users", label: "Usuarios" },
           { href: "/admin/contact-health", label: "Salud contactos" },
-          { href: "/admin?section=providers#repair-center", label: "Saneamiento" },
-          { href: "/admin?section=metrics", label: "Metricas" },
           { href: "/admin?section=support", label: "Soporte" },
           { href: "/profile", label: "Editar perfil" },
         ]}
       />
       <main className="container-x space-y-7 pt-8 pb-6">
         <section className="pt-3">
-          <AdminSectionNav sections={[...ADMIN_SECTIONS, ...ADMIN_EXTRA_SECTIONS]} activeSection={activeSection} />
+          <AdminSectionNav sections={ADMIN_SECTIONS} activeSection={activeSection} />
         </section>
 
         <section className="rounded-[1.8rem] border border-[#1f1b17] bg-[linear-gradient(135deg,#201915_0%,#2c221a_55%,#3f2a1d_100%)] px-5 pb-5 pt-10 text-white shadow-[0_26px_80px_rgba(35,22,13,0.22)]">
@@ -664,11 +668,118 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         </section>
 
         <section className="grid gap-4">
+          {activeSection === "summary" ? (
+            <>
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <Link href="/admin?section=providers" className="card p-4 transition hover:-translate-y-0.5">
+                  <p className="text-xs uppercase tracking-[0.18em] text-[#8f857b]">Proveedores</p>
+                  <p className="mt-2 text-3xl font-bold text-[#131316]">{contacts.length}</p>
+                  <p className="mt-1 text-sm text-[#62626d]">Directorio, altas manuales y deduplicacion.</p>
+                </Link>
+                <Link href="/admin?section=imports" className="card p-4 transition hover:-translate-y-0.5">
+                  <p className="text-xs uppercase tracking-[0.18em] text-[#8f857b]">Importaciones</p>
+                  <p className="mt-2 text-3xl font-bold text-[#131316]">IA</p>
+                  <p className="mt-1 text-sm text-[#62626d]">Capturas, texto masivo, CSV y ZIP en una sola area.</p>
+                </Link>
+                <Link href="/admin?section=quality" className="card p-4 transition hover:-translate-y-0.5">
+                  <p className="text-xs uppercase tracking-[0.18em] text-[#8f857b]">Calidad</p>
+                  <p className="mt-2 text-3xl font-bold text-[#131316]">{duplicateGroups.length}</p>
+                  <p className="mt-1 text-sm text-[#62626d]">Saneamiento, salud tecnica, reportes y bajas del directorio.</p>
+                </Link>
+                <Link href="/admin?section=support" className="card p-4 transition hover:-translate-y-0.5">
+                  <p className="text-xs uppercase tracking-[0.18em] text-[#8f857b]">Soporte</p>
+                  <p className="mt-2 text-3xl font-bold text-[#131316]">{supportOpenCount || 0}</p>
+                  <p className="mt-1 text-sm text-[#62626d]">Tickets activos y seguimiento operativo del equipo.</p>
+                </Link>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+                <MetricCard title="Membresias activas" value={activeMembersCount || 0} body="Usuarios con acceso completo." />
+                <MetricCard title="Pago pendiente" value={pendingPaymentCount || 0} body="Aun no completan el primer pago." />
+                <MetricCard title="Validando pago" value={processingPaymentCount || 0} body="Esperando confirmacion final de Square." />
+                <MetricCard title="KYC en revision" value={kycInReviewCount || 0} body="Casos que necesitan mirada manual." />
+                <MetricCard title="Chats activos" value={chatsStartedCount} body="Conversaciones con mensajes reales." />
+                <MetricCard title="Reportes de contacto" value={providerContactReviewGroups.length} body="Casos listos para revision." />
+              </div>
+
+              <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
+                <div className="card p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <h2 className="font-bold">Salud operativa</h2>
+                      <p className="mt-1 text-sm text-[#62626d]">Vista corta para saber que requiere atencion hoy.</p>
+                    </div>
+                    <AdminExportButton filename="webhook-audit.csv" rows={webhookExportRows} label="Exportar webhooks" />
+                  </div>
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-[1.2rem] border border-[#eadfd6] bg-[#fffaf7] p-4">
+                      <p className="text-xs uppercase tracking-[0.18em] text-[#8f857b]">Pagos</p>
+                      <p className="mt-2 text-sm text-[#62564a]">
+                        {failedPaymentCount || 0} cobros fallidos, {canceledMembershipCount || 0} canceladas y {activeMembersCount || 0} activas.
+                      </p>
+                    </div>
+                    <div className="rounded-[1.2rem] border border-[#eadfd6] bg-[#fffaf7] p-4">
+                      <p className="text-xs uppercase tracking-[0.18em] text-[#8f857b]">Verificacion</p>
+                      <p className="mt-2 text-sm text-[#62564a]">
+                        {approvedKycCount || 0} aprobados, {kycInReviewCount || 0} en revision, {kycApprovalRate}% de aprobacion.
+                      </p>
+                    </div>
+                    <div className="rounded-[1.2rem] border border-[#eadfd6] bg-[#fffaf7] p-4">
+                      <p className="text-xs uppercase tracking-[0.18em] text-[#8f857b]">Directorio</p>
+                      <p className="mt-2 text-sm text-[#62564a]">
+                        {duplicateGroups.length} grupos duplicados, {directoryRemovalRequests.length} bajas solicitadas y {contacts.length} contactos cargados.
+                      </p>
+                    </div>
+                    <div className="rounded-[1.2rem] border border-[#eadfd6] bg-[#fffaf7] p-4">
+                      <p className="text-xs uppercase tracking-[0.18em] text-[#8f857b]">Soporte</p>
+                      <p className="mt-2 text-sm text-[#62564a]">
+                        {supportOpenCount || 0} abiertos, {supportResolvedCount || 0} resueltos, {supportResolutionRate}% de resolucion.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="card p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <h2 className="font-bold">Webhook health</h2>
+                    <span
+                      className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                        webhookFailureCount ? "bg-[#fff1f1] text-[#c24d3a]" : "bg-[#eef9f0] text-[#177a52]"
+                      }`}
+                    >
+                      {webhookFailureCount ? `${webhookFailureCount} fallos recientes` : "Sin fallos recientes"}
+                    </span>
+                  </div>
+                  <div className="mt-3 space-y-2">
+                    {webhookRows.slice(0, 6).map((row, index) => (
+                      <div key={`${row.provider}-${row.reference_id || index}`} className="rounded-[1rem] border border-[#eadfd6] bg-[#fffaf7] px-3 py-3 text-sm">
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className="font-semibold text-[#131316]">{row.provider}{row.event_type ? ` · ${row.event_type}` : ""}</p>
+                            <p className="mt-1 text-xs text-[#8f857b]">
+                              {new Date(row.created_at).toLocaleString()}
+                              {row.reference_id ? ` · ${row.reference_id}` : ""}
+                            </p>
+                          </div>
+                          <span
+                            className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                              row.status_code >= 400 ? "bg-[#fff1f1] text-[#c24d3a]" : "bg-[#eef9f0] text-[#177a52]"
+                            }`}
+                          >
+                            {row.status_code}
+                          </span>
+                        </div>
+                        {row.response_message ? <p className="mt-2 text-xs text-[#62564a]">{row.response_message}</p> : null}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </>
+          ) : null}
+
           {activeSection === "providers" ? (
             <>
-              <div className="card p-4">
-                <AdminProviderImportStudio />
-              </div>
               <div className="card p-4">
                 <AdminProviderCreateForm whatsappPrefixOptions={WHATSAPP_PREFIX_OPTIONS} />
               </div>
@@ -689,18 +800,48 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                   <div className="mt-4 rounded-[1.2rem] border border-dashed border-[#e2d8cc] bg-[#fffaf5] p-5 text-sm text-[#62626d]">No hay contactos de proveedores cargados todavia.</div>
                 )}
               </div>
-              <div id="repair-center" className="card p-4">
+            </>
+          ) : null}
+
+          {activeSection === "imports" ? (
+            <div className="card p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <h2 className="font-bold">Saneamiento de proveedores</h2>
-                  <p className="mt-1 text-sm text-[#62626d]">Reglas automaticas para limpiar enlaces, correos y telefonos. Usa IA solo para casos ambiguos.</p>
+                  <h2 className="font-bold">Centro de importacion</h2>
+                  <p className="mt-1 text-sm text-[#62626d]">Capturas, texto masivo, CSV y ZIP de chats en un solo flujo para no mezclarlo con la gestion diaria.</p>
                 </div>
-                {contacts.length ? (
-                  <AdminProviderRepairPanel contacts={contacts} />
-                ) : (
-                  <div className="mt-4 rounded-[1.2rem] border border-dashed border-[#e2d8cc] bg-[#fffaf5] p-5 text-sm text-[#62626d]">
-                    No hay contactos para revisar todavia.
+                <span className="rounded-full bg-[#fff2eb] px-3 py-2 text-xs font-bold uppercase tracking-[0.18em] text-[#dc4f1f]">Area separada</span>
+              </div>
+              <div className="mt-4">
+                <AdminProviderImportStudio />
+              </div>
+            </div>
+          ) : null}
+
+          {activeSection === "quality" ? (
+            <>
+              <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_280px]">
+                <div id="repair-center" className="card p-4">
+                  <div>
+                    <h2 className="font-bold">Saneamiento de proveedores</h2>
+                    <p className="mt-1 text-sm text-[#62626d]">Reglas automaticas para limpiar enlaces, correos y telefonos. Usa IA solo para casos ambiguos.</p>
                   </div>
-                )}
+                  {contacts.length ? (
+                    <AdminProviderRepairPanel contacts={contacts} />
+                  ) : (
+                    <div className="mt-4 rounded-[1.2rem] border border-dashed border-[#e2d8cc] bg-[#fffaf5] p-5 text-sm text-[#62626d]">
+                      No hay contactos para revisar todavia.
+                    </div>
+                  )}
+                </div>
+                <div className="card p-4">
+                  <p className="text-xs uppercase tracking-[0.18em] text-[#8f857b]">Chequeo tecnico</p>
+                  <h2 className="mt-2 font-bold">Salud de contactos</h2>
+                  <p className="mt-2 text-sm text-[#62626d]">Revision aparte para validar enlaces vivos y contactos rotos sin llenar la vista principal de proveedores.</p>
+                  <Link href="/admin/contact-health" className="btn-secondary mt-4 inline-flex">
+                    Abrir salud contactos
+                  </Link>
+                </div>
               </div>
               <div className="card p-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">
