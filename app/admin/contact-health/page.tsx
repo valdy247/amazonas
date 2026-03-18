@@ -51,6 +51,7 @@ export default async function AdminContactHealthPage() {
   return (
     <div className="min-h-screen">
       <SiteHeader
+        showAdminNotifications
         menuItems={[
           { href: "/dashboard", label: "Inicio" },
           { href: "/admin?section=summary", label: "Resumen" },

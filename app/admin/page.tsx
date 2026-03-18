@@ -642,6 +642,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   return (
     <div className="min-h-screen">
       <SiteHeader
+        showAdminNotifications
         menuItems={[
           { href: "/dashboard", label: "Inicio" },
           { href: "/admin?section=summary", label: "Resumen" },

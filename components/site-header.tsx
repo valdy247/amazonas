@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { AdminNotificationBell } from "@/components/admin-notification-bell";
 import { AccountMenu } from "@/components/account-menu";
 import { PushNotificationManager } from "@/components/push-notification-manager";
 import { hasAdminAccess } from "@/lib/admin";
@@ -15,9 +16,17 @@ type SiteHeaderProps = {
   hasUnreadMessages?: boolean;
   unreadThreads?: Array<{ threadId: number; lastIncomingMessageId: number; lastSeenMessageId: number }>;
   language?: AppLanguage;
+  showAdminNotifications?: boolean;
 };
 
-export async function SiteHeader({ menuItems, messageHref, hasUnreadMessages = false, unreadThreads = [], language }: SiteHeaderProps = {}) {
+export async function SiteHeader({
+  menuItems,
+  messageHref,
+  hasUnreadMessages = false,
+  unreadThreads = [],
+  language,
+  showAdminNotifications = false,
+}: SiteHeaderProps = {}) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -46,14 +55,17 @@ export async function SiteHeader({ menuItems, messageHref, hasUnreadMessages = f
           <Link href="/" className="verifyzon-wordmark text-base font-extrabold tracking-tight">
             Verifyzon
           </Link>
-          <AccountMenu
-            user={user}
-            items={resolvedMenuItems}
-            messageHref={messageHref}
-            hasUnreadMessages={hasUnreadMessages}
-            unreadThreads={unreadThreads}
-            language={currentLanguage}
-          />
+          <div className="flex items-center gap-2">
+            {user && isAdmin && showAdminNotifications ? <AdminNotificationBell userId={user.id} /> : null}
+            <AccountMenu
+              user={user}
+              items={resolvedMenuItems}
+              messageHref={messageHref}
+              hasUnreadMessages={hasUnreadMessages}
+              unreadThreads={unreadThreads}
+              language={currentLanguage}
+            />
+          </div>
         </div>
       </header>
       {user ? <PushNotificationManager userId={user.id} language={currentLanguage} /> : null}
