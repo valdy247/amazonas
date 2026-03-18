@@ -25,6 +25,8 @@ export function AuthForm() {
   const [error, setError] = useState<string | null>(null);
   const [preferredLanguage, setPreferredLanguage] = useState(() => normalizeLanguage(params.get("lang")));
   const [signupRole, setSignupRole] = useState<SignupRole>(() => (params.get("role") === "provider" ? "provider" : "reviewer"));
+  const [referralCode, setReferralCode] = useState(() => String(params.get("ref") || "").trim().toUpperCase());
+  const referralLocked = referralCode.length > 0 && Boolean(params.get("ref"));
 
   const mode = useMemo(() => {
     const rawMode = params.get("mode");
@@ -64,6 +66,7 @@ export function AuthForm() {
     const preferredLanguageValue = normalizeLanguage(formData.get("preferred_language"));
     const selectedRole = String(formData.get("signup_role") || "") === "provider" ? "provider" : "reviewer";
     const isProviderSignup = selectedRole === "provider";
+    const referralCodeInput = String(formData.get("referral_code") || "").trim().toUpperCase();
 
     try {
       if (mode === "recovery") {
@@ -115,6 +118,7 @@ export function AuthForm() {
               legal_consent: true,
               accepted_terms_at: acceptedAt,
               accepted_legal_policy_version: "2026-03-17",
+              referral_code_input: isProviderSignup ? "" : referralCodeInput,
             },
           }),
         });
@@ -271,6 +275,32 @@ export function AuthForm() {
               <input className="input" name="first_name" placeholder={copy.firstName} required />
               <input className="input" name="last_name" placeholder={copy.lastName} required />
               <input className="input" name="phone" placeholder={copy.phone} required />
+              <div className="rounded-[1.2rem] border border-[#eadfd6] bg-[#fcfaf7] px-4 py-3">
+                <label className="block text-sm font-semibold text-[#131316]" htmlFor="referral-code">
+                  {preferredLanguage === "en" ? "Referral code (optional)" : "Codigo de referido (opcional)"}
+                </label>
+                <input
+                  id="referral-code"
+                  className={`input mt-3 ${referralLocked ? "bg-[#f4efe8] text-[#7c7064]" : ""}`}
+                  name="referral_code"
+                  placeholder={preferredLanguage === "en" ? "Ex: RT4F6A2" : "Ej: RT4F6A2"}
+                  value={referralCode}
+                  onChange={(event) => {
+                    if (referralLocked) return;
+                    setReferralCode(event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""));
+                  }}
+                  readOnly={referralLocked}
+                />
+                <p className="mt-2 text-xs text-[#7c7064]">
+                  {referralLocked
+                    ? preferredLanguage === "en"
+                      ? "This code came from a referral link and cannot be edited."
+                      : "Este codigo llego desde un enlace de referido y no se puede editar."
+                    : preferredLanguage === "en"
+                      ? "If another verified reviewer invited you, enter their code here."
+                      : "Si otro reseñador verificado te invito, escribe aqui su codigo."}
+                </p>
+              </div>
               <label className="rounded-[1.2rem] border border-[#eadfd6] bg-[#fcfaf7] px-4 py-3 text-sm text-[#62564a]">
                 <span className="flex items-start gap-3">
                   <input className="mt-1" type="checkbox" name="identity_confirmation" required />
@@ -284,6 +314,7 @@ export function AuthForm() {
               <input type="hidden" name="last_name" value="" />
               <input type="hidden" name="phone" value="" />
               <input type="hidden" name="identity_confirmation" value="" />
+              <input type="hidden" name="referral_code" value="" />
             </>
           )}
           <label className="rounded-[1.2rem] border border-[#eadfd6] bg-[#fcfaf7] px-4 py-3 text-sm text-[#62564a]">

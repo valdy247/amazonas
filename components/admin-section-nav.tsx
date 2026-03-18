@@ -13,10 +13,11 @@ type AdminSectionNavProps = {
 };
 
 export function AdminSectionNav({ sections, activeSection }: AdminSectionNavProps) {
+  const desktopGridClass = sections.length >= 8 ? "xl:grid-cols-8" : "xl:grid-cols-7";
   return (
     <div className="w-full">
       <div className="rounded-[1.85rem] border border-[#ead8ce] bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(255,244,237,0.96)_100%)] p-3 shadow-[0_18px_34px_rgba(45,25,15,0.1)] backdrop-blur">
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-7">
+        <div className={`grid grid-cols-2 gap-2 sm:grid-cols-3 ${desktopGridClass}`}>
           {sections.map((section) => {
             const active = activeSection === section.id;
 

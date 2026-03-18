@@ -12,6 +12,11 @@ create table if not exists public.profiles (
   preferred_language text default 'es' check (preferred_language in ('es', 'en')),
   profile_data jsonb default '{}'::jsonb,
   role text default 'pending' check (role in ('pending', 'tester', 'reviewer', 'provider', 'admin')),
+  referral_code text unique,
+  referred_by_user_id uuid references public.profiles(id) on delete set null,
+  referred_by_code text,
+  email_confirmed_at timestamptz,
+  referral_qualified_at timestamptz,
   accepted_terms_at timestamptz,
   created_at timestamptz default now()
 );
@@ -21,6 +26,14 @@ alter table public.profiles add column if not exists last_name text;
 alter table public.profiles add column if not exists phone text;
 alter table public.profiles add column if not exists preferred_language text default 'es';
 alter table public.profiles add column if not exists profile_data jsonb default '{}'::jsonb;
+alter table public.profiles add column if not exists referral_code text;
+alter table public.profiles add column if not exists referred_by_user_id uuid references public.profiles(id) on delete set null;
+alter table public.profiles add column if not exists referred_by_code text;
+alter table public.profiles add column if not exists email_confirmed_at timestamptz;
+alter table public.profiles add column if not exists referral_qualified_at timestamptz;
+create unique index if not exists profiles_referral_code_key on public.profiles (referral_code) where referral_code is not null;
+create index if not exists profiles_referred_by_user_id_idx on public.profiles (referred_by_user_id);
+create index if not exists profiles_referral_qualified_at_idx on public.profiles (referral_qualified_at);
 alter table public.profiles drop constraint if exists profiles_preferred_language_check;
 alter table public.profiles
 add constraint profiles_preferred_language_check
@@ -229,6 +242,12 @@ begin
     coalesce(new.raw_user_meta_data ->> 'phone', ''),
     coalesce(new.raw_user_meta_data ->> 'preferred_language', 'es')
   );
+
+  update public.profiles
+  set
+    referred_by_user_id = nullif(new.raw_user_meta_data ->> 'referred_by_user_id', '')::uuid,
+    referred_by_code = nullif(new.raw_user_meta_data ->> 'referred_by_code', '')
+  where id = new.id;
 
   update public.profiles
   set accepted_terms_at = coalesce(

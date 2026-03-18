@@ -3,6 +3,8 @@ import { callSupabaseAuth } from "@/lib/auth-api";
 import { rejectRateLimited } from "@/lib/rate-limit";
 import { rejectUntrustedOrigin } from "@/lib/security";
 import { resolveSiteOrigin } from "@/lib/site-url";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { normalizeReferralCode, isVerifiedReviewerReferrer } from "@/lib/referrals";
 
 type SignupBody = {
   email?: string;
@@ -21,6 +23,10 @@ export async function POST(request: Request) {
     const email = String(body.email || "").trim().toLowerCase();
     const password = String(body.password || "");
     const legalConsent = body.data && typeof body.data === "object" ? Boolean(body.data.legal_consent) : false;
+    const signupRole =
+      body.data && typeof body.data === "object" && body.data.signup_role === "provider" ? "provider" : "reviewer";
+    const referralCodeInput =
+      body.data && typeof body.data === "object" ? normalizeReferralCode(body.data.referral_code_input) : "";
 
     if (!email || !password) {
       return NextResponse.json({ error: "Datos incompletos" }, { status: 400 });
@@ -42,6 +48,52 @@ export async function POST(request: Request) {
       return rateLimitError;
     }
 
+    let referredByUserId: string | null = null;
+    let referredByCode: string | null = null;
+    if (signupRole === "reviewer" && referralCodeInput) {
+      const admin = createAdminClient();
+      const { data: referrer } = await admin
+        .from("profiles")
+        .select("id, role, referral_code, email_confirmed_at")
+        .eq("referral_code", referralCodeInput)
+        .maybeSingle();
+
+      if (!referrer) {
+        return NextResponse.json(
+          {
+            error:
+              "El codigo de referido no existe o ya no esta activo.",
+          },
+          { status: 400 }
+        );
+      }
+
+      const [{ data: membership }, { data: kyc }] = await Promise.all([
+        admin.from("memberships").select("status, current_period_end_at, canceled_at, last_payment_failed_at").eq("user_id", referrer.id).maybeSingle(),
+        admin.from("kyc_checks").select("status").eq("user_id", referrer.id).maybeSingle(),
+      ]);
+
+      if (
+        !isVerifiedReviewerReferrer({
+          role: referrer.role,
+          membership,
+          kycStatus: kyc?.status || null,
+          emailConfirmedAt: referrer.email_confirmed_at || null,
+        })
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "El codigo de referido no esta habilitado todavia.",
+          },
+          { status: 400 }
+        );
+      }
+
+      referredByUserId = referrer.id;
+      referredByCode = referrer.referral_code || referralCodeInput;
+    }
+
     const result = await callSupabaseAuth("/auth/v1/signup", {
       email,
       password,
@@ -51,7 +103,11 @@ export async function POST(request: Request) {
         forwardedHost: request.headers.get("x-forwarded-host") || request.headers.get("host"),
         forwardedProto: request.headers.get("x-forwarded-proto"),
       })}/auth/callback`,
-      data: body.data || {},
+      data: {
+        ...(body.data || {}),
+        referred_by_user_id: referredByUserId,
+        referred_by_code: referredByCode,
+      },
     });
 
     if (!result.ok) {

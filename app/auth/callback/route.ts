@@ -1,6 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { resolveSiteOrigin } from "@/lib/site-url";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+
+async function syncConfirmedEmailProfile(supabase: Awaited<ReturnType<typeof createClient>>) {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return;
+  }
+
+  const confirmedAt =
+    (user as { email_confirmed_at?: string | null }).email_confirmed_at ||
+    new Date().toISOString();
+
+  const admin = createAdminClient();
+  await admin.from("profiles").update({ email_confirmed_at: confirmedAt }).eq("id", user.id).is("email_confirmed_at", null);
+}
 
 function getSafeRedirect(request: NextRequest) {
   return resolveSiteOrigin({
@@ -27,6 +45,8 @@ export async function GET(request: NextRequest) {
         return NextResponse.redirect(new URL("/auth?confirm_error=1", baseUrl));
       }
 
+      await syncConfirmedEmailProfile(supabase);
+
       if (type === "recovery") {
         return NextResponse.redirect(new URL("/auth?mode=recovery", baseUrl));
       }
@@ -49,6 +69,8 @@ export async function GET(request: NextRequest) {
       if (error) {
         return NextResponse.redirect(new URL("/auth?confirm_error=1", baseUrl));
       }
+
+      await syncConfirmedEmailProfile(supabase);
 
       if (type === "recovery") {
         return NextResponse.redirect(new URL("/auth?mode=recovery", baseUrl));

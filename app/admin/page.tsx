@@ -17,8 +17,20 @@ import { navigationCopy, normalizeLanguage } from "@/lib/i18n";
 import { getRequestAppLanguage } from "@/lib/request-language-server";
 import { createClient } from "@/lib/supabase/server";
 import { WHATSAPP_PREFIX_OPTIONS } from "@/lib/whatsapp-prefix-options";
+import { getMonthlyRewardedReferralCount, getProviderAccessLimit } from "@/lib/referrals";
 
-type ProfileRow = { id: string; full_name: string | null; email: string | null; role: string | null };
+type ProfileRow = {
+  id: string;
+  full_name: string | null;
+  email: string | null;
+  role: string | null;
+  created_at?: string | null;
+  referral_code?: string | null;
+  referred_by_user_id?: string | null;
+  referred_by_code?: string | null;
+  email_confirmed_at?: string | null;
+  referral_qualified_at?: string | null;
+};
 type MembershipRow = {
   user_id: string;
   status: string;
@@ -131,6 +143,7 @@ function getAdminSections(language: "es" | "en") {
     { id: "providers", label: language === "en" ? "Providers" : "Proveedores" },
     { id: "imports", label: language === "en" ? "Imports" : "Importaciones" },
     { id: "quality", label: language === "en" ? "Quality" : "Calidad" },
+    { id: "referrals", label: language === "en" ? "Referrals" : "Referidos" },
     { id: "users", label: language === "en" ? "Users" : "Usuarios" },
     { id: "support", label: language === "en" ? "Support" : "Soporte" },
     { id: "options", label: language === "en" ? "Options" : "Opciones" },
@@ -372,6 +385,38 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   const supportResolutionRate = Math.round(((supportResolvedCount || 0) / Math.max((supportResolvedCount || 0) + (supportOpenCount || 0), 1)) * 100);
   const webhookRows = ((webhookLogResult.data as WebhookAuditRow[] | null) || []);
   const webhookFailureCount = webhookRows.filter((row) => row.status_code >= 400).length;
+  const referralProfilesResult = await supabase
+    .from("profiles")
+    .select("id, full_name, email, role, created_at, referral_code, referred_by_user_id, referred_by_code, email_confirmed_at, referral_qualified_at")
+    .or("role.eq.reviewer,role.eq.tester,referred_by_user_id.not.is.null");
+  const referralProfiles = (referralProfilesResult.data as ProfileRow[] | null) || [];
+  const referralProfileMap = new Map(referralProfiles.map((item) => [item.id, item]));
+  const referralRows = referralProfiles.filter((item) => item.referred_by_user_id);
+  const referralPendingCount = referralRows.filter((item) => !item.referral_qualified_at).length;
+  const referralQualifiedCount = referralRows.filter((item) => Boolean(item.referral_qualified_at)).length;
+  const referralReferrers = referralProfiles
+    .filter((item) => item.referral_code)
+    .map((referrer) => {
+      const referred = referralRows.filter((item) => item.referred_by_user_id === referrer.id);
+      const rewardedThisMonth = getMonthlyRewardedReferralCount(referralRows, referrer.id);
+      return {
+        id: referrer.id,
+        name: referrer.full_name || "Reviewer",
+        email: referrer.email || "",
+        code: referrer.referral_code || "",
+        rewardedThisMonth,
+        providerLimit: getProviderAccessLimit(rewardedThisMonth),
+        totalReferred: referred.length,
+        totalQualified: referred.filter((item) => Boolean(item.referral_qualified_at)).length,
+        latestAt: referred
+          .map((item) => item.referral_qualified_at || item.created_at || "")
+          .filter(Boolean)
+          .sort()
+          .at(-1) || "",
+      };
+    })
+    .filter((item) => item.totalReferred > 0 || item.code)
+    .sort((left, right) => right.totalQualified - left.totalQualified || right.totalReferred - left.totalReferred || left.name.localeCompare(right.name));
 
   const supportThreadCountByUser = new Map<string, number>();
   const requestCountByUser = new Map<string, number>();
@@ -969,6 +1014,114 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                 )}
               </div>
             </>
+          ) : null}
+
+          {activeSection === "referrals" ? (
+            <div className="space-y-4">
+              <div className="grid gap-3 sm:grid-cols-3">
+                <MetricCard
+                  title={language === "en" ? "Referral codes" : "Codigos de referido"}
+                  value={referralProfiles.filter((item) => item.referral_code).length}
+                  body={language === "en" ? "Reviewer accounts with an active code." : "Cuentas de reseñador con codigo activo."}
+                />
+                <MetricCard
+                  title={language === "en" ? "Qualified referrals" : "Referidos validos"}
+                  value={referralQualifiedCount}
+                  body={language === "en" ? "Completed email confirmation, payment, and approved KYC." : "Completaron email, pago y KYC aprobado."}
+                />
+                <MetricCard
+                  title={language === "en" ? "Pending referrals" : "Referidos pendientes"}
+                  value={referralPendingCount}
+                  body={language === "en" ? "Still missing email confirmation, payment, or KYC." : "Aun les falta email, pago o KYC."}
+                />
+              </div>
+
+              <div className="card p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h2 className="font-bold">{language === "en" ? "Referral system" : "Sistema de referidos"}</h2>
+                    <p className="mt-1 text-sm text-[#62626d]">
+                      {language === "en"
+                        ? "Each valid referral gives the referrer 5 more providers, up to 10 rewarded referrals per month."
+                        : "Cada referido valido da 5 proveedores mas al reseñador, con tope de 10 referidos premiados por mes."}
+                    </p>
+                  </div>
+                  <span className="rounded-full bg-[#fff2eb] px-3 py-2 text-xs font-bold uppercase tracking-[0.18em] text-[#dc4f1f]">
+                    {referralRows.length} {language === "en" ? "tracked" : "rastreados"}
+                  </span>
+                </div>
+
+                <div className="mt-4 space-y-3">
+                  {referralReferrers.map((referrer) => (
+                    <article key={referrer.id} className="rounded-[1.35rem] border border-[#eadfd6] bg-[#fffaf7] p-4">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <p className="font-semibold text-[#131316]">{referrer.name}</p>
+                          <p className="mt-1 text-sm text-[#62626d]">{referrer.email || referrer.id}</p>
+                          <p className="mt-2 text-xs font-bold uppercase tracking-[0.18em] text-[#dc4f1f]">{referrer.code}</p>
+                        </div>
+                        <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-[#62564a]">
+                          {referrer.providerLimit}/150 {language === "en" ? "providers" : "proveedores"}
+                        </span>
+                      </div>
+                      <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                        <div className="rounded-[1rem] bg-white px-3 py-3 text-sm">
+                          <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#8f857b]">{language === "en" ? "Rewarded this month" : "Premiados este mes"}</p>
+                          <p className="mt-1 font-semibold text-[#131316]">{referrer.rewardedThisMonth}/10</p>
+                        </div>
+                        <div className="rounded-[1rem] bg-white px-3 py-3 text-sm">
+                          <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#8f857b]">{language === "en" ? "Total referred" : "Total referidos"}</p>
+                          <p className="mt-1 font-semibold text-[#131316]">{referrer.totalReferred}</p>
+                        </div>
+                        <div className="rounded-[1rem] bg-white px-3 py-3 text-sm">
+                          <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#8f857b]">{language === "en" ? "Qualified total" : "Validos totales"}</p>
+                          <p className="mt-1 font-semibold text-[#131316]">{referrer.totalQualified}</p>
+                        </div>
+                      </div>
+                    </article>
+                  ))}
+                  {!referralReferrers.length ? (
+                    <div className="rounded-[1.2rem] border border-dashed border-[#e2d8cc] bg-[#fffaf5] p-5 text-sm text-[#62626d]">
+                      {language === "en" ? "No referral activity yet." : "Todavia no hay actividad de referidos."}
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+
+              <div className="card p-4">
+                <h3 className="font-bold">{language === "en" ? "Tracked referred reviewers" : "Reseñadores referidos"}</h3>
+                <div className="mt-4 space-y-3">
+                  {referralRows.slice(0, 120).map((item) => {
+                    const referrer = item.referred_by_user_id ? referralProfileMap.get(item.referred_by_user_id) : null;
+                    const membership = membershipByUser.get(item.id);
+                    const kyc = kycByUser.get(item.id);
+                    return (
+                      <article key={item.id} className="rounded-[1.25rem] border border-[#eadfd6] bg-[#fffaf7] p-4">
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div>
+                            <p className="font-semibold text-[#131316]">{item.full_name || "Reviewer"}</p>
+                            <p className="mt-1 text-sm text-[#62626d]">{item.email || item.id}</p>
+                            <p className="mt-2 text-xs text-[#8f857b]">
+                              {language === "en" ? "Referrer" : "Refiere"}: {referrer?.full_name || item.referred_by_code || "—"}
+                            </p>
+                          </div>
+                          <span className={`rounded-full px-3 py-1 text-xs font-semibold ${item.referral_qualified_at ? "bg-[#eef9f0] text-[#177a52]" : "bg-[#fff3ec] text-[#dc4f1f]"}`}>
+                            {item.referral_qualified_at ? (language === "en" ? "Qualified" : "Valido") : (language === "en" ? "Pending" : "Pendiente")}
+                          </span>
+                        </div>
+                        <p className="mt-3 text-xs text-[#62564a]">
+                          {language === "en" ? "Email" : "Email"}: {item.email_confirmed_at ? "OK" : "—"} ·
+                          {" "}
+                          {language === "en" ? "Payment" : "Pago"}: {membership?.status || "pending_payment"} ·
+                          {" "}
+                          KYC: {kyc?.status || "pending"}
+                        </p>
+                      </article>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
           ) : null}
 
           {activeSection === "users" ? (

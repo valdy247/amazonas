@@ -11,6 +11,7 @@ import { CollaborationInbox } from "@/components/collaboration-inbox";
 import { SupportCenter } from "@/components/support-center";
 import { TestingAccessControls } from "@/components/testing-access-controls";
 import { ProviderContactGrid } from "@/components/provider-contact-grid";
+import { ReviewerReferralCard } from "@/components/reviewer-referral-card";
 import { getInterestLabel, normalizeInterestKeys, normalizeUserRole } from "@/lib/onboarding";
 import { getReviewerContactMethods, mergeProfileData, type ReviewerAvailability } from "@/lib/profile-data";
 import { normalizeContactRequestData } from "@/lib/contact-requests";
@@ -18,6 +19,15 @@ import { buildContactMethodsFromFields, getComparableContactMethods } from "@/li
 import { dashboardCopy, normalizeLanguage, type AppLanguage } from "@/lib/i18n";
 import { formatMembershipDate, getMembershipMeta, membershipHasAccess, normalizeMembershipStatus } from "@/lib/membership";
 import { reconcileMembershipFromSquare } from "@/lib/square-membership";
+import {
+  buildReferralLink,
+  ensureReferralCode,
+  getMonthlyRewardedReferralCount,
+  getProviderAccessLimit,
+  isVerifiedReviewerReferrer,
+  sortItemsForViewer,
+  syncReferralQualification,
+} from "@/lib/referrals";
 
 type ProviderContact = {
   id: string;
@@ -44,6 +54,11 @@ type ProfileRow = {
   accepted_terms_at?: string | null;
   created_at?: string | null;
   profile_data?: unknown;
+  referral_code?: string | null;
+  referred_by_user_id?: string | null;
+  referred_by_code?: string | null;
+  email_confirmed_at?: string | null;
+  referral_qualified_at?: string | null;
 };
 
 type RequestRow = {
@@ -265,7 +280,7 @@ export default async function DashboardPage({
 
   const withProfileData = await supabase
     .from("profiles")
-    .select("full_name, role, email, preferred_language, profile_data")
+    .select("full_name, role, email, preferred_language, profile_data, referral_code, referred_by_user_id, referred_by_code, email_confirmed_at, referral_qualified_at")
     .eq("id", user.id)
     .single();
 
@@ -273,7 +288,7 @@ export default async function DashboardPage({
     ? (
         await supabase
           .from("profiles")
-          .select("full_name, role, email, preferred_language")
+          .select("full_name, role, email, preferred_language, referral_code, referred_by_user_id, referred_by_code, email_confirmed_at, referral_qualified_at")
           .eq("id", user.id)
           .single()
       ).data
@@ -317,6 +332,15 @@ export default async function DashboardPage({
       ? ["Hi, I am a reviewer and I would love to collaborate with you.", "Hi, what kind of products do you offer?"]
       : ["Hola, soy reseñadora y me gustaría colaborar con usted.", "Hola, ¿qué tipo de productos ofreces?"];
   const copy = dashboardCopy[currentUserLanguage];
+  const admin = createAdminClient();
+  const authEmailConfirmedAt = (user as { email_confirmed_at?: string | null }).email_confirmed_at || null;
+
+  if (authEmailConfirmedAt && !(profile as ProfileRow | null)?.email_confirmed_at) {
+    await admin.from("profiles").update({ email_confirmed_at: authEmailConfirmedAt }).eq("id", user.id).is("email_confirmed_at", null);
+    if (profile) {
+      (profile as ProfileRow).email_confirmed_at = authEmailConfirmedAt;
+    }
+  }
 
   const { data: membership } = await supabase
     .from("memberships")
@@ -355,6 +379,22 @@ export default async function DashboardPage({
   const lastPaymentFailedAt = formatMembershipDate(membershipState?.last_payment_failed_at, currentUserLanguage);
   const hasMembershipAccess = isAdmin || membershipHasAccess(membershipState);
   const canSeeContacts = isAdmin || (!isProvider && hasMembershipAccess && kycStatus === "approved");
+  const isReviewerAccount = !isProvider;
+  const referralCode = isReviewerAccount ? await ensureReferralCode(user.id, (profile as ProfileRow | null)?.referral_code) : null;
+  const referralQualifiedAt = isReviewerAccount
+    ? await syncReferralQualification({
+        userId: user.id,
+        role: role,
+        emailConfirmedAt: (profile as ProfileRow | null)?.email_confirmed_at || authEmailConfirmedAt,
+        referredByUserId: (profile as ProfileRow | null)?.referred_by_user_id || null,
+        referralQualifiedAt: (profile as ProfileRow | null)?.referral_qualified_at || null,
+        membership: membershipState,
+        kycStatus,
+      })
+    : null;
+  if (isReviewerAccount && referralQualifiedAt && profile) {
+    (profile as ProfileRow).referral_qualified_at = referralQualifiedAt;
+  }
   const squareStatus = typeof resolvedSearchParams.square === "string" ? resolvedSearchParams.square : null;
   const squareError = typeof resolvedSearchParams.square_error === "string" ? resolvedSearchParams.square_error : null;
   const veriffStatus = typeof resolvedSearchParams.veriff === "string" ? resolvedSearchParams.veriff : null;
@@ -425,6 +465,10 @@ export default async function DashboardPage({
   let allRegisteredProviderProfiles: ProfileRow[] = [];
   let providerAliasByManualId = new Map<number, string>();
   let providerAliasByRegisteredId = new Map<string, string>();
+  let referralProfiles: ProfileRow[] = [];
+  let rewardedReferralsThisMonth = 0;
+  let totalQualifiedReferrals = 0;
+  let providerAccessLimit = 100;
 
   if (isProvider) {
     const [{ count: manualContactCount }, registeredProvidersResult] = await Promise.all([
@@ -463,6 +507,18 @@ export default async function DashboardPage({
   const greetingName = isProvider
     ? providerAliasByRegisteredId.get(user.id) || "Proveedor"
     : firstName;
+
+  if (isReviewerAccount) {
+    const referredProfilesResult = await admin
+      .from("profiles")
+      .select("id, referred_by_user_id, referral_qualified_at")
+      .eq("referred_by_user_id", user.id);
+
+    referralProfiles = (referredProfilesResult.data || []) as ProfileRow[];
+    rewardedReferralsThisMonth = getMonthlyRewardedReferralCount(referralProfiles, user.id);
+    totalQualifiedReferrals = referralProfiles.filter((item) => Boolean(item.referral_qualified_at)).length;
+    providerAccessLimit = getProviderAccessLimit(rewardedReferralsThisMonth);
+  }
 
   if (canSeeContacts) {
       const withMethods = await supabase
@@ -603,6 +659,12 @@ export default async function DashboardPage({
 
       return contact;
     });
+
+    const randomizedContacts = sortItemsForViewer(contacts, user.id);
+    const selectedIds = new Set(randomizedContacts.slice(0, providerAccessLimit).map((contact) => contact.id));
+    contactedIds.forEach((contactId) => selectedIds.add(contactId));
+    contacts = randomizedContacts.filter((contact) => selectedIds.has(contact.id));
+    contactedIds = contactedIds.filter((contactId) => selectedIds.has(contactId));
   }
 
   if (isProvider) {
@@ -851,6 +913,13 @@ export default async function DashboardPage({
     isAdmin ? { href: "/admin", label: currentUserLanguage === "en" ? "Admin panel" : "Panel admin" } : null,
   ].filter(Boolean) as Array<{ href: string; label: string; locked?: boolean }>;
   const collaborationInboxKey = `${user.id}-${requestedThreadId || "none"}-${isProvider ? "provider" : "reviewer"}`;
+  const referralLink = referralCode ? buildReferralLink(process.env.NEXT_PUBLIC_SITE_URL || "https://verifyzon.com", referralCode) : null;
+  const reviewerCanEarnReferralRewards = isVerifiedReviewerReferrer({
+    role,
+    membership: membershipState,
+    kycStatus,
+    emailConfirmedAt: (profile as ProfileRow | null)?.email_confirmed_at || authEmailConfirmedAt,
+  });
 
   return (
     <div className="min-h-screen">
@@ -871,6 +940,11 @@ export default async function DashboardPage({
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h1 className="mt-2 text-3xl font-bold">{copy.greeting}, {greetingName}</h1>
+                {!isProvider && referralCode ? (
+                  <p className="mt-2 text-sm font-semibold text-white/82">
+                    {currentUserLanguage === "en" ? "Referral code" : "Codigo de referido"}: {referralCode}
+                  </p>
+                ) : null}
               </div>
               <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-white/18 shadow-[0_12px_28px_rgba(255,255,255,0.16)]">
                 <Sparkles className="h-5 w-5" />
@@ -1065,6 +1139,19 @@ export default async function DashboardPage({
                   {copy.accessOpen}
                 </span>
               </div>
+              {referralCode && referralLink ? (
+                <div className="mt-4">
+                  <ReviewerReferralCard
+                    language={currentUserLanguage}
+                    referralCode={referralCode}
+                    referralLink={referralLink}
+                    rewardedCountThisMonth={rewardedReferralsThisMonth}
+                    providerLimit={providerAccessLimit}
+                    totalQualifiedReferrals={totalQualifiedReferrals}
+                    eligibleForRewards={reviewerCanEarnReferralRewards}
+                  />
+                </div>
+              ) : null}
               <ProviderContactGrid key={user.id} contacts={contacts} initialContactedIds={contactedIds} language={currentUserLanguage} reviewerId={user.id} />
             </section>
           ) : (
