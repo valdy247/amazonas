@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { type AppLanguage } from "@/lib/i18n";
 import { runProviderQualitySweepAction, updateProviderContactAction, type AdminActionState } from "@/app/admin/actions";
 import { buildProviderRepairSuggestion, type ProviderRepairSuggestion } from "@/lib/provider-repair";
 import { getContactFieldValues } from "@/lib/provider-contact";
@@ -20,12 +21,53 @@ type ContactRow = {
 
 type AdminProviderRepairPanelProps = {
   contacts: ContactRow[];
+  language: AppLanguage;
 };
 
 type AiSuggestion = ProviderRepairSuggestion & { aiReason?: string };
 const INITIAL_ACTION_STATE: AdminActionState = { status: "idle", message: "" };
 
-export function AdminProviderRepairPanel({ contacts }: AdminProviderRepairPanelProps) {
+const REPAIR_COPY = {
+  es: {
+    qualityCenter: "Centro de calidad",
+    qualityBody: "Limpieza automática, deduplicación y validación básica de enlaces, correos y teléfonos.",
+    checking: "Chequeando...",
+    checkAll: "Chequear todo",
+    contactsWithFixes: "contactos con ajustes detectados",
+    total: "total",
+    showMore: "Mostrar 10 más",
+    reviewing: "Revisando...",
+    useAi: "Usar IA",
+    current: "Actual",
+    suggested: "Sugerido",
+    applying: "Aplicando...",
+    applyRepair: "Aplicar reparación",
+    autoDeleteHint: "Si el valor limpio ya coincide con otro proveedor o deja este registro sin un método válido, se eliminará automáticamente.",
+    noRepairs: "No encontramos contactos que necesiten saneamiento automático ahora mismo.",
+    aiSuggestion: "Sugerencia de IA",
+  },
+  en: {
+    qualityCenter: "Quality center",
+    qualityBody: "Automatic cleanup, deduplication, and basic validation for links, emails, and phone numbers.",
+    checking: "Checking...",
+    checkAll: "Check all",
+    contactsWithFixes: "contacts with detected fixes",
+    total: "total",
+    showMore: "Show 10 more",
+    reviewing: "Reviewing...",
+    useAi: "Use AI",
+    current: "Current",
+    suggested: "Suggested",
+    applying: "Applying...",
+    applyRepair: "Apply repair",
+    autoDeleteHint: "If the cleaned value already matches another provider or leaves this record without a valid contact method, it will be deleted automatically.",
+    noRepairs: "We did not find contacts that need automatic cleanup right now.",
+    aiSuggestion: "AI suggestion",
+  },
+} as const;
+
+export function AdminProviderRepairPanel({ contacts, language }: AdminProviderRepairPanelProps) {
+  const copy = REPAIR_COPY[language];
   const router = useRouter();
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [visibleCount, setVisibleCount] = useState(10);
@@ -92,7 +134,7 @@ export function AdminProviderRepairPanel({ contacts }: AdminProviderRepairPanelP
         ...current,
         [contact.id]: {
           contactId: contact.id,
-          reason: "AI suggestion",
+          reason: copy.aiSuggestion,
           severity: "warning",
           email: data.suggestion?.email || "",
           whatsapp: data.suggestion?.whatsapp || "",
@@ -113,19 +155,19 @@ export function AdminProviderRepairPanel({ contacts }: AdminProviderRepairPanelP
       <div className="rounded-[1.2rem] border border-[#eadfd6] bg-[#fcfaf7] p-3">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <p className="text-sm font-semibold text-[#131316]">Centro de calidad</p>
-            <p className="mt-1 text-xs text-[#62564a]">Limpieza automatica, deduplicacion y validacion basica de enlaces, emails y telefonos.</p>
+            <p className="text-sm font-semibold text-[#131316]">{copy.qualityCenter}</p>
+            <p className="mt-1 text-xs text-[#62564a]">{copy.qualityBody}</p>
           </div>
           <form action={sweepAction}>
             <button className="btn-secondary" type="submit">
-              {isSweepPending ? "Chequeando..." : "Chequear todo"}
+              {isSweepPending ? copy.checking : copy.checkAll}
             </button>
           </form>
         </div>
         <div className="mt-3 flex items-center justify-between gap-3 rounded-[1rem] bg-[#fff8f4] px-3 py-3 text-xs text-[#62564a]">
-          <span>{suggestions.length} contactos con ajustes detectados</span>
+          <span>{suggestions.length} {copy.contactsWithFixes}</span>
           <span className="rounded-full bg-[#fff2eb] px-3 py-1.5 font-bold uppercase tracking-[0.16em] text-[#dc4f1f]">
-            {contacts.length} total
+            {contacts.length} {copy.total}
           </span>
         </div>
 
@@ -150,15 +192,11 @@ export function AdminProviderRepairPanel({ contacts }: AdminProviderRepairPanelP
             className="btn-secondary mt-3 w-full"
             onClick={() => setVisibleCount((current) => current + 10)}
           >
-            Mostrar 10 mas
+            {copy.showMore}
           </button>
         ) : null}
-        {sweepState.status === "success" ? (
-          <p className="mt-3 text-sm font-semibold text-[#177a52]">{sweepState.message}</p>
-        ) : null}
-        {sweepState.status === "error" ? (
-          <p className="mt-3 text-sm font-semibold text-[#c24d3a]">{sweepState.message}</p>
-        ) : null}
+        {sweepState.status === "success" ? <p className="mt-3 text-sm font-semibold text-[#177a52]">{sweepState.message}</p> : null}
+        {sweepState.status === "error" ? <p className="mt-3 text-sm font-semibold text-[#c24d3a]">{sweepState.message}</p> : null}
       </div>
 
       {openItem ? (
@@ -169,13 +207,13 @@ export function AdminProviderRepairPanel({ contacts }: AdminProviderRepairPanelP
               <p className="mt-1 text-sm text-[#62564a]">{openItem.suggestion.reason}</p>
             </div>
             <button className="btn-secondary" type="button" onClick={() => requestAi(openItem.contact)} disabled={isPending}>
-              {isPending ? "Revisando..." : "Usar IA"}
+              {isPending ? copy.reviewing : copy.useAi}
             </button>
           </div>
 
           <div className="mt-4 grid gap-4 lg:grid-cols-2">
             <div className="rounded-[1rem] bg-[#fcfaf7] p-3">
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8f857b]">Actual</p>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8f857b]">{copy.current}</p>
               <div className="mt-3 space-y-2 text-sm text-[#62564a]">
                 <div>Email: {openItem.contact.email || "—"}</div>
                 {(() => {
@@ -193,7 +231,7 @@ export function AdminProviderRepairPanel({ contacts }: AdminProviderRepairPanelP
             </div>
 
             <div className="rounded-[1rem] bg-[#fff8f4] p-3">
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#dc4f1f]">Sugerido</p>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#dc4f1f]">{copy.suggested}</p>
               <div className="mt-3 space-y-2 text-sm text-[#62564a]">
                 {(() => {
                   const suggestion = aiSuggestions[openItem.contact.id] || openItem.suggestion;
@@ -228,22 +266,16 @@ export function AdminProviderRepairPanel({ contacts }: AdminProviderRepairPanelP
             {openItem.contact.is_active ? <input type="hidden" name="is_active" value="on" /> : null}
             {openItem.contact.is_verified ? <input type="hidden" name="is_verified" value="on" /> : null}
             <button className="btn-primary w-full sm:w-auto" type="submit">
-              {isRepairPending ? "Aplicando..." : "Aplicar reparacion"}
+              {isRepairPending ? copy.applying : copy.applyRepair}
             </button>
           </form>
-          <p className="mt-2 text-xs text-[#8f857b]">
-            Si el valor limpio ya coincide con otro proveedor o deja este registro sin un metodo valido, se eliminara automaticamente.
-          </p>
-          {actionState.status === "success" ? (
-            <p className="mt-3 text-sm font-semibold text-[#177a52]">{actionState.message}</p>
-          ) : null}
-          {actionState.status === "error" ? (
-            <p className="mt-3 text-sm font-semibold text-[#c24d3a]">{actionState.message}</p>
-          ) : null}
+          <p className="mt-2 text-xs text-[#8f857b]">{copy.autoDeleteHint}</p>
+          {actionState.status === "success" ? <p className="mt-3 text-sm font-semibold text-[#177a52]">{actionState.message}</p> : null}
+          {actionState.status === "error" ? <p className="mt-3 text-sm font-semibold text-[#c24d3a]">{actionState.message}</p> : null}
         </div>
       ) : (
         <div className="rounded-[1.2rem] border border-dashed border-[#e2d8cc] bg-[#fffaf5] p-5 text-sm text-[#62626d]">
-          No encontramos contactos que necesiten saneamiento automatico ahora mismo.
+          {copy.noRepairs}
         </div>
       )}
     </div>

@@ -835,7 +835,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                     <p className="mt-1 text-sm text-[#62626d]">Reglas automaticas para limpiar enlaces, correos y telefonos. Usa IA solo para casos ambiguos.</p>
                   </div>
                   {contacts.length ? (
-                    <AdminProviderRepairPanel contacts={contacts} />
+                    <AdminProviderRepairPanel contacts={contacts} language={language} />
                   ) : (
                     <div className="mt-4 rounded-[1.2rem] border border-dashed border-[#e2d8cc] bg-[#fffaf5] p-5 text-sm text-[#62626d]">
                       No hay contactos para revisar todavia.
