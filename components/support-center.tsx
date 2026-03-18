@@ -71,6 +71,7 @@ export function SupportCenter({ currentUserId, language, isAdmin = false, thread
       .sort((left, right) => new Date(right.lastActivityAt).getTime() - new Date(left.lastActivityAt).getTime());
   }, [items, priorityFilter, searchQuery, statusFilter]);
   const activeThread = sortedThreads.find((thread) => thread.id === activeThreadId) || null;
+  const showThreadPanel = isAdmin || Boolean(activeThread);
 
   function prependOrUpdateThread(thread: SupportThread) {
     setItems((current) => {
@@ -218,7 +219,7 @@ export function SupportCenter({ currentUserId, language, isAdmin = false, thread
   }
 
   return (
-    <section className="grid gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
+    <section className={`grid gap-4 ${showThreadPanel ? "lg:grid-cols-[320px_minmax(0,1fr)]" : ""}`}>
       <div className="rounded-[1.8rem] border border-[#eadfd6] bg-white p-4 shadow-[0_18px_36px_rgba(22,18,14,0.04)]">
         <div className="flex items-start justify-between gap-3">
           <div>
@@ -312,7 +313,8 @@ export function SupportCenter({ currentUserId, language, isAdmin = false, thread
         </div>
       </div>
 
-      <div className="rounded-[1.8rem] border border-[#eadfd6] bg-white p-4 shadow-[0_18px_36px_rgba(22,18,14,0.04)]">
+      {showThreadPanel ? (
+        <div className="rounded-[1.8rem] border border-[#eadfd6] bg-white p-4 shadow-[0_18px_36px_rgba(22,18,14,0.04)]">
         {activeThread ? (
           <>
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#efe5db] pb-4">
@@ -404,7 +406,8 @@ export function SupportCenter({ currentUserId, language, isAdmin = false, thread
 
         {error ? <p className="mt-4 text-sm font-semibold text-red-600">{error}</p> : null}
         {success ? <p className="mt-4 text-sm font-semibold text-[#177a52]">{success}</p> : null}
-      </div>
+        </div>
+      ) : null}
     </section>
   );
 }
