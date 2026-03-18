@@ -217,23 +217,31 @@ export function ProviderContactGrid({ contacts, initialContactedIds, language, r
       <div className="mt-3 grid gap-3">
         {visibleContacts.map((contact) => (
           <article key={contact.id} className="rounded-[1.5rem] border border-[#eee5db] bg-[linear-gradient(180deg,#ffffff_0%,#fcfaf7_100%)] p-4">
+            {contact.avatar_data_url && isSocialReference(contact) ? (
+              <div className="mb-4 overflow-hidden rounded-[1.15rem] border border-[#eadfd6] bg-[#f5eee6]">
+                <img
+                  src={contact.avatar_data_url}
+                  alt={contact.title}
+                  className="h-[4.35rem] w-full object-contain object-left"
+                />
+              </div>
+            ) : null}
+
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-start gap-3">
-                {contact.avatar_data_url ? (
-                  <img
-                    src={contact.avatar_data_url}
-                    alt={contact.title}
-                    className={`ring-1 ring-[#eadfd6] ${
-                      isSocialReference(contact)
-                        ? "h-[3.2rem] w-[8.4rem] rounded-[1rem] bg-[#f5eee6] object-contain object-left"
-                        : "h-12 w-12 rounded-full object-cover"
-                    }`}
-                  />
-                ) : (
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#f4ece5] text-sm font-bold text-[#7c7064]">
-                    {contact.title.slice(0, 1)}
-                  </div>
-                )}
+                {!isSocialReference(contact) ? (
+                  contact.avatar_data_url ? (
+                    <img
+                      src={contact.avatar_data_url}
+                      alt={contact.title}
+                      className="h-12 w-12 rounded-full object-cover ring-1 ring-[#eadfd6]"
+                    />
+                  ) : (
+                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#f4ece5] text-sm font-bold text-[#7c7064]">
+                      {contact.title.slice(0, 1)}
+                    </div>
+                  )
+                ) : null}
                 <div>
                   <p className="font-semibold">{contact.title}</p>
                   <p className="text-xs text-[#62626d]">{contact.network || copy.undefinedNetwork}</p>
