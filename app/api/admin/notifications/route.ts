@@ -9,7 +9,7 @@ import {
   buildWebhookErrorNotification,
 } from "@/lib/admin-notifications";
 import { buildDuplicateContactGroups } from "@/lib/provider-quality";
-import type { AdminNotificationItem } from "@/lib/admin-notifications";
+import type { AdminNotificationItem, AdminSupportInboxItem } from "@/lib/admin-notifications";
 
 type AuditRow = {
   id: number;
@@ -51,6 +51,15 @@ type ContactRow = {
   contact_methods?: string | null;
 };
 
+type SupportThreadRow = {
+  id: number;
+  user_id: string;
+  subject: string;
+  status: string;
+  priority: string;
+  last_activity_at: string;
+};
+
 export async function GET() {
   try {
     const supabase = await createClient();
@@ -74,6 +83,7 @@ export async function GET() {
       failedMembershipsResult,
       webhookErrorsResult,
       supportCountResult,
+      supportThreadsResult,
       removalCountResult,
       reportsCountResult,
       contactsResult,
@@ -93,6 +103,11 @@ export async function GET() {
         .order("created_at", { ascending: false })
         .limit(10),
       admin.from("support_threads").select("*", { count: "exact", head: true }).in("status", ["open", "in_progress"]),
+      admin
+        .from("support_threads")
+        .select("id, user_id, subject, status, priority, last_activity_at")
+        .order("last_activity_at", { ascending: false })
+        .limit(25),
       admin.from("directory_removal_requests").select("*", { count: "exact", head: true }).in("status", ["open", "in_review"]),
       admin.from("provider_contact_reports").select("*", { count: "exact", head: true }).in("status", ["open", "in_review"]),
       admin.from("provider_contacts").select("id, email, network, url, contact_methods"),
@@ -103,12 +118,14 @@ export async function GET() {
     const failedMemberships = (failedMembershipsResult.data || []) as MembershipRow[];
     const webhookErrors = (webhookErrorsResult.data || []) as WebhookAuditRow[];
     const contacts = (contactsResult.data || []) as ContactRow[];
+    const supportThreads = (supportThreadsResult.data || []) as SupportThreadRow[];
 
     const profileIds = Array.from(
       new Set([
         ...recentProfiles.map((item) => item.id),
         ...auditRows.flatMap((item) => [item.admin_id, item.target_user_id]).filter(Boolean) as string[],
         ...failedMemberships.map((item) => item.user_id),
+        ...supportThreads.map((item) => item.user_id),
       ])
     );
 
@@ -165,9 +182,19 @@ export async function GET() {
       .slice(0, 40);
 
     const duplicateGroups = buildDuplicateContactGroups(contacts);
+    const supportItems: AdminSupportInboxItem[] = supportThreads.map((thread) => ({
+      id: thread.id,
+      subject: thread.subject,
+      userLabel: String(profileMap.get(thread.user_id)?.full_name || profileMap.get(thread.user_id)?.email || "Usuario"),
+      status: thread.status,
+      priority: thread.priority,
+      lastActivityAt: thread.last_activity_at,
+      href: "/admin?section=support",
+    }));
 
     return NextResponse.json({
       items: notifications,
+      supportItems,
       summary: {
         openSupport: supportCountResult.count || 0,
         openRemovalRequests: removalCountResult.count || 0,

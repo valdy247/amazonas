@@ -22,6 +22,16 @@ export type AdminNotificationSummary = {
   webhookErrors: number;
 };
 
+export type AdminSupportInboxItem = {
+  id: number;
+  subject: string;
+  userLabel: string;
+  status: string;
+  priority: string;
+  lastActivityAt: string;
+  href: string;
+};
+
 function displayName(name?: string | null, email?: string | null) {
   return String(name || email || "Usuario").trim();
 }
