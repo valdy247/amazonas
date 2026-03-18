@@ -10,6 +10,10 @@ type AdminNotificationInboxProps = {
   supportItems: AdminSupportInboxItem[];
 };
 
+type GroupedNotificationItem = AdminNotificationItem & {
+  repeatCount: number;
+};
+
 function formatRelativeTime(value: string) {
   const date = new Date(value);
   const diffMs = Date.now() - date.getTime();
@@ -33,18 +37,41 @@ export function AdminNotificationInbox({ items, supportItems }: AdminNotificatio
     return window.localStorage.getItem("verifyzon-admin-inbox-seen") || "";
   });
 
+  const groupedItems = useMemo<GroupedNotificationItem[]>(() => {
+    const groups = new Map<string, GroupedNotificationItem>();
+
+    for (const item of items) {
+      const shouldGroup = item.kind !== "support";
+      const key = shouldGroup ? `${item.kind}:${item.title}:${item.href}` : item.id;
+      const current = groups.get(key);
+
+      if (!current) {
+        groups.set(key, { ...item, repeatCount: 1 });
+        continue;
+      }
+
+      groups.set(key, {
+        ...current,
+        repeatCount: current.repeatCount + 1,
+        createdAt: new Date(item.createdAt).getTime() > new Date(current.createdAt).getTime() ? item.createdAt : current.createdAt,
+      });
+    }
+
+    return Array.from(groups.values()).sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime());
+  }, [items]);
+
   const unreadCount = useMemo(() => {
     if (!seenStamp) {
-      return items.length;
+      return groupedItems.length;
     }
-    return items.filter((item) => new Date(item.createdAt).getTime() > new Date(seenStamp).getTime()).length;
-  }, [items, seenStamp]);
+    return groupedItems.filter((item) => new Date(item.createdAt).getTime() > new Date(seenStamp).getTime()).length;
+  }, [groupedItems, seenStamp]);
 
   function markSeen() {
-    if (!items.length) {
+    if (!groupedItems.length) {
       return;
     }
-    const stamp = items[0].createdAt;
+    const stamp = groupedItems[0].createdAt;
     setSeenStamp(stamp);
     if (typeof window !== "undefined") {
       window.localStorage.setItem("verifyzon-admin-inbox-seen", stamp);
@@ -97,7 +124,7 @@ export function AdminNotificationInbox({ items, supportItems }: AdminNotificatio
 
       <div className="divide-y divide-[#eadfd6]">
         {activeTab === "notifications"
-          ? items.map((item) => {
+          ? groupedItems.map((item) => {
               const isUnread = !seenStamp || new Date(item.createdAt).getTime() > new Date(seenStamp).getTime();
               return (
                 <Link
@@ -119,7 +146,14 @@ export function AdminNotificationInbox({ items, supportItems }: AdminNotificatio
                       )}
                     </div>
                     <div className="min-w-0">
-                      <p className="text-[0.98rem] font-semibold leading-tight text-[#131316]">{item.title}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-[0.98rem] font-semibold leading-tight text-[#131316]">{item.title}</p>
+                        {item.repeatCount > 1 ? (
+                          <span className="rounded-full bg-[#ffefe7] px-2 py-0.5 text-[11px] font-bold text-[#dc4f1f]">
+                            x{item.repeatCount}
+                          </span>
+                        ) : null}
+                      </div>
                       <p className="mt-1 text-[0.9rem] leading-snug text-[#62564a]">{item.body}</p>
                     </div>
                   </div>
@@ -149,7 +183,7 @@ export function AdminNotificationInbox({ items, supportItems }: AdminNotificatio
               </Link>
             ))}
 
-        {activeTab === "notifications" && !items.length ? (
+        {activeTab === "notifications" && !groupedItems.length ? (
           <div className="px-6 py-8 text-[#62564a]">No notifications yet.</div>
         ) : null}
         {activeTab === "support" && !supportItems.length ? (
