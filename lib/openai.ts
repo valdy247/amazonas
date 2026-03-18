@@ -382,7 +382,7 @@ export async function suggestProviderRepairFromAi(input: {
             {
               type: "input_text",
               text:
-                "You help sanitize provider contacts. Return strict JSON only. Do not invent new contacts. Extract only clean, direct values for email, whatsapp, instagram, messenger, and facebook from the supplied record. Remove extra words around them. If a field is unclear, return an empty string for that field.",
+                "You help sanitize provider contacts. Return strict JSON only. Do not invent new contacts. Extract only clean, direct values for email, whatsapp, instagram, messenger, and facebook from the supplied record. Remove extra words around them. Reject short or implausible phone numbers. If a field is unclear, incomplete, or not plausibly valid, return an empty string for that field.",
             },
           ],
         },

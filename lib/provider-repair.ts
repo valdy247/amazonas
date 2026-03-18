@@ -34,7 +34,18 @@ function cleanEmail(raw?: string | null) {
 function cleanPhone(raw?: string | null) {
   const value = String(raw || "").trim();
   const match = value.match(/\+?\d[\d\s().-]{7,}\d/);
-  return match ? match[0].replace(/[^\d+]/g, "") : "";
+  if (!match) {
+    return "";
+  }
+
+  const normalized = match[0].replace(/[^\d+]/g, "");
+  const digits = normalized.replace(/\D/g, "");
+
+  if (digits.length < 8 || digits.length > 15) {
+    return "";
+  }
+
+  return normalized.startsWith("+") ? normalized : `+${digits}`;
 }
 
 function cleanUrl(raw?: string | null, type?: "facebook" | "instagram" | "messenger") {
@@ -58,22 +69,31 @@ function cleanUrl(raw?: string | null, type?: "facebook" | "instagram" | "messen
     return candidate.replace(/\/+$/, "");
   }
 
-  if (type === "facebook" && (/^(www\.)?facebook\.com\//i.test(candidate) || /^share\//i.test(candidate) || /^profile\.php\?/i.test(candidate))) {
-    return candidate.startsWith("http") ? candidate : `https://facebook.com/${candidate.replace(/^(www\.)?facebook\.com\//i, "").replace(/^\/+/, "")}`.replace("https://facebook.com/https://facebook.com/", "https://facebook.com/");
+  if (
+    type === "facebook" &&
+    (/^(www\.)?facebook\.com\//i.test(candidate) || /^share\//i.test(candidate) || /^profile\.php\?/i.test(candidate))
+  ) {
+    return candidate.startsWith("http")
+      ? candidate
+      : `https://facebook.com/${candidate.replace(/^(www\.)?facebook\.com\//i, "").replace(/^\/+/, "")}`.replace(
+          "https://facebook.com/https://facebook.com/",
+          "https://facebook.com/"
+        );
   }
 
   if (type === "instagram" && /^(www\.)?instagram\.com\//i.test(candidate)) {
     return candidate.startsWith("http") ? candidate : `https://${candidate}`.replace(/\/+$/, "");
   }
 
-  if (type === "messenger" && (/^(www\.)?(m\.me|messenger\.com)\//i.test(candidate) || /^messages?\//i.test(candidate) || /^profile\.php\?id=/i.test(candidate))) {
+  if (
+    type === "messenger" &&
+    (/^(www\.)?(m\.me|messenger\.com)\//i.test(candidate) || /^messages?\//i.test(candidate) || /^profile\.php\?id=/i.test(candidate))
+  ) {
     if (candidate.startsWith("http")) {
       return candidate.replace(/\/+$/, "");
     }
     const cleaned = candidate.replace(/^(www\.)?(m\.me|messenger\.com)\//i, "").replace(/^\/+/, "");
-    return /^profile\.php\?id=/i.test(cleaned)
-      ? `https://messenger.com/${cleaned}`
-      : `https://m.me/${cleaned}`.replace(/\/+$/, "");
+    return /^profile\.php\?id=/i.test(cleaned) ? `https://messenger.com/${cleaned}` : `https://m.me/${cleaned}`.replace(/\/+$/, "");
   }
 
   return candidate;
@@ -85,24 +105,35 @@ export function buildProviderRepairSuggestion(contact: RepairContactRow): Provid
   const cleanedWhatsapp = cleanPhone(fields.whatsapp);
   const cleanedInstagram = cleanUrl(fields.instagram, "instagram");
   const cleanedMessenger = cleanUrl(fields.messenger, "messenger");
-  const cleanedFacebook = cleanUrl(fields.facebook || (String(contact.network || "").toLowerCase().includes("facebook") ? contact.url : ""), "facebook");
-  const changedFields: string[] = [];
+  const cleanedFacebook = cleanUrl(
+    fields.facebook || (String(contact.network || "").toLowerCase().includes("facebook") ? contact.url : ""),
+    "facebook"
+  );
 
-  if (cleanedEmail && cleanedEmail !== String(contact.email || "").trim().toLowerCase()) changedFields.push("email");
-  if (cleanedWhatsapp && normalizeContactValue(cleanedWhatsapp) !== normalizeContactValue(fields.whatsapp)) changedFields.push("whatsapp");
-  if (cleanedInstagram && normalizeContactValue(cleanedInstagram) !== normalizeContactValue(fields.instagram)) changedFields.push("instagram");
-  if (cleanedMessenger && normalizeContactValue(cleanedMessenger) !== normalizeContactValue(fields.messenger)) changedFields.push("messenger");
-  if (cleanedFacebook && normalizeContactValue(cleanedFacebook) !== normalizeContactValue(fields.facebook || contact.url)) changedFields.push("facebook");
+  const rawEmail = String(contact.email || fields.email || "").trim().toLowerCase();
+  const rawWhatsapp = String(fields.whatsapp || "").trim();
+  const rawInstagram = String(fields.instagram || "").trim();
+  const rawMessenger = String(fields.messenger || "").trim();
+  const rawFacebook = String(
+    fields.facebook || (String(contact.network || "").toLowerCase().includes("facebook") ? contact.url : "")
+  ).trim();
+
+  const changedFields: string[] = [];
+  if (cleanedEmail !== rawEmail) changedFields.push("email");
+  if (normalizeContactValue(cleanedWhatsapp) !== normalizeContactValue(rawWhatsapp)) changedFields.push("whatsapp");
+  if (normalizeContactValue(cleanedInstagram) !== normalizeContactValue(rawInstagram)) changedFields.push("instagram");
+  if (normalizeContactValue(cleanedMessenger) !== normalizeContactValue(rawMessenger)) changedFields.push("messenger");
+  if (normalizeContactValue(cleanedFacebook) !== normalizeContactValue(rawFacebook)) changedFields.push("facebook");
 
   const reasons: string[] = [];
   if (changedFields.length) {
     reasons.push(`Campos reparables: ${changedFields.join(", ")}`);
   }
-  if (!cleanedEmail && contact.email) {
+  if (!cleanedEmail && rawEmail) {
     reasons.push("Email con formato dudoso");
   }
-  if ((fields.whatsapp || "").trim() && !cleanedWhatsapp) {
-    reasons.push("WhatsApp con formato dudoso");
+  if (rawWhatsapp && !cleanedWhatsapp) {
+    reasons.push("WhatsApp invalido o demasiado corto");
   }
   if (String(contact.url || "").trim() && contact.url !== "#" && !/^https?:\/\//i.test(contact.url) && !String(contact.network || "").toLowerCase().includes("email")) {
     reasons.push("URL base incompleta");
@@ -113,17 +144,21 @@ export function buildProviderRepairSuggestion(contact: RepairContactRow): Provid
   }
 
   const severity =
-    reasons.some((reason) => reason.includes("dudoso")) ? "warning" : changedFields.length >= 2 ? "high" : "info";
+    reasons.some((reason) => reason.includes("invalido") || reason.includes("dudoso"))
+      ? "warning"
+      : changedFields.length >= 2
+        ? "high"
+        : "info";
 
   return {
     contactId: contact.id,
-    reason: reasons.join(" · "),
+    reason: reasons.join(" | "),
     severity,
-    email: cleanedEmail || String(contact.email || "").trim().toLowerCase(),
-    whatsapp: cleanedWhatsapp || fields.whatsapp,
-    instagram: cleanedInstagram || fields.instagram,
-    messenger: cleanedMessenger || fields.messenger,
-    facebook: cleanedFacebook || fields.facebook,
+    email: cleanedEmail,
+    whatsapp: cleanedWhatsapp,
+    instagram: cleanedInstagram,
+    messenger: cleanedMessenger,
+    facebook: cleanedFacebook,
     changedFields,
   };
 }

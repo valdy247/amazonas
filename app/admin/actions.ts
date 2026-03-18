@@ -342,6 +342,7 @@ export async function updateProviderContact(formData: FormData) {
   const notes = String(formData.get("notes") || "").trim();
   const isVerified = String(formData.get("is_verified") || "") === "on";
   const allowDuplicateDelete = String(formData.get("allow_duplicate_delete") || "") === "on";
+  const allowInvalidDelete = String(formData.get("allow_invalid_delete") || "") === "on";
   const isActive = String(formData.get("is_active") || "") === "on";
   const contactMethods = buildContactMethodsFromFields({ email, whatsapp, instagram, messenger, facebook });
   const methodCount = [email, whatsapp, instagram, messenger, facebook].filter(Boolean).length;
@@ -351,6 +352,17 @@ export async function updateProviderContact(formData: FormData) {
   }
 
   if (!methodCount) {
+    if (allowInvalidDelete) {
+      await deleteProviderContactAsDuplicate({
+        supabase,
+        admin,
+        adminId,
+        contactId,
+        duplicateMessage: "Deleted during repair because no valid contact method remained after sanitizing the record.",
+      });
+      return;
+    }
+
     throw new Error("Debes agregar al menos un metodo de contacto.");
   }
 
@@ -505,8 +517,8 @@ export async function updateProviderContactAction(
     return {
       status: "success",
       message:
-        String(formData.get("allow_duplicate_delete") || "") === "on"
-          ? "Saneamiento aplicado. Si era duplicado, se elimino automaticamente."
+        String(formData.get("allow_duplicate_delete") || "") === "on" || String(formData.get("allow_invalid_delete") || "") === "on"
+          ? "Saneamiento aplicado. Si el registro quedo duplicado o sin un contacto valido, se elimino automaticamente."
           : "Reparacion aplicada correctamente.",
     };
   } catch (error) {
