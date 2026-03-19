@@ -6,6 +6,7 @@ import { AdminExportButton } from "@/components/admin-export-button";
 import { AdminOptionsPanel } from "@/components/admin-options-panel";
 import { AdminProviderImportStudio } from "@/components/admin-provider-import-studio";
 import { AdminProviderManager } from "@/components/admin-provider-manager";
+import { AdminProviderLinkReviewPanel } from "@/components/admin-provider-link-review-panel";
 import { AdminProviderRepairPanel } from "@/components/admin-provider-repair-panel";
 import { AdminSectionNav } from "@/components/admin-section-nav";
 import { AdminUserManager } from "@/components/admin-user-manager";
@@ -891,6 +892,15 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                   <p className="text-xs uppercase tracking-[0.18em] text-[#8f857b]">Chequeo tecnico</p>
                   <h2 className="mt-2 font-bold">Chequeo continuo</h2>
                   <p className="mt-2 text-sm text-[#62626d]">Todo contacto nuevo, editado o importado pasa por el mismo filtro de calidad para limpiar enlaces, rechazar numeros malos y evitar duplicados.</p>
+                </div>
+              </div>
+              <div className="card p-4">
+                <div>
+                  <h2 className="font-bold">Revision visual de enlaces</h2>
+                  <p className="mt-1 text-sm text-[#62626d]">Chequeo independiente para abrir enlaces sociales, detectar contenido no disponible y mandarlo a revision.</p>
+                </div>
+                <div className="mt-4">
+                  <AdminProviderLinkReviewPanel contacts={contacts} language={language} />
                 </div>
               </div>
               <div className="card p-4">
