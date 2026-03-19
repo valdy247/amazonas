@@ -445,6 +445,8 @@ export default async function DashboardPage({
       senderId: string;
       senderName: string;
       body: string;
+      sourceLanguage: AppLanguage;
+      translations?: Record<string, string> | null;
       createdAt: string;
     }>;
   }> = [];
