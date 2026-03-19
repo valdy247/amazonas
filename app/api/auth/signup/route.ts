@@ -12,6 +12,40 @@ type SignupBody = {
   data?: Record<string, unknown>;
 };
 
+function getSignupUserPayload(data: unknown) {
+  if (!data || typeof data !== "object") {
+    return null;
+  }
+
+  const payload = data as {
+    user?: {
+      id?: unknown;
+      email_confirmed_at?: unknown;
+    };
+    access_token?: unknown;
+    refresh_token?: unknown;
+    session?: {
+      access_token?: unknown;
+      refresh_token?: unknown;
+    } | null;
+  };
+
+  const userId = typeof payload.user?.id === "string" ? payload.user.id : null;
+  const emailConfirmedAt =
+    typeof payload.user?.email_confirmed_at === "string" ? payload.user.email_confirmed_at : null;
+  const hasSessionTokens =
+    typeof payload.access_token === "string" ||
+    typeof payload.refresh_token === "string" ||
+    typeof payload.session?.access_token === "string" ||
+    typeof payload.session?.refresh_token === "string";
+
+  return {
+    userId,
+    emailConfirmedAt,
+    hasSessionTokens,
+  };
+}
+
 export async function POST(request: Request) {
   try {
     const originError = rejectUntrustedOrigin(request);
@@ -112,6 +146,25 @@ export async function POST(request: Request) {
 
     if (!result.ok) {
       return NextResponse.json({ error: result.error || "Error de registro" }, { status: result.status });
+    }
+
+    const signupUser = getSignupUserPayload(result.data);
+
+    if (signupUser?.userId && (signupUser.emailConfirmedAt || signupUser.hasSessionTokens)) {
+      const admin = createAdminClient();
+
+      await Promise.allSettled([
+        admin.auth.admin.deleteUser(signupUser.userId),
+        admin.from("profiles").delete().eq("id", signupUser.userId),
+      ]);
+
+      return NextResponse.json(
+        {
+          error:
+            "El registro requiere verificacion de correo, pero Supabase esta confirmando cuentas automaticamente. Activa la confirmacion por email en Supabase y vuelve a intentarlo.",
+        },
+        { status: 500 }
+      );
     }
 
     return NextResponse.json({ data: result.data }, { status: 200 });

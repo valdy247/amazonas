@@ -35,6 +35,10 @@ export default async function ProfilePage() {
     redirect("/auth");
   }
 
+  if (!user.email_confirmed_at) {
+    redirect(`/auth?mode=signin&confirm_required=1&email=${encodeURIComponent(user.email || "")}`);
+  }
+
   const { data: profile } = await supabase
     .from("profiles")
     .select("full_name, phone, role, profile_data, preferred_language")

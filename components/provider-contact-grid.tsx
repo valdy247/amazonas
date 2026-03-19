@@ -29,6 +29,7 @@ type ProviderContactGridProps = {
 
 export function ProviderContactGrid({ contacts, initialContactedIds, language, reviewerId }: ProviderContactGridProps) {
   const copy = providerContactsCopy[normalizeLanguage(language)];
+  const isEnglish = normalizeLanguage(language) === "en";
   const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
   const [selectedReportContactId, setSelectedReportContactId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"pending" | "contacted">("pending");
@@ -39,12 +40,20 @@ export function ProviderContactGrid({ contacts, initialContactedIds, language, r
   const [isReportPending, startReportTransition] = useTransition();
   const contactedStorageKey = `provider-contacted:${reviewerId}`;
   const copyTipStorageKey = `provider-copy-tip:${reviewerId}`;
+  const firstVisitNoticeStorageKey = `provider-first-visit-notice:${reviewerId}`;
   const [dismissedSearchTip, setDismissedSearchTip] = useState(() => {
     if (typeof window === "undefined") {
       return false;
     }
 
     return window.localStorage.getItem(copyTipStorageKey) === "1";
+  });
+  const [showFirstVisitNotice, setShowFirstVisitNotice] = useState(() => {
+    if (typeof window === "undefined") {
+      return false;
+    }
+
+    return window.localStorage.getItem(firstVisitNoticeStorageKey) !== "1";
   });
   const [contactedIds, setContactedIds] = useState<string[]>(() => {
     if (typeof window === "undefined") {
@@ -139,6 +148,14 @@ export function ProviderContactGrid({ contacts, initialContactedIds, language, r
 
   function markAsContacted(contactId: string) {
     setContactedIds((current) => (current.includes(contactId) ? current : [...current, contactId]));
+  }
+
+  function dismissFirstVisitNotice() {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(firstVisitNoticeStorageKey, "1");
+    }
+
+    setShowFirstVisitNotice(false);
   }
 
   function canReportContact(contact: ProviderContact) {
@@ -267,6 +284,49 @@ export function ProviderContactGrid({ contacts, initialContactedIds, language, r
 
   return (
     <>
+      {showFirstVisitNotice ? (
+        <div className="fixed inset-0 z-40 bg-[#131316]/55 p-4 backdrop-blur-sm">
+          <div className="mx-auto mt-10 w-full max-w-lg overflow-hidden rounded-[2rem] border border-[#f3d6c7] bg-[linear-gradient(145deg,#fff7f1_0%,#fffdfb_55%,#ffffff_100%)] shadow-[0_32px_100px_rgba(19,19,22,0.26)]">
+            <div className="bg-[linear-gradient(135deg,#ffb28b_0%,#ff8356_40%,#ff6b35_100%)] px-6 py-5 text-white">
+              <p className="text-xs font-bold uppercase tracking-[0.24em] text-white/80">
+                {isEnglish ? "Before you start" : "Antes de empezar"}
+              </p>
+              <h3 className="mt-2 text-2xl font-bold">
+                {isEnglish ? "Help us improve our page" : "Ayudanos a mejorar nuestra pagina"}
+              </h3>
+              <p className="mt-3 text-sm text-white/88">
+                {isEnglish
+                  ? "Rate providers based on your experience so we can keep improving the quality of the directory for the whole community."
+                  : "Califica a los proveedores segun tu experiencia para que podamos mejorar la calidad del directorio para toda la comunidad."}
+              </p>
+            </div>
+
+            <div className="space-y-3 px-6 py-6">
+              <article className="rounded-[1.35rem] border border-[#f1e1d6] bg-white/90 p-4">
+                <p className="text-sm font-semibold text-[#131316]">
+                  {isEnglish
+                    ? "You will have access to 150 providers each month, and you can also earn new providers by inviting people."
+                    : "Tendras acceso a 150 proveedores cada mes y ademas podras ganar proveedores nuevos por invitar personas."}
+                </p>
+              </article>
+              <article className="rounded-[1.35rem] border border-[#f1e1d6] bg-white/90 p-4">
+                <p className="text-sm font-semibold text-[#131316]">
+                  {isEnglish
+                    ? "Contact us through support if you have any problem or suggestion."
+                    : "Comunicate con nosotros a travez de soporte si tienes algun problema o sugerencia."}
+                </p>
+              </article>
+
+              <div className="pt-2">
+                <button type="button" onClick={dismissFirstVisitNotice} className="btn-primary w-full justify-center">
+                  {isEnglish ? "I understand" : "Entiendo"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       <div className="mt-4 flex rounded-full border border-[#e8ddd2] bg-[#f8f3ed] p-1">
         <button
           type="button"

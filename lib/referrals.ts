@@ -1,7 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { membershipHasAccess } from "@/lib/membership";
 
-export const REFERRAL_BASE_PROVIDER_LIMIT = 100;
+export const REFERRAL_BASE_PROVIDER_LIMIT = 150;
 export const REFERRAL_REWARD_PROVIDERS = 5;
 export const REFERRAL_MONTHLY_CAP = 10;
 export const REFERRAL_MAX_PROVIDER_LIMIT =

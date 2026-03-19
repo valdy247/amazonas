@@ -255,6 +255,10 @@ export default async function DashboardPage({
     redirect("/auth");
   }
 
+  if (!user.email_confirmed_at) {
+    redirect(`/auth?mode=signin&confirm_required=1&email=${encodeURIComponent(user.email || "")}`);
+  }
+
   const withProfileData = await supabase
     .from("profiles")
     .select("full_name, role, email, preferred_language, profile_data, referral_code, referred_by_user_id, referred_by_code, email_confirmed_at, referral_qualified_at")
@@ -447,7 +451,7 @@ export default async function DashboardPage({
   let referralProfiles: ProfileRow[] = [];
   let rewardedReferralsThisMonth = 0;
   let totalQualifiedReferrals = 0;
-  let providerAccessLimit = 100;
+  let providerAccessLimit = 150;
 
   if (isProvider) {
     const [{ count: manualContactCount }, registeredProvidersResult] = await Promise.all([
@@ -524,7 +528,7 @@ export default async function DashboardPage({
           contact_methods: null,
           history_id: contact.id,
           source: "admin",
-          source_label: contact.is_verified ? "Verificado" : "Por verificar",
+          source_label: "Por verificar",
         })) as ProviderContact[];
       } else {
         contacts = (withVerification.data || []).map((contact) => ({

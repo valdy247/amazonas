@@ -32,7 +32,7 @@ export function ReviewerReferralCard({
     if (navigator.share) {
       try {
         await navigator.share({
-          title: isEnglish ? "Join Verifyzon" : "Únete a Verifyzon",
+          title: isEnglish ? "Join Verifyzon" : "Unete a Verifyzon",
           text: isEnglish
             ? "Join Verifyzon through my link to get access to more than 150 monthly providers."
             : "Unete a travez de mi enlace a Verifyzon para tener acceso a mas de 150 proveedores mensuales",
@@ -56,7 +56,7 @@ export function ReviewerReferralCard({
         <div>
           <p className="text-sm font-semibold text-[#131316]">{isEnglish ? "Earn more providers" : "Gana mas proveedores"}</p>
           <p className="mt-1 text-xs text-[#7c7064]">
-            {providerLimit} / 150 {isEnglish ? "unlocked this month" : "desbloqueados este mes"}
+            {providerLimit} / 200 {isEnglish ? "available this month" : "disponibles este mes"}
           </p>
         </div>
         <span className={`inline-flex h-9 w-9 items-center justify-center rounded-full bg-white text-[#dc4f1f] transition ${open ? "rotate-180" : ""}`}>
@@ -68,8 +68,8 @@ export function ReviewerReferralCard({
         <div className="mt-4 space-y-3 text-sm text-[#62564a]">
           <p>
             {isEnglish
-              ? "Invite verified reviewers. Each valid referral unlocks 5 more providers."
-              : "Invita reseñadores verificados. Cada referido valido desbloquea 5 proveedores mas."}
+              ? "Your base access is 150 providers per month. Each valid referral unlocks 5 more, up to 50 extra providers."
+              : "Tu acceso base es de 150 proveedores por mes. Cada referido valido desbloquea 5 mas, hasta ganar 50 proveedores extra."}
           </p>
           <p>
             {isEnglish
