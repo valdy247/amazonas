@@ -294,26 +294,28 @@ export function ProviderContactGrid({ contacts, initialContactedIds, language, r
               <h3 className="mt-2 text-2xl font-bold">
                 {isEnglish ? "Help us improve our page" : "Ayudanos a mejorar nuestra pagina"}
               </h3>
-              <p className="mt-3 text-sm text-white/88">
-                {isEnglish
-                  ? "Rate providers based on your experience so we can keep improving the quality of the directory for the whole community."
-                  : "Califica a los proveedores segun tu experiencia para que podamos mejorar la calidad del directorio para toda la comunidad."}
-              </p>
             </div>
 
             <div className="space-y-3 px-6 py-6">
               <article className="rounded-[1.35rem] border border-[#f1e1d6] bg-white/90 p-4">
                 <p className="text-sm font-semibold text-[#131316]">
                   {isEnglish
-                    ? "You will have access to 150 providers each month, and you can also earn new providers by inviting people."
-                    : "Tendras acceso a 150 proveedores cada mes y ademas podras ganar proveedores nuevos por invitar personas."}
+                    ? "1. You will have access to 150 providers each month, and you can also earn new providers by inviting people."
+                    : "1. Tendras acceso a 150 proveedores cada mes y ademas podras ganar proveedores nuevos por invitar personas."}
                 </p>
               </article>
               <article className="rounded-[1.35rem] border border-[#f1e1d6] bg-white/90 p-4">
                 <p className="text-sm font-semibold text-[#131316]">
                   {isEnglish
-                    ? "Contact us through support if you have any problem or suggestion."
-                    : "Comunicate con nosotros a travez de soporte si tienes algun problema o sugerencia."}
+                    ? "2. Contact us through support if you have any problem or suggestion."
+                    : "2. Comunicate con nosotros a travez de soporte si tienes algun problema o sugerencia."}
+                </p>
+              </article>
+              <article className="rounded-[1.35rem] border border-[#f1e1d6] bg-white/90 p-4">
+                <p className="text-sm font-semibold text-[#131316]">
+                  {isEnglish
+                    ? "3. Rate providers based on your experience so we can keep improving the quality of the directory for the whole community."
+                    : "3. Califica a los proveedores segun tu experiencia para que podamos mejorar la calidad del directorio para toda la comunidad."}
                 </p>
               </article>
 
