@@ -616,9 +616,10 @@ export default async function DashboardPage({
     const registeredContacts = contacts.filter((contact) => contact.source === "registered");
     const directoryContacts = contacts.filter((contact) => contact.source !== "registered");
     const randomizedDirectoryContacts = sortItemsForViewer(directoryContacts, user.id);
+    const visibleDirectoryContacts = isAdmin ? randomizedDirectoryContacts : randomizedDirectoryContacts.slice(0, providerAccessLimit);
     const selectedIds = new Set([
       ...registeredContacts.map((contact) => contact.id),
-      ...randomizedDirectoryContacts.slice(0, providerAccessLimit).map((contact) => contact.id),
+      ...visibleDirectoryContacts.map((contact) => contact.id),
     ]);
     contactedIds.forEach((contactId) => selectedIds.add(contactId));
     contacts = [...registeredContacts, ...randomizedDirectoryContacts].filter((contact) => selectedIds.has(contact.id));
