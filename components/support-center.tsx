@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { Headset, LifeBuoy, SendHorizontal } from "lucide-react";
-import { supportCopy, type AppLanguage } from "@/lib/i18n";
+import { createClient } from "@/lib/supabase/client";
+import { languageToLocale, normalizeLanguage, supportCopy, type AppLanguage } from "@/lib/i18n";
 import { SUPPORT_CATEGORIES, getSupportCategoryLabel, getSupportPriorityLabel, getSupportStatusLabel } from "@/lib/support";
 
 type SupportThread = {
@@ -22,6 +23,8 @@ type SupportThread = {
     senderId: string;
     senderName: string;
     body: string;
+    sourceLanguage: AppLanguage;
+    translations?: Record<string, string> | null;
     createdAt: string;
   }>;
 };
@@ -34,6 +37,7 @@ type SupportCenterProps = {
 };
 
 export function SupportCenter({ currentUserId, language, isAdmin = false, threads }: SupportCenterProps) {
+  const [supabase] = useState(() => createClient());
   const copy = supportCopy[language];
   const [items, setItems] = useState(threads);
   const [activeThreadId, setActiveThreadId] = useState<number | null>(threads[0]?.id ?? null);
@@ -46,7 +50,9 @@ export function SupportCenter({ currentUserId, language, isAdmin = false, thread
   const [draftMessage, setDraftMessage] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [showOriginalByMessageId, setShowOriginalByMessageId] = useState<Record<number, boolean>>({});
   const [isPending, startTransition] = useTransition();
+  const bottomAnchorRef = useRef<HTMLDivElement | null>(null);
 
   const sortedThreads = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLowerCase();
@@ -72,6 +78,19 @@ export function SupportCenter({ currentUserId, language, isAdmin = false, thread
   }, [items, priorityFilter, searchQuery, statusFilter]);
   const activeThread = sortedThreads.find((thread) => thread.id === activeThreadId) || null;
   const showThreadPanel = isAdmin || Boolean(activeThread);
+
+  function getRenderedMessage(message: SupportThread["messages"][number], isMine: boolean) {
+    const translatedBody =
+      !isMine && language !== message.sourceLanguage ? message.translations?.[language] || null : null;
+    const showOriginal = Boolean(showOriginalByMessageId[message.id]);
+
+    return {
+      translatedBody,
+      displayBody: translatedBody && !showOriginal ? translatedBody : message.body,
+      showOriginalToggle: Boolean(translatedBody),
+      showOriginal,
+    };
+  }
 
   function prependOrUpdateThread(thread: SupportThread) {
     setItems((current) => {
@@ -125,6 +144,8 @@ export function SupportCenter({ currentUserId, language, isAdmin = false, thread
             senderId: currentUserId,
             senderName: copy.userLabel,
             body: newThreadMessage.trim(),
+            sourceLanguage: language,
+            translations: null,
             createdAt: new Date().toISOString(),
           },
         ],
@@ -155,7 +176,14 @@ export function SupportCenter({ currentUserId, language, isAdmin = false, thread
       });
 
       const result = (await response.json()) as {
-        data?: { id: number; sender_id: string; body: string; created_at: string };
+        data?: {
+          id: number;
+          sender_id: string;
+          body: string;
+          source_language?: string | null;
+          translations?: Record<string, string> | null;
+          created_at: string;
+        };
         error?: string;
       };
 
@@ -174,6 +202,8 @@ export function SupportCenter({ currentUserId, language, isAdmin = false, thread
             senderId: result.data.sender_id,
             senderName: isAdmin ? copy.supportLabel : copy.userLabel,
             body: result.data.body,
+            sourceLanguage: normalizeLanguage(result.data.source_language),
+            translations: result.data.translations || null,
             createdAt: result.data.created_at,
           },
         ],
@@ -217,6 +247,94 @@ export function SupportCenter({ currentUserId, language, isAdmin = false, thread
       setSuccess(copy.statusUpdated);
     });
   }
+
+  useEffect(() => {
+    const channel = supabase
+      .channel(`support-center-${currentUserId}-${isAdmin ? "admin" : "user"}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "support_messages" },
+        (payload) => {
+          const message = payload.new as {
+            id: number;
+            thread_id: number;
+            sender_id: string;
+            body: string;
+            source_language?: string | null;
+            translations?: Record<string, string> | null;
+            created_at: string;
+          };
+
+          setItems((current) =>
+            current.map((thread) => {
+              if (thread.id !== Number(message.thread_id) || thread.messages.some((item) => item.id === Number(message.id))) {
+                return thread;
+              }
+
+              const isUserMessage = message.sender_id === thread.userId;
+              return {
+                ...thread,
+                lastActivityAt: message.created_at,
+                messages: [
+                  ...thread.messages,
+                  {
+                    id: Number(message.id),
+                    senderId: message.sender_id,
+                    senderName: isUserMessage ? thread.userName || copy.userLabel : thread.assignedAdminName || copy.supportLabel,
+                    body: message.body,
+                    sourceLanguage: normalizeLanguage(message.source_language),
+                    translations: message.translations || null,
+                    createdAt: message.created_at,
+                  },
+                ],
+              };
+            })
+          );
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "support_threads" },
+        (payload) => {
+          const thread = payload.new as {
+            id: number;
+            status?: string;
+            priority?: string;
+            last_activity_at?: string | null;
+            assigned_admin_id?: string | null;
+          };
+
+          setItems((current) =>
+            current.map((item) =>
+              item.id !== Number(thread.id)
+                ? item
+                : {
+                    ...item,
+                    status: typeof thread.status === "string" ? thread.status : item.status,
+                    priority: typeof thread.priority === "string" ? thread.priority : item.priority,
+                    lastActivityAt: thread.last_activity_at || item.lastActivityAt,
+                    assignedAdminId: typeof thread.assigned_admin_id === "string" ? thread.assigned_admin_id : item.assignedAdminId,
+                    assignedAdminName:
+                      typeof thread.assigned_admin_id === "string" && thread.assigned_admin_id
+                        ? thread.assigned_admin_id === currentUserId
+                          ? copy.supportLabel
+                          : item.assignedAdminName || copy.supportLabel
+                        : null,
+                  }
+            )
+          );
+        }
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [copy.supportLabel, copy.userLabel, currentUserId, isAdmin, supabase]);
+
+  useEffect(() => {
+    bottomAnchorRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [activeThreadId, activeThread?.messages.length]);
 
   return (
     <section className={`grid gap-4 ${showThreadPanel ? "lg:grid-cols-[320px_minmax(0,1fr)]" : ""}`}>
@@ -383,18 +501,32 @@ export function SupportCenter({ currentUserId, language, isAdmin = false, thread
             <div className="mt-4 space-y-3">
               {activeThread.messages.map((message) => {
                 const isMine = message.senderId === currentUserId;
+                const renderedMessage = getRenderedMessage(message, isMine);
                 return (
                   <div key={message.id} className={`flex ${isMine ? "justify-end" : "justify-start"}`}>
                     <div className={`max-w-[82%] rounded-[1.3rem] px-4 py-3 ${isMine ? "bg-[#ff6b35] text-white" : "bg-[#fff8f3] text-[#62564a]"}`}>
-                      <p className="text-[11px] font-semibold opacity-80">
-                        {isMine ? (isAdmin ? copy.supportLabel : copy.userLabel) : isAdmin ? copy.userLabel : copy.supportLabel}
-                      </p>
-                      <p className="mt-1 whitespace-pre-wrap text-sm">{message.body}</p>
-                      <p className="mt-2 text-[11px] opacity-70">{new Date(message.createdAt).toLocaleString()}</p>
+                      <p className="text-[11px] font-semibold opacity-80">{message.senderName}</p>
+                      <p className="mt-1 whitespace-pre-wrap text-sm">{renderedMessage.displayBody}</p>
+                      {renderedMessage.showOriginalToggle ? (
+                        <button
+                          type="button"
+                          className="mt-2 text-[11px] font-semibold underline underline-offset-2 opacity-80"
+                          onClick={() =>
+                            setShowOriginalByMessageId((current) => ({
+                              ...current,
+                              [message.id]: !current[message.id],
+                            }))
+                          }
+                        >
+                          {renderedMessage.showOriginal ? copy.showTranslated : copy.showOriginal}
+                        </button>
+                      ) : null}
+                      <p className="mt-2 text-[11px] opacity-70">{new Date(message.createdAt).toLocaleString(languageToLocale(language))}</p>
                     </div>
                   </div>
                 );
               })}
+              <div ref={bottomAnchorRef} />
             </div>
 
             <div className="mt-4 flex items-end gap-3 rounded-[1.5rem] border border-[#e8ddd2] bg-[#f8f3ed] p-3">

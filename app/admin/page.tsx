@@ -14,7 +14,7 @@ import { SupportCenter } from "@/components/support-center";
 import { SiteHeader } from "@/components/site-header";
 import { getComparableContactMethods } from "@/lib/provider-contact";
 import { hasAdminAccess } from "@/lib/admin";
-import { navigationCopy, normalizeLanguage } from "@/lib/i18n";
+import { navigationCopy, normalizeLanguage, type AppLanguage } from "@/lib/i18n";
 import { getRequestAppLanguage } from "@/lib/request-language-server";
 import { createClient } from "@/lib/supabase/server";
 import { WHATSAPP_PREFIX_OPTIONS } from "@/lib/whatsapp-prefix-options";
@@ -74,7 +74,15 @@ type SupportThreadRow = {
   assigned_admin_id?: string | null;
   created_at?: string | null;
 };
-type SupportMessageRow = { id: number; thread_id: number; sender_id: string; body: string; created_at: string };
+type SupportMessageRow = {
+  id: number;
+  thread_id: number;
+  sender_id: string;
+  body: string;
+  source_language?: AppLanguage | null;
+  translations?: Record<string, string> | null;
+  created_at: string;
+};
 type WebhookAuditRow = {
   provider: string;
   event_type: string | null;
@@ -355,7 +363,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
           supportThreadIds.length
             ? supabase
                 .from("support_messages")
-                .select("id, thread_id, sender_id, body, created_at")
+                .select("id, thread_id, sender_id, body, source_language, translations, created_at")
                 .in("thread_id", supportThreadIds)
                 .order("created_at", { ascending: true })
             : Promise.resolve({ data: [] as SupportMessageRow[] }),
@@ -1283,8 +1291,15 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                     messages: supportMessageRows.filter((message) => message.thread_id === thread.id).map((message) => ({
                       id: message.id,
                       senderId: message.sender_id,
-                      senderName: message.sender_id === user.id ? "Soporte" : profileForThread?.full_name || "Usuario",
+                      senderName:
+                        message.sender_id === thread.user_id
+                          ? profileForThread?.full_name || "Usuario"
+                          : thread.assigned_admin_id && message.sender_id === thread.assigned_admin_id
+                            ? supportProfileMap.get(thread.assigned_admin_id)?.full_name || "Soporte"
+                            : "Soporte",
                       body: message.body,
+                      sourceLanguage: normalizeLanguage(message.source_language),
+                      translations: message.translations || null,
                       createdAt: message.created_at,
                     })),
                   };

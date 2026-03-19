@@ -176,6 +176,8 @@ create table if not exists public.support_messages (
   thread_id bigint references public.support_threads(id) on delete cascade,
   sender_id uuid references public.profiles(id) on delete cascade,
   body text not null,
+  source_language text default 'es' check (source_language in ('es', 'en')),
+  translations jsonb default '{}'::jsonb,
   created_at timestamptz default now()
 );
 
@@ -220,9 +222,15 @@ alter table public.request_messages add column if not exists source_language tex
 alter table public.request_messages add column if not exists translations jsonb default '{}'::jsonb;
 alter table public.request_messages add column if not exists image_url text;
 alter table public.request_messages add column if not exists image_path text;
+alter table public.support_messages add column if not exists source_language text default 'es';
+alter table public.support_messages add column if not exists translations jsonb default '{}'::jsonb;
 alter table public.request_messages drop constraint if exists request_messages_source_language_check;
 alter table public.request_messages
 add constraint request_messages_source_language_check
+check (source_language in ('es', 'en'));
+alter table public.support_messages drop constraint if exists support_messages_source_language_check;
+alter table public.support_messages
+add constraint support_messages_source_language_check
 check (source_language in ('es', 'en'));
 
 create or replace function public.handle_new_user()

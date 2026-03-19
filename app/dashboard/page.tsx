@@ -102,6 +102,8 @@ type SupportMessageRow = {
   thread_id: number;
   sender_id: string;
   body: string;
+  source_language?: AppLanguage | null;
+  translations?: Record<string, string> | null;
   created_at: string;
 };
 
@@ -767,7 +769,7 @@ export default async function DashboardPage({
     const supportIds = (supportThreadRows as SupportThreadRow[]).map((row) => row.id);
     const { data: supportMessageRows } = await supabase
       .from("support_messages")
-      .select("id, thread_id, sender_id, body, created_at")
+      .select("id, thread_id, sender_id, body, source_language, translations, created_at")
       .in("thread_id", supportIds)
       .order("created_at", { ascending: true });
 
@@ -790,6 +792,8 @@ export default async function DashboardPage({
           senderId: message.sender_id,
           senderName: message.sender_id === user.id ? firstName : currentUserLanguage === "en" ? "Support" : "Soporte",
           body: message.body,
+          sourceLanguage: normalizeLanguage(message.source_language),
+          translations: message.translations || null,
           createdAt: message.created_at,
         })),
     }));

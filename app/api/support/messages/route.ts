@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { hasAdminAccess } from "@/lib/admin";
 import { logActionAudit } from "@/lib/action-audit";
+import { normalizeLanguage, type AppLanguage } from "@/lib/i18n";
+import { translateMessage } from "@/lib/openai";
 import { sendSupportReplyEmail } from "@/lib/notification-email";
 import { rejectRateLimited } from "@/lib/rate-limit";
 import { rejectUntrustedOrigin } from "@/lib/security";
@@ -49,7 +51,7 @@ export async function POST(request: Request) {
     }
 
     const admin = createAdminClient();
-    const { data: me } = await admin.from("profiles").select("role, email").eq("id", user.id).single();
+    const { data: me } = await admin.from("profiles").select("role, email, preferred_language").eq("id", user.id).single();
     const isAdmin = hasAdminAccess(me?.role, me?.email || user.email);
     const { data: thread } = await admin
       .from("support_threads")
@@ -66,14 +68,32 @@ export async function POST(request: Request) {
     }
 
     const now = new Date().toISOString();
+    const sourceLanguage = normalizeLanguage(me?.preferred_language);
+    const targetLanguage = sourceLanguage === "en" ? ("es" as AppLanguage) : ("en" as AppLanguage);
+    const translations: Partial<Record<AppLanguage, string>> = {};
+
+    if (targetLanguage !== sourceLanguage) {
+      const translatedBody = await translateMessage({
+        text: message,
+        sourceLanguage,
+        targetLanguage,
+      });
+
+      if (translatedBody) {
+        translations[targetLanguage] = translatedBody;
+      }
+    }
+
     const { data: insertedMessage, error: insertError } = await admin
       .from("support_messages")
       .insert({
         thread_id: threadId,
         sender_id: user.id,
         body: message,
+        source_language: sourceLanguage,
+        translations,
       })
-      .select("id, sender_id, body, created_at")
+      .select("id, sender_id, body, source_language, translations, created_at")
       .single();
 
     if (insertError || !insertedMessage) {
