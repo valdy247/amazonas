@@ -128,21 +128,28 @@ export async function POST(request: Request) {
       referredByCode = referrer.referral_code || referralCodeInput;
     }
 
-    const result = await callSupabaseAuth("/auth/v1/signup", {
-      email,
-      password,
-      emailRedirectTo: `${resolveSiteOrigin({
-        requestUrl: request.url,
-        headerOrigin: request.headers.get("origin"),
-        forwardedHost: request.headers.get("x-forwarded-host") || request.headers.get("host"),
-        forwardedProto: request.headers.get("x-forwarded-proto"),
-      })}/auth/callback`,
-      data: {
-        ...(body.data || {}),
-        referred_by_user_id: referredByUserId,
-        referred_by_code: referredByCode,
+    const emailRedirectTo = `${resolveSiteOrigin({
+      requestUrl: request.url,
+      headerOrigin: request.headers.get("origin"),
+      forwardedHost: request.headers.get("x-forwarded-host") || request.headers.get("host"),
+      forwardedProto: request.headers.get("x-forwarded-proto"),
+    })}/auth/callback`;
+
+    const result = await callSupabaseAuth(
+      "/auth/v1/signup",
+      {
+        email,
+        password,
+        data: {
+          ...(body.data || {}),
+          referred_by_user_id: referredByUserId,
+          referred_by_code: referredByCode,
+        },
       },
-    });
+      {
+        redirectTo: emailRedirectTo,
+      }
+    );
 
     if (!result.ok) {
       return NextResponse.json({ error: result.error || "Error de registro" }, { status: result.status });

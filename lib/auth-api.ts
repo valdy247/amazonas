@@ -27,7 +27,15 @@ async function parseAuthResponse(res: Response) {
   }
 }
 
-export async function callSupabaseAuth(path: string, body: Record<string, unknown>) {
+type SupabaseAuthRequestOptions = {
+  redirectTo?: string;
+};
+
+export async function callSupabaseAuth(
+  path: string,
+  body: Record<string, unknown>,
+  options?: SupabaseAuthRequestOptions
+) {
   const env = readAuthEnv();
 
   if ("error" in env) {
@@ -39,7 +47,13 @@ export async function callSupabaseAuth(path: string, body: Record<string, unknow
   }
 
   try {
-    const res = await fetch(`${env.supabaseUrl}${path}`, {
+    const url = new URL(`${env.supabaseUrl}${path}`);
+
+    if (options?.redirectTo) {
+      url.searchParams.set("redirect_to", options.redirectTo);
+    }
+
+    const res = await fetch(url.toString(), {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
