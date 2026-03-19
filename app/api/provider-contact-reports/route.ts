@@ -12,6 +12,29 @@ type Payload = {
 
 const REPORT_TYPES = new Set(["no_reply", "not_provider", "trusted", "scam", "broken_contact"]);
 
+async function syncProviderVerification(admin: ReturnType<typeof createAdminClient>, providerContactId: number) {
+  const { count, error: countError } = await admin
+    .from("provider_contact_reports")
+    .select("*", { count: "exact", head: true })
+    .eq("provider_contact_id", providerContactId)
+    .eq("report_type", "trusted")
+    .in("reporter_role", ["reviewer", "tester"])
+    .neq("status", "dismissed");
+
+  if (countError) {
+    throw new Error(countError.message || "Could not recalculate provider verification.");
+  }
+
+  const { error: updateError } = await admin
+    .from("provider_contacts")
+    .update({ is_verified: (count || 0) >= 2 })
+    .eq("id", providerContactId);
+
+  if (updateError) {
+    throw new Error(updateError.message || "Could not update provider verification.");
+  }
+}
+
 export async function POST(request: Request) {
   try {
     const limited = await rejectRateLimited({
@@ -89,6 +112,8 @@ export async function POST(request: Request) {
     if (error) {
       throw new Error(error.message || "Could not submit the report.");
     }
+
+    await syncProviderVerification(admin, providerContactId);
 
     await logActionAudit({
       actorId: reporterRole === "admin" ? user.id : null,

@@ -524,7 +524,7 @@ export default async function DashboardPage({
           contact_methods: null,
           history_id: contact.id,
           source: "admin",
-          source_label: "Equipo",
+          source_label: contact.is_verified ? "Verificado" : "Por verificar",
         })) as ProviderContact[];
       } else {
         contacts = (withVerification.data || []).map((contact) => ({
@@ -535,7 +535,7 @@ export default async function DashboardPage({
             contact_methods: null,
           history_id: contact.id,
           source: "admin",
-          source_label: "Equipo",
+          source_label: contact.is_verified ? "Verificado" : "Por verificar",
         })) as ProviderContact[];
       }
     } else {
@@ -544,7 +544,7 @@ export default async function DashboardPage({
         id: `admin:${contact.id}`,
         history_id: contact.id,
         source: "admin",
-        source_label: "Equipo",
+        source_label: contact.is_verified ? "Verificado" : "Por verificar",
       }));
     }
 
@@ -593,7 +593,7 @@ export default async function DashboardPage({
           email: provider.email || matchedManualContact?.email || null,
           contact_methods: matchedManualContact?.contact_methods || contactMethods,
           source: "registered" as const,
-          source_label: matchedManualContact?.is_verified ? "Verificado" : "Registrado",
+          source_label: matchedManualContact?.is_verified ? "Verificado" : "Por verificar",
           history_id: null,
         };
       })

@@ -37,6 +37,32 @@ function isProviderContactReportStatus(value: string): value is (typeof PROVIDER
   return (PROVIDER_CONTACT_REPORT_STATUSES as readonly string[]).includes(value);
 }
 
+async function syncProviderVerificationFromReports(input: {
+  admin: ReturnType<typeof createAdminClient>;
+  providerContactId: number;
+}) {
+  const { count, error: countError } = await input.admin
+    .from("provider_contact_reports")
+    .select("*", { count: "exact", head: true })
+    .eq("provider_contact_id", input.providerContactId)
+    .eq("report_type", "trusted")
+    .in("reporter_role", ["reviewer", "tester"])
+    .neq("status", "dismissed");
+
+  if (countError) {
+    throw new Error(countError.message || "No se pudo recalcular la verificacion del proveedor.");
+  }
+
+  const { error: updateError } = await input.admin
+    .from("provider_contacts")
+    .update({ is_verified: (count || 0) >= 2 })
+    .eq("id", input.providerContactId);
+
+  if (updateError) {
+    throw new Error(updateError.message || "No se pudo actualizar la verificacion del proveedor.");
+  }
+}
+
 async function assertAdmin() {
   const supabase = await createClient();
   const admin = createAdminClient();
@@ -900,6 +926,11 @@ export async function createProviderContactAdminReport(formData: FormData) {
     throw new Error(error.message || "No se pudo registrar la marca.");
   }
 
+  await syncProviderVerificationFromReports({
+    admin,
+    providerContactId: contactId,
+  });
+
   await logAdminAction({
     supabase,
     admin,
@@ -947,6 +978,11 @@ export async function updateProviderContactReportReview(formData: FormData) {
   if (error) {
     throw new Error(error.message || "No se pudo actualizar la revision.");
   }
+
+  await syncProviderVerificationFromReports({
+    admin,
+    providerContactId: contactId,
+  });
 
   await logAdminAction({
     supabase,
