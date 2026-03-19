@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { callSupabaseAuth } from "@/lib/auth-api";
 import { rejectRateLimited } from "@/lib/rate-limit";
 import { rejectUntrustedOrigin } from "@/lib/security";
 import { resolveSiteOrigin } from "@/lib/site-url";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 import { normalizeReferralCode, isVerifiedReviewerReferrer } from "@/lib/referrals";
 
 type SignupBody = {
@@ -135,27 +135,25 @@ export async function POST(request: Request) {
       forwardedProto: request.headers.get("x-forwarded-proto"),
     })}/auth/callback`;
 
-    const result = await callSupabaseAuth(
-      "/auth/v1/signup",
-      {
-        email,
-        password,
+    const supabase = await createClient();
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo,
         data: {
           ...(body.data || {}),
           referred_by_user_id: referredByUserId,
           referred_by_code: referredByCode,
         },
       },
-      {
-        redirectTo: emailRedirectTo,
-      }
-    );
+    });
 
-    if (!result.ok) {
-      return NextResponse.json({ error: result.error || "Error de registro" }, { status: result.status });
+    if (error) {
+      return NextResponse.json({ error: error.message || "Error de registro" }, { status: 400 });
     }
 
-    const signupUser = getSignupUserPayload(result.data);
+    const signupUser = getSignupUserPayload(data);
 
     if (signupUser?.userId && (signupUser.emailConfirmedAt || signupUser.hasSessionTokens)) {
       const admin = createAdminClient();
@@ -174,7 +172,7 @@ export async function POST(request: Request) {
       );
     }
 
-    return NextResponse.json({ data: result.data }, { status: 200 });
+    return NextResponse.json({ data }, { status: 200 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "No se pudo procesar el registro";
     return NextResponse.json({ error: message }, { status: 500 });
