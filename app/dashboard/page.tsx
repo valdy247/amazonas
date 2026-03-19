@@ -298,6 +298,7 @@ export default async function DashboardPage({
     redirect("/onboarding");
   }
 
+  const rawRole = profile.role;
   const role = normalizeUserRole(profile.role);
   const firstName = String(profile.full_name || "miembro").trim().split(/\s+/)[0] || "miembro";
   const metadata = (user.user_metadata || {}) as Record<string, unknown>;
@@ -379,12 +380,12 @@ export default async function DashboardPage({
   const lastPaymentFailedAt = formatMembershipDate(membershipState?.last_payment_failed_at, currentUserLanguage);
   const hasMembershipAccess = isAdmin || membershipHasAccess(membershipState);
   const canSeeContacts = isAdmin || (!isProvider && hasMembershipAccess && kycStatus === "approved");
-  const isReviewerAccount = !isProvider;
-  const referralCode = isReviewerAccount ? await ensureReferralCode(user.id, (profile as ProfileRow | null)?.referral_code) : null;
-  const referralQualifiedAt = isReviewerAccount
+  const canUseReferralProgram = rawRole === "reviewer" || rawRole === "tester" || rawRole === "admin";
+  const referralCode = canUseReferralProgram ? await ensureReferralCode(user.id, (profile as ProfileRow | null)?.referral_code) : null;
+  const referralQualifiedAt = canUseReferralProgram
     ? await syncReferralQualification({
         userId: user.id,
-        role: role,
+        role: rawRole,
         emailConfirmedAt: (profile as ProfileRow | null)?.email_confirmed_at || authEmailConfirmedAt,
         referredByUserId: (profile as ProfileRow | null)?.referred_by_user_id || null,
         referralQualifiedAt: (profile as ProfileRow | null)?.referral_qualified_at || null,
@@ -392,7 +393,7 @@ export default async function DashboardPage({
         kycStatus,
       })
     : null;
-  if (isReviewerAccount && referralQualifiedAt && profile) {
+  if (canUseReferralProgram && referralQualifiedAt && profile) {
     (profile as ProfileRow).referral_qualified_at = referralQualifiedAt;
   }
   const squareStatus = typeof resolvedSearchParams.square === "string" ? resolvedSearchParams.square : null;
@@ -508,7 +509,7 @@ export default async function DashboardPage({
     ? providerAliasByRegisteredId.get(user.id) || "Proveedor"
     : firstName;
 
-  if (isReviewerAccount) {
+  if (canUseReferralProgram) {
     const referredProfilesResult = await admin
       .from("profiles")
       .select("id, referred_by_user_id, referral_qualified_at")
@@ -920,7 +921,7 @@ export default async function DashboardPage({
   const collaborationInboxKey = `${user.id}-${requestedThreadId || "none"}-${isProvider ? "provider" : "reviewer"}`;
   const referralLink = referralCode ? buildReferralLink(process.env.NEXT_PUBLIC_SITE_URL || "https://verifyzon.com", referralCode) : null;
   const reviewerCanEarnReferralRewards = isVerifiedReviewerReferrer({
-    role,
+    role: rawRole,
     membership: membershipState,
     kycStatus,
     emailConfirmedAt: (profile as ProfileRow | null)?.email_confirmed_at || authEmailConfirmedAt,

@@ -388,7 +388,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   const referralProfilesResult = await supabase
     .from("profiles")
     .select("id, full_name, email, role, created_at, referral_code, referred_by_user_id, referred_by_code, email_confirmed_at, referral_qualified_at")
-    .or("role.eq.reviewer,role.eq.tester,referred_by_user_id.not.is.null");
+    .or("role.eq.reviewer,role.eq.tester,role.eq.admin,referred_by_user_id.not.is.null");
   const referralProfiles = (referralProfilesResult.data as ProfileRow[] | null) || [];
   const referralProfileMap = new Map(referralProfiles.map((item) => [item.id, item]));
   const referralRows = referralProfiles.filter((item) => item.referred_by_user_id);
@@ -401,7 +401,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       const rewardedThisMonth = getMonthlyRewardedReferralCount(referralRows, referrer.id);
       return {
         id: referrer.id,
-        name: referrer.full_name || "Reviewer",
+        name: referrer.full_name || (referrer.role === "admin" ? "Admin" : "Reviewer"),
         email: referrer.email || "",
         code: referrer.referral_code || "",
         rewardedThisMonth,

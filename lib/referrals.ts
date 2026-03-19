@@ -89,6 +89,10 @@ export function isVerifiedReviewerReferrer(input: {
   kycStatus?: string | null;
   emailConfirmedAt?: string | null;
 }) {
+  if (input.role === "admin") {
+    return Boolean(input.emailConfirmedAt);
+  }
+
   return (
     (input.role === "reviewer" || input.role === "tester") &&
     Boolean(input.emailConfirmedAt) &&
