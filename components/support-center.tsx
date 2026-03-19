@@ -401,8 +401,8 @@ export function SupportCenter({ currentUserId, language, isAdmin = false, thread
   }, [activeThreadId, activeThread?.messages.length]);
 
   return (
-    <section className={`grid gap-4 ${showThreadPanel ? "lg:grid-cols-[320px_minmax(0,1fr)]" : ""}`}>
-      <div className="rounded-[1.8rem] border border-[#eadfd6] bg-white p-4 shadow-[0_18px_36px_rgba(22,18,14,0.04)]">
+    <section className={`grid gap-4 ${showThreadPanel ? "lg:grid-cols-[320px_minmax(0,1fr)] xl:grid-cols-[380px_minmax(0,1fr)] xl:items-start" : ""}`}>
+      <div className="rounded-[1.8rem] border border-[#eadfd6] bg-white p-4 shadow-[0_18px_36px_rgba(22,18,14,0.04)] xl:sticky xl:top-6 xl:max-h-[calc(100vh-3rem)] xl:overflow-hidden">
         <div className="flex items-start justify-between gap-3">
           <div>
             <h2 className="text-xl font-bold text-[#131316]">{isAdmin ? copy.manageTitle : copy.title}</h2>
@@ -477,7 +477,7 @@ export function SupportCenter({ currentUserId, language, isAdmin = false, thread
           </div>
         ) : null}
 
-        <div className="mt-4 space-y-3">
+        <div className="mt-4 space-y-3 xl:max-h-[calc(100vh-18rem)] xl:overflow-y-auto xl:pr-1">
           {sortedThreads.length ? (
             sortedThreads.map((thread) => (
               <button
@@ -512,7 +512,7 @@ export function SupportCenter({ currentUserId, language, isAdmin = false, thread
       </div>
 
       {showThreadPanel ? (
-        <div className="rounded-[1.8rem] border border-[#eadfd6] bg-white p-4 shadow-[0_18px_36px_rgba(22,18,14,0.04)]">
+        <div className="rounded-[1.8rem] border border-[#eadfd6] bg-white p-4 shadow-[0_18px_36px_rgba(22,18,14,0.04)] xl:min-h-[calc(100vh-3rem)] xl:p-5">
         {activeThread ? (
           <>
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#efe5db] pb-4">
@@ -562,7 +562,7 @@ export function SupportCenter({ currentUserId, language, isAdmin = false, thread
               )}
             </div>
 
-            <div className="mt-4 space-y-3">
+            <div className="mt-4 space-y-3 xl:max-h-[calc(100vh-20rem)] xl:overflow-y-auto xl:pr-2">
               {activeThread.messages.map((message) => {
                 const isMine = message.senderId === currentUserId;
                 const renderedMessage = getRenderedMessage(message, isMine);
@@ -593,7 +593,7 @@ export function SupportCenter({ currentUserId, language, isAdmin = false, thread
               <div ref={bottomAnchorRef} />
             </div>
 
-            <div className="mt-4 flex items-end gap-3 rounded-[1.5rem] border border-[#e8ddd2] bg-[#f8f3ed] p-3">
+            <div className="mt-4 flex items-end gap-3 rounded-[1.5rem] border border-[#e8ddd2] bg-[#f8f3ed] p-3 xl:mt-5">
               <div className="inline-flex h-11 w-11 flex-none items-center justify-center rounded-full bg-white text-[#62564a]">
                 <Headset className="h-5 w-5" />
               </div>
