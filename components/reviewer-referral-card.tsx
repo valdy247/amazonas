@@ -33,7 +33,9 @@ export function ReviewerReferralCard({
       try {
         await navigator.share({
           title: isEnglish ? "Join Verifyzon" : "Únete a Verifyzon",
-          text: isEnglish ? "Use my referral link to join as a reviewer!" : "Usa mi enlace de referido para unirte como reseñador!",
+          text: isEnglish
+            ? "Join Verifyzon through my link to get access to more than 150 monthly providers."
+            : "Unete a travez de mi enlace a Verifyzon para tener acceso a mas de 150 proveedores mensuales",
           url: referralLink,
         });
         setShared(true);
