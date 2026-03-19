@@ -108,6 +108,40 @@ function getVerifiedFullName(payload: VeriffWebhookPayload) {
   return extractedName || null;
 }
 
+function normalizeBirthDate(value: string | null | undefined) {
+  const raw = String(value || "").trim();
+  if (!raw) {
+    return null;
+  }
+
+  const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!match) {
+    return null;
+  }
+
+  const normalized = `${match[1]}-${match[2]}-${match[3]}`;
+  return Number.isNaN(new Date(`${normalized}T00:00:00Z`).getTime()) ? null : normalized;
+}
+
+function getVerifiedBirthDate(payload: VeriffWebhookPayload) {
+  const person = payload.verification?.person;
+  const directDate =
+    normalizeBirthDate(person?.dateOfBirth) ||
+    normalizeBirthDate(person?.dob) ||
+    normalizeBirthDate(person?.birthDate);
+
+  if (directDate) {
+    return directDate;
+  }
+
+  const fullAutoPerson = payload.data?.verification?.person;
+  return (
+    normalizeBirthDate(getObjectValue(fullAutoPerson?.dateOfBirth)) ||
+    normalizeBirthDate(getObjectValue(fullAutoPerson?.dob)) ||
+    normalizeBirthDate(getObjectValue(fullAutoPerson?.birthDate))
+  );
+}
+
 function resolveDecisionStatus(payload: VeriffWebhookPayload) {
   const decision = payload.verification?.status || payload.data?.verification?.decision || null;
   return typeof decision === "string" ? decision : null;
@@ -205,6 +239,7 @@ export async function POST(request: NextRequest) {
     const verificationId = resolveVerificationId(payload);
     const decisionStatus = resolveDecisionStatus(payload);
     const verifiedFullName = getVerifiedFullName(payload);
+    const verifiedBirthDate = getVerifiedBirthDate(payload);
 
     if (!decisionStatus) {
       await logWebhookAudit({
@@ -276,6 +311,7 @@ export async function POST(request: NextRequest) {
       reference_id: verificationId,
       reviewed_at: processedAt,
       verified_full_name: verifiedFullName || null,
+      date_of_birth: verifiedBirthDate,
       review_note:
         baseStatus === "approved" && !hasReasonableNameMatch
           ? "El nombre verificado no coincide razonablemente con el nombre del perfil."

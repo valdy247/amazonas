@@ -73,12 +73,14 @@ create table if not exists public.kyc_checks (
   provider_name text,
   reference_id text,
   verified_full_name text,
+  date_of_birth date,
   review_note text,
   reviewed_at timestamptz,
   created_at timestamptz default now()
 );
 
 alter table public.kyc_checks add column if not exists verified_full_name text;
+alter table public.kyc_checks add column if not exists date_of_birth date;
 alter table public.kyc_checks add column if not exists review_note text;
 
 create table if not exists public.provider_contacts (

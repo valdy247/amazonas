@@ -25,6 +25,7 @@ type MemberRow = {
   kycStatus: string;
   kycReferenceId?: string | null;
   kycVerifiedFullName?: string | null;
+  kycDateOfBirth?: string | null;
   kycReviewNote?: string | null;
   kycReviewedAt?: string | null;
   history?: Array<{
@@ -235,6 +236,7 @@ export function AdminUserManager({ members, initialQuery = "", language }: Admin
         member.kycStatus,
         member.kycReferenceId,
         member.kycVerifiedFullName,
+        member.kycDateOfBirth,
         historyHaystack,
       ]
         .filter(Boolean)
@@ -379,6 +381,10 @@ export function AdminUserManager({ members, initialQuery = "", language }: Admin
                     <p>
                       <span className="font-semibold text-[#131316]">Nombre verificado:</span>{" "}
                       {member.kycVerifiedFullName || "Aun no disponible"}
+                    </p>
+                    <p>
+                      <span className="font-semibold text-[#131316]">Fecha de nacimiento:</span>{" "}
+                      {member.kycDateOfBirth || "Aun no disponible"}
                     </p>
                     <p>
                       <span className="font-semibold text-[#131316]">Revision KYC:</span>{" "}

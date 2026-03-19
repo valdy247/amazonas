@@ -49,6 +49,7 @@ type KycRow = {
   status: string;
   reference_id?: string | null;
   verified_full_name?: string | null;
+  date_of_birth?: string | null;
   review_note?: string | null;
   reviewed_at?: string | null;
 };
@@ -261,7 +262,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     supabase
       .from("memberships")
       .select("user_id, status, current_period_end_at, canceled_at, last_payment_failed_at, square_customer_id, square_order_id, square_subscription_id, paid_at, updated_at"),
-    supabase.from("kyc_checks").select("user_id, status, reference_id, verified_full_name, review_note, reviewed_at"),
+    supabase.from("kyc_checks").select("user_id, status, reference_id, verified_full_name, date_of_birth, review_note, reviewed_at"),
     supabase.from("memberships").select("*", { count: "exact", head: true }).eq("status", "active"),
     supabase.from("kyc_checks").select("*", { count: "exact", head: true }).eq("status", "approved"),
     supabase.from("kyc_checks").select("*", { count: "exact", head: true }).eq("status", "in_review"),
@@ -301,6 +302,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         membership?.square_subscription_id,
         kyc?.reference_id,
         kyc?.verified_full_name,
+        kyc?.date_of_birth,
       ]
         .filter(Boolean)
         .join(" ")
@@ -313,7 +315,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       }
     });
     allKycRows.forEach((kyc) => {
-      if ([kyc.reference_id, kyc.verified_full_name].filter(Boolean).join(" ").toLowerCase().includes(normalizedSearch)) {
+      if ([kyc.reference_id, kyc.verified_full_name, kyc.date_of_birth].filter(Boolean).join(" ").toLowerCase().includes(normalizedSearch)) {
         matchingMemberIds.add(kyc.user_id);
       }
     });
@@ -468,7 +470,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         id: `kyc-${member.id}`,
         type: "kyc",
         title: `KYC ${kyc.status}`,
-        body: [kyc.reference_id ? `Ref ${kyc.reference_id}` : null, kyc.verified_full_name || null, kyc.review_note || null]
+        body: [kyc.reference_id ? `Ref ${kyc.reference_id}` : null, kyc.verified_full_name || null, kyc.date_of_birth ? `DOB ${kyc.date_of_birth}` : null, kyc.review_note || null]
           .filter(Boolean)
           .join(" · ") || "Estado de verificacion actualizado.",
         at: getLatestAt(kyc.reviewed_at),
@@ -555,6 +557,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     kyc_status: kycByUser.get(member.id)?.status || "pending",
     kyc_reference_id: kycByUser.get(member.id)?.reference_id || "",
     verified_full_name: kycByUser.get(member.id)?.verified_full_name || "",
+    date_of_birth: kycByUser.get(member.id)?.date_of_birth || "",
     kyc_review_note: kycByUser.get(member.id)?.review_note || "",
     support_threads: supportThreadCountByUser.get(member.id) || 0,
     chat_threads: requestCountByUser.get(member.id) || 0,
@@ -1180,6 +1183,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                   kycStatus: kycByUser.get(member.id)?.status || "pending",
                   kycReferenceId: kycByUser.get(member.id)?.reference_id || null,
                   kycVerifiedFullName: kycByUser.get(member.id)?.verified_full_name || null,
+                  kycDateOfBirth: kycByUser.get(member.id)?.date_of_birth || null,
                   kycReviewNote: kycByUser.get(member.id)?.review_note || null,
                   kycReviewedAt: kycByUser.get(member.id)?.reviewed_at || null,
                   history: (historyByUser.get(member.id) || []).filter((entry) => entry.at).sort((left, right) => new Date(right.at).getTime() - new Date(left.at).getTime()).slice(0, 12),

@@ -24,6 +24,9 @@ type VeriffDecisionPayload = {
       person?: {
         firstName?: { value?: string | null } | null;
         lastName?: { value?: string | null } | null;
+        dateOfBirth?: { value?: string | null } | null;
+        dob?: { value?: string | null } | null;
+        birthDate?: { value?: string | null } | null;
       } | null;
     } | null;
   } | null;
@@ -40,6 +43,9 @@ type VeriffDecisionPayload = {
       firstName?: string | null;
       lastName?: string | null;
       fullName?: string | null;
+      dateOfBirth?: string | null;
+      dob?: string | null;
+      birthDate?: string | null;
     };
   };
 };
