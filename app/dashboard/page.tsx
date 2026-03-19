@@ -227,6 +227,19 @@ function shouldMergeProviderContacts(
   );
 }
 
+function sortManualContactsForStableMatch(contacts: ProviderContact[]) {
+  return [...contacts].sort((left, right) => {
+    if (left.is_verified !== right.is_verified) {
+      return Number(right.is_verified) - Number(left.is_verified);
+    }
+
+    const leftHistoryId = typeof left.history_id === "number" ? left.history_id : Number.MAX_SAFE_INTEGER;
+    const rightHistoryId = typeof right.history_id === "number" ? right.history_id : Number.MAX_SAFE_INTEGER;
+
+    return leftHistoryId - rightHistoryId || left.id.localeCompare(right.id);
+  });
+}
+
 export default async function DashboardPage({
   searchParams,
 }: {
@@ -490,16 +503,18 @@ export default async function DashboardPage({
       const withMethods = await supabase
       .from("provider_contacts")
       .select("id, title, email, network, url, notes, is_verified, avatar_data_url, contact_methods")
+      .order("id", { ascending: true })
       .eq("is_active", true);
 
     if (withMethods.error) {
         const withVerification = await supabase
         .from("provider_contacts")
         .select("id, title, network, url, notes, is_verified, avatar_data_url")
+        .order("id", { ascending: true })
         .eq("is_active", true);
 
       if (withVerification.error) {
-        const fallback = await supabase.from("provider_contacts").select("id, title, network, url, notes").eq("is_active", true);
+        const fallback = await supabase.from("provider_contacts").select("id, title, network, url, notes").order("id", { ascending: true }).eq("is_active", true);
         contacts = (fallback.data || []).map((contact) => ({
           ...contact,
           id: `admin:${contact.id}`,
@@ -547,7 +562,7 @@ export default async function DashboardPage({
         .map((value) => `admin:${value}`);
     }
 
-    const manualContacts = [...contacts];
+    const manualContacts = sortManualContactsForStableMatch(contacts);
     const matchedManualContactIds = new Set<string>();
     const registeredProviders = allRegisteredProviderProfiles
       .map((provider) => {
@@ -561,13 +576,11 @@ export default async function DashboardPage({
           return null;
         }
 
-        const matchedManualContact = manualContacts.find((contact) => {
-          const matches = shouldMergeProviderContacts(contact, providerFields);
-          if (matches) {
-            matchedManualContactIds.add(contact.id);
-          }
-          return matches;
-        });
+        const matchingManualContacts = manualContacts.filter((contact) => shouldMergeProviderContacts(contact, providerFields));
+        const matchedManualContact = matchingManualContacts[0];
+        if (matchedManualContact) {
+          matchedManualContactIds.add(matchedManualContact.id);
+        }
 
         return {
           id: `registered:${provider.id}`,
