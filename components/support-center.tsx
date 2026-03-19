@@ -235,13 +235,29 @@ export function SupportCenter({ currentUserId, language, isAdmin = false, thread
           <div className="mt-4 rounded-[1.3rem] border border-[#efe4d9] bg-[#fffaf6] p-4">
             <p className="text-sm font-semibold text-[#131316]">{copy.newThread}</p>
             <input className="input mt-3" value={newThreadSubject} onChange={(event) => setNewThreadSubject(event.target.value)} placeholder={copy.subjectPlaceholder} />
-            <select className="input mt-3" value={newThreadCategory} onChange={(event) => setNewThreadCategory(event.target.value)}>
-              {SUPPORT_CATEGORIES.map((category) => (
-                <option key={category} value={category}>
-                  {getSupportCategoryLabel(category, language)}
-                </option>
-              ))}
-            </select>
+            <div className="mt-3 rounded-[1.2rem] border border-[#eadfd6] bg-white p-3">
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#8f857b]">{copy.category}</p>
+              <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {SUPPORT_CATEGORIES.map((category) => {
+                  const active = newThreadCategory === category;
+
+                  return (
+                    <button
+                      key={category}
+                      type="button"
+                      onClick={() => setNewThreadCategory(category)}
+                      className={`rounded-[1rem] border px-3 py-3 text-left text-sm font-semibold transition ${
+                        active
+                          ? "border-[#ff6b35] bg-[linear-gradient(135deg,#fff1ea_0%,#ffe4d6_100%)] text-[#131316] shadow-[0_12px_24px_rgba(255,107,53,0.12)]"
+                          : "border-[#eadfd6] bg-[#fffaf6] text-[#62564a] hover:border-[#f0cbb8] hover:bg-[#fff3ec]"
+                      }`}
+                    >
+                      {getSupportCategoryLabel(category, language)}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
             <textarea
               className="mt-3 min-h-24 w-full rounded-[1.2rem] border border-[#eadfd6] bg-white px-4 py-3 text-sm text-[#131316] outline-none"
               value={newThreadMessage}

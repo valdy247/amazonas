@@ -1,6 +1,6 @@
 import { normalizeLanguage, type AppLanguage } from "@/lib/i18n";
 
-export const SUPPORT_CATEGORIES = ["general", "payment", "verification", "chat", "account", "provider", "bug"] as const;
+export const SUPPORT_CATEGORIES = ["general", "payment", "verification", "chat", "account", "provider", "referrals", "bug"] as const;
 export type SupportCategory = (typeof SUPPORT_CATEGORIES)[number];
 export type SupportStatus = "open" | "in_progress" | "resolved";
 export type SupportPriority = "low" | "normal" | "high";
@@ -12,6 +12,7 @@ const CATEGORY_LABELS: Record<SupportCategory, Record<AppLanguage, string>> = {
   chat: { es: "Mensajeria", en: "Messaging" },
   account: { es: "Cuenta", en: "Account" },
   provider: { es: "Proveedor", en: "Provider" },
+  referrals: { es: "Referidos", en: "Referrals" },
   bug: { es: "Error tecnico", en: "Bug" },
 };
 
