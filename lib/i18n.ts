@@ -26,7 +26,8 @@ export const authCopy = {
     recoveryTitle: "Crear nueva contraseña",
     createdOk: "Tu cuenta fue creada. Revisa tu correo y confirma tu email antes de iniciar sesión.",
     confirmedOk: "Tu correo fue verificado correctamente. Ya puedes entrar.",
-    confirmError: "No pudimos confirmar tu correo. Intenta abrir de nuevo el enlace desde tu email.",
+    confirmError:
+      "Este enlace de verificacion ya fue usado o vencio. Si ya puedes iniciar sesion, tu correo ya quedo verificado. Si no, abre el enlace mas reciente de tu email.",
     passwordUpdatedOk: "Tu contraseña fue actualizada correctamente. Ya puedes iniciar sesión.",
     recoveryBody: "Define una nueva contraseña para recuperar el acceso a tu cuenta.",
     identityTitle: "Revisa bien tu información antes de continuar",
@@ -81,7 +82,8 @@ export const authCopy = {
     recoveryTitle: "Create a new password",
     createdOk: "Your account was created. Check your email and confirm it before signing in.",
     confirmedOk: "Your email was verified successfully. You can sign in now.",
-    confirmError: "We could not confirm your email. Try opening the link from your inbox again.",
+    confirmError:
+      "This verification link was already used or expired. If you can already sign in, your email is already confirmed. If not, open the newest link from your inbox.",
     passwordUpdatedOk: "Your password was updated successfully. You can sign in now.",
     recoveryBody: "Choose a new password to regain access to your account.",
     identityTitle: "Review your information carefully before continuing",
@@ -706,7 +708,7 @@ export const dashboardCopy = {
     squareCanceledBody:
       "Tu suscripcion fue cancelada. Si tu periodo actual ya estaba pagado, respetaremos el acceso hasta su fecha de fin y luego podras renovar manualmente.",
     squareProcessing:
-      "Regresaste desde Square. Estamos validando tu pago y activaremos tu membresia en cuanto llegue el webhook.",
+      "Aun no hemos recibido la confirmacion de tu pago. Si ya pagaste y tu membresia todavia no se activa, contacta a soporte.",
     payWithSquare: "Pagar con Square",
     renewWithSquare: "Renovar con Square",
     idVerificationTitle: "Verificacion de ID",
@@ -781,7 +783,7 @@ export const dashboardCopy = {
     squareCanceledBody:
       "Your subscription was canceled. If your current period was already paid, we will honor access until its end date and then you can renew manually.",
     squareProcessing:
-      "You returned from Square. We are validating your payment and will activate your membership as soon as the webhook arrives.",
+      "We have not received your payment confirmation yet. If you already paid and your membership is still not active, contact support.",
     payWithSquare: "Pay with Square",
     renewWithSquare: "Renew with Square",
     idVerificationTitle: "ID verification",
