@@ -3,7 +3,7 @@
 import { useActionState, useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { type AppLanguage } from "@/lib/i18n";
-import { runProviderQualitySweepAction, updateProviderContactAction, type AdminActionState } from "@/app/admin/actions";
+import { updateProviderContactAction, type AdminActionState } from "@/app/admin/actions";
 import { buildProviderRepairSuggestion, type ProviderRepairSuggestion } from "@/lib/provider-repair";
 import { getContactFieldValues } from "@/lib/provider-contact";
 
@@ -30,9 +30,7 @@ const INITIAL_ACTION_STATE: AdminActionState = { status: "idle", message: "" };
 const REPAIR_COPY = {
   es: {
     qualityCenter: "Centro de calidad",
-    qualityBody: "Limpieza automática, deduplicación y validación básica de enlaces, correos y teléfonos.",
-    checking: "Chequeando...",
-    checkAll: "Chequear todo",
+    qualityBody: "Revisión guiada 1 a 1. GPT sugiere ajustes, pero no elimina contactos automáticamente.",
     contactsWithFixes: "contactos con ajustes detectados",
     total: "total",
     showMore: "Mostrar 10 más",
@@ -42,15 +40,13 @@ const REPAIR_COPY = {
     suggested: "Sugerido",
     applying: "Aplicando...",
     applyRepair: "Aplicar reparación",
-    autoDeleteHint: "Si el valor limpio ya coincide con otro proveedor o deja este registro sin un método válido, se eliminará automáticamente.",
+    manualReviewHint: "Este panel ya no elimina contactos automáticamente. Revisa y aplica cada caso manualmente.",
     noRepairs: "No encontramos contactos que necesiten saneamiento automático ahora mismo.",
     aiSuggestion: "Sugerencia de IA",
   },
   en: {
     qualityCenter: "Quality center",
-    qualityBody: "Automatic cleanup, deduplication, and basic validation for links, emails, and phone numbers.",
-    checking: "Checking...",
-    checkAll: "Check all",
+    qualityBody: "Guided one-by-one review. GPT suggests fixes, but contacts are no longer deleted automatically.",
     contactsWithFixes: "contacts with detected fixes",
     total: "total",
     showMore: "Show 10 more",
@@ -60,7 +56,7 @@ const REPAIR_COPY = {
     suggested: "Suggested",
     applying: "Applying...",
     applyRepair: "Apply repair",
-    autoDeleteHint: "If the cleaned value already matches another provider or leaves this record without a valid contact method, it will be deleted automatically.",
+    manualReviewHint: "This panel no longer deletes contacts automatically. Review and apply each case manually.",
     noRepairs: "We did not find contacts that need automatic cleanup right now.",
     aiSuggestion: "AI suggestion",
   },
@@ -74,7 +70,6 @@ export function AdminProviderRepairPanel({ contacts, language }: AdminProviderRe
   const [aiSuggestions, setAiSuggestions] = useState<Record<number, AiSuggestion>>({});
   const [isPending, startTransition] = useTransition();
   const [actionState, repairAction, isRepairPending] = useActionState(updateProviderContactAction, INITIAL_ACTION_STATE);
-  const [sweepState, sweepAction, isSweepPending] = useActionState(runProviderQualitySweepAction, INITIAL_ACTION_STATE);
 
   const suggestions = useMemo(
     () =>
@@ -96,10 +91,10 @@ export function AdminProviderRepairPanel({ contacts, language }: AdminProviderRe
   const whatsappNumber = selectedSuggestion?.whatsapp.replace(/^\+\d{1,3}/, "") || "";
 
   useEffect(() => {
-    if (actionState.status === "success" || sweepState.status === "success") {
+    if (actionState.status === "success") {
       router.refresh();
     }
-  }, [actionState.status, router, sweepState.status]);
+  }, [actionState.status, router]);
 
   function requestAi(contact: ContactRow) {
     startTransition(async () => {
@@ -158,11 +153,9 @@ export function AdminProviderRepairPanel({ contacts, language }: AdminProviderRe
             <p className="text-sm font-semibold text-[#131316]">{copy.qualityCenter}</p>
             <p className="mt-1 text-xs text-[#62564a]">{copy.qualityBody}</p>
           </div>
-          <form action={sweepAction}>
-            <button className="btn-secondary" type="submit">
-              {isSweepPending ? copy.checking : copy.checkAll}
-            </button>
-          </form>
+          <span className="rounded-full bg-[#fff2eb] px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.16em] text-[#dc4f1f]">
+            1 a 1
+          </span>
         </div>
         <div className="mt-3 flex items-center justify-between gap-3 rounded-[1rem] bg-[#fff8f4] px-3 py-3 text-xs text-[#62564a]">
           <span>{suggestions.length} {copy.contactsWithFixes}</span>
@@ -195,8 +188,6 @@ export function AdminProviderRepairPanel({ contacts, language }: AdminProviderRe
             {copy.showMore}
           </button>
         ) : null}
-        {sweepState.status === "success" ? <p className="mt-3 text-sm font-semibold text-[#177a52]">{sweepState.message}</p> : null}
-        {sweepState.status === "error" ? <p className="mt-3 text-sm font-semibold text-[#c24d3a]">{sweepState.message}</p> : null}
       </div>
 
       {openItem ? (
@@ -254,8 +245,6 @@ export function AdminProviderRepairPanel({ contacts, language }: AdminProviderRe
 
           <form action={repairAction} className="mt-4 grid gap-2">
             <input type="hidden" name="contact_id" value={openItem.contact.id} />
-            <input type="hidden" name="allow_duplicate_delete" value="on" />
-            <input type="hidden" name="allow_invalid_delete" value="on" />
             <input type="hidden" name="email" value={selectedSuggestion?.email || ""} readOnly />
             <input type="hidden" name="whatsapp_prefix" value={whatsappPrefix} readOnly />
             <input type="hidden" name="whatsapp_number" value={whatsappNumber} readOnly />
@@ -269,7 +258,7 @@ export function AdminProviderRepairPanel({ contacts, language }: AdminProviderRe
               {isRepairPending ? copy.applying : copy.applyRepair}
             </button>
           </form>
-          <p className="mt-2 text-xs text-[#8f857b]">{copy.autoDeleteHint}</p>
+          <p className="mt-2 text-xs text-[#8f857b]">{copy.manualReviewHint}</p>
           {actionState.status === "success" ? <p className="mt-3 text-sm font-semibold text-[#177a52]">{actionState.message}</p> : null}
           {actionState.status === "error" ? <p className="mt-3 text-sm font-semibold text-[#c24d3a]">{actionState.message}</p> : null}
         </div>

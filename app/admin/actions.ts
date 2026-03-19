@@ -13,8 +13,7 @@ import {
   normalizeContactValue,
   normalizeWhatsappPrefix,
 } from "@/lib/provider-contact";
-import { buildDuplicateContactGroups, sanitizeProviderDraft } from "@/lib/provider-quality";
-import { buildProviderRepairSuggestion } from "@/lib/provider-repair";
+import { sanitizeProviderDraft } from "@/lib/provider-quality";
 import { createClient } from "@/lib/supabase/server";
 
 export type ProviderCreateFormState = {
@@ -550,108 +549,11 @@ export async function updateProviderContactAction(
 export async function runProviderQualitySweepAction(
   previousState: AdminActionState
 ): Promise<AdminActionState> {
-  try {
-    void previousState;
-    const { supabase, admin, adminId } = await assertAdmin();
-    const withMethods = await admin
-      .from("provider_contacts")
-      .select("id, title, email, network, url, notes, is_active, is_verified, contact_methods")
-      .order("id", { ascending: true });
-
-    const contacts = (withMethods.data || []) as Array<{
-      id: number;
-      title: string;
-      email?: string | null;
-      network: string | null;
-      url: string;
-      notes?: string | null;
-      is_active: boolean;
-      is_verified: boolean;
-      contact_methods?: string | null;
-    }>;
-
-    let repairedCount = 0;
-    let removedCount = 0;
-
-    for (const contact of contacts) {
-      const suggestion = buildProviderRepairSuggestion(contact);
-      if (!suggestion) {
-        continue;
-      }
-
-      const beforeMethods = getComparableContactMethods(contact.contact_methods, contact.url, contact.network).length;
-      const formData = new FormData();
-      formData.set("contact_id", String(contact.id));
-      formData.set("allow_duplicate_delete", "on");
-      formData.set("allow_invalid_delete", "on");
-      formData.set("email", suggestion.email || "");
-      if (suggestion.whatsapp) {
-        const prefixMatch = suggestion.whatsapp.match(/^\+\d{1,3}/);
-        formData.set("whatsapp_prefix", prefixMatch?.[0] || "");
-        formData.set("whatsapp_number", suggestion.whatsapp.replace(/^\+\d{1,3}/, ""));
-      } else {
-        formData.set("whatsapp_prefix", "");
-        formData.set("whatsapp_number", "");
-      }
-      formData.set("instagram", suggestion.instagram || "");
-      formData.set("messenger", suggestion.messenger || "");
-      formData.set("facebook", suggestion.facebook || "");
-      formData.set("notes", contact.notes || "");
-      if (contact.is_active) formData.set("is_active", "on");
-      if (contact.is_verified) formData.set("is_verified", "on");
-
-      await updateProviderContact(formData);
-      const afterMethods = [suggestion.email, suggestion.whatsapp, suggestion.instagram, suggestion.messenger, suggestion.facebook].filter(Boolean).length;
-      if (afterMethods === 0 || beforeMethods !== afterMethods) {
-        removedCount += afterMethods === 0 ? 1 : 0;
-      } else {
-        repairedCount += 1;
-      }
-    }
-
-    const refreshed = await admin
-      .from("provider_contacts")
-      .select("id, email, network, url, contact_methods")
-      .order("id", { ascending: true });
-    const duplicateGroups = buildDuplicateContactGroups((refreshed.data || []) as Array<{
-      id: number;
-      email?: string | null;
-      network: string | null;
-      url: string;
-      contact_methods?: string | null;
-    }>);
-
-    const deletedDuringSweep = new Set<number>();
-    for (const group of duplicateGroups) {
-      for (const duplicateId of group.ids.slice(1)) {
-        if (deletedDuringSweep.has(duplicateId)) {
-          continue;
-        }
-        await deleteProviderContactAsDuplicate({
-          supabase,
-          admin,
-          adminId,
-          contactId: duplicateId,
-          duplicateMessage: `Deleted during quality sweep because it duplicates ${group.key}.`,
-        });
-        deletedDuringSweep.add(duplicateId);
-        removedCount += 1;
-      }
-    }
-
-    revalidatePath("/admin");
-    revalidatePath("/dashboard");
-
-    return {
-      status: "success",
-      message: `Chequeo completo terminado. Reparados ${repairedCount} y eliminados ${removedCount}.`,
-    };
-  } catch (error) {
-    return {
-      status: "error",
-      message: error instanceof Error ? error.message : "No se pudo correr el chequeo completo.",
-    };
-  }
+  void previousState;
+  return {
+    status: "error",
+    message: "El barrido automatico fue desactivado. Revisa y aplica cada caso uno por uno desde el centro de calidad.",
+  };
 }
 
 export async function updateMemberStatus(formData: FormData) {
