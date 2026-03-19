@@ -54,6 +54,16 @@ export function SupportCenter({ currentUserId, language, isAdmin = false, thread
   const [isPending, startTransition] = useTransition();
   const bottomAnchorRef = useRef<HTMLDivElement | null>(null);
 
+  useEffect(() => {
+    setItems(threads);
+    setActiveThreadId((current) => {
+      if (current && threads.some((thread) => thread.id === current)) {
+        return current;
+      }
+      return threads[0]?.id ?? null;
+    });
+  }, [threads]);
+
   const sortedThreads = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLowerCase();
 
@@ -98,6 +108,29 @@ export function SupportCenter({ currentUserId, language, isAdmin = false, thread
       return [thread, ...filtered];
     });
     setActiveThreadId(thread.id);
+  }
+
+  async function syncThreads(showErrors = false) {
+    const response = await fetch("/api/support/threads", {
+      method: "GET",
+      cache: "no-store",
+    });
+
+    const result = (await response.json()) as { data?: SupportThread[]; error?: string };
+    if (!response.ok || !result.data) {
+      if (showErrors) {
+        setError(result.error || copy.changeStatus);
+      }
+      return;
+    }
+
+    setItems(result.data);
+    setActiveThreadId((current) => {
+      if (current && result.data?.some((thread) => thread.id === current)) {
+        return current;
+      }
+      return result.data?.[0]?.id ?? null;
+    });
   }
 
   async function createThread() {
@@ -253,6 +286,13 @@ export function SupportCenter({ currentUserId, language, isAdmin = false, thread
       .channel(`support-center-${currentUserId}-${isAdmin ? "admin" : "user"}`)
       .on(
         "postgres_changes",
+        { event: "INSERT", schema: "public", table: "support_threads" },
+        () => {
+          void syncThreads();
+        }
+      )
+      .on(
+        "postgres_changes",
         { event: "INSERT", schema: "public", table: "support_messages" },
         (payload) => {
           const message = payload.new as {
@@ -264,10 +304,16 @@ export function SupportCenter({ currentUserId, language, isAdmin = false, thread
             translations?: Record<string, string> | null;
             created_at: string;
           };
+          let threadExists = false;
 
           setItems((current) =>
             current.map((thread) => {
-              if (thread.id !== Number(message.thread_id) || thread.messages.some((item) => item.id === Number(message.id))) {
+              if (thread.id !== Number(message.thread_id)) {
+                return thread;
+              }
+
+              threadExists = true;
+              if (thread.messages.some((item) => item.id === Number(message.id))) {
                 return thread;
               }
 
@@ -290,6 +336,12 @@ export function SupportCenter({ currentUserId, language, isAdmin = false, thread
               };
             })
           );
+
+          if (!threadExists) {
+            void syncThreads();
+          }
+
+          setActiveThreadId((current) => current ?? Number(message.thread_id));
         }
       )
       .on(
@@ -330,7 +382,19 @@ export function SupportCenter({ currentUserId, language, isAdmin = false, thread
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [copy.supportLabel, copy.userLabel, currentUserId, isAdmin, supabase]);
+  }, [copy.changeStatus, copy.supportLabel, copy.userLabel, currentUserId, isAdmin, supabase]);
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      if (document.visibilityState === "visible") {
+        void syncThreads();
+      }
+    }, 8000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, []);
 
   useEffect(() => {
     bottomAnchorRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
