@@ -13,12 +13,13 @@ export default async function AuthPage({
   const language = normalizeLanguage(typeof resolvedSearchParams.lang === "string" ? resolvedSearchParams.lang : undefined);
   const copy = authPageCopy[language];
   const mode = typeof resolvedSearchParams.mode === "string" ? resolvedSearchParams.mode : "signin";
+  const confirmRequired = resolvedSearchParams.confirm_required === "1";
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (user && mode !== "recovery") {
+  if (user && user.email_confirmed_at && mode !== "recovery") {
     redirect("/dashboard");
   }
 
@@ -40,6 +41,13 @@ export default async function AuthPage({
         </div>
 
         <AuthForm />
+        {confirmRequired ? (
+          <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-700">
+            {language === "en"
+              ? "Confirm your email before using your account."
+              : "Debes confirmar tu correo antes de usar tu cuenta."}
+          </p>
+        ) : null}
       </div>
     </main>
   );

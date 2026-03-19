@@ -27,14 +27,26 @@ export async function proxy(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (
-    !user &&
-    (request.nextUrl.pathname.startsWith("/dashboard") ||
-      request.nextUrl.pathname.startsWith("/admin") ||
-      request.nextUrl.pathname.startsWith("/onboarding"))
-  ) {
+  const isProtectedPath =
+    request.nextUrl.pathname.startsWith("/dashboard") ||
+    request.nextUrl.pathname.startsWith("/admin") ||
+    request.nextUrl.pathname.startsWith("/onboarding") ||
+    request.nextUrl.pathname.startsWith("/profile");
+
+  if (!user && isProtectedPath) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = "/auth";
+    return applySecurityHeaders(NextResponse.redirect(redirectUrl));
+  }
+
+  if (user && !user.email_confirmed_at && isProtectedPath) {
+    const redirectUrl = request.nextUrl.clone();
+    redirectUrl.pathname = "/auth";
+    redirectUrl.searchParams.set("mode", "signin");
+    redirectUrl.searchParams.set("confirm_required", "1");
+    if (user.email) {
+      redirectUrl.searchParams.set("email", user.email);
+    }
     return applySecurityHeaders(NextResponse.redirect(redirectUrl));
   }
 

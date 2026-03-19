@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { ArrowUpRight, CircleHelp, CircleX, Copy, MessageCircleMore } from "lucide-react";
-import { parseContactMethods } from "@/lib/provider-contact";
+import { getPrimaryContactLabel, parseContactMethods } from "@/lib/provider-contact";
 import { createClient } from "@/lib/supabase/client";
 import { normalizeLanguage, providerContactsCopy, type AppLanguage } from "@/lib/i18n";
 
@@ -228,7 +228,7 @@ export function ProviderContactGrid({ contacts, initialContactedIds, language, r
   }
 
   function isSocialReference(contact: ProviderContact) {
-    const network = String(contact.network || "").toLowerCase();
+    const network = getPrimaryContactLabel(contact.contact_methods, contact.url, contact.network).toLowerCase();
     return network.includes("messenger") || network.includes("facebook");
   }
 
@@ -291,6 +291,10 @@ export function ProviderContactGrid({ contacts, initialContactedIds, language, r
       <div className="mt-3 grid gap-3">
         {visibleContacts.map((contact) => (
           <article key={contact.id} className="rounded-[1.5rem] border border-[#eee5db] bg-[linear-gradient(180deg,#ffffff_0%,#fcfaf7_100%)] p-4">
+            {(() => {
+              const primaryLabel = getPrimaryContactLabel(contact.contact_methods, contact.url, contact.network);
+              return (
+                <>
             {contact.avatar_data_url && isSocialReference(contact) ? (
               <div className="mb-4 overflow-hidden rounded-[1.15rem] border border-[#eadfd6] bg-[#f5eee6]">
                 <img
@@ -318,7 +322,7 @@ export function ProviderContactGrid({ contacts, initialContactedIds, language, r
                 ) : null}
                 <div>
                   <p className="font-semibold">{contact.title}</p>
-                  <p className="text-xs text-[#62626d]">{contact.network || copy.undefinedNetwork}</p>
+                  <p className="text-xs text-[#62626d]">{primaryLabel || copy.undefinedNetwork}</p>
                 </div>
               </div>
               <div className="flex flex-wrap justify-end gap-2">
@@ -363,6 +367,9 @@ export function ProviderContactGrid({ contacts, initialContactedIds, language, r
                 </button>
               ) : null}
             </div>
+                </>
+              );
+            })()}
           </article>
         ))}
       </div>

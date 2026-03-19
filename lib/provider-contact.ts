@@ -98,6 +98,66 @@ function isLikelyDirectLink(value: string) {
   );
 }
 
+function methodMatchesPreferredNetwork(method: ContactMethod, preferredNetwork: string) {
+  const normalizedPreferred = preferredNetwork.trim().toLowerCase();
+  if (!normalizedPreferred) {
+    return false;
+  }
+
+  const label = method.label.trim().toLowerCase();
+  const href = String(method.href || "").toLowerCase();
+  const value = method.value.trim().toLowerCase();
+
+  if (normalizedPreferred.includes("whatsapp")) {
+    return label.includes("whatsapp") || href.includes("wa.me/") || /^\+?\d{7,15}$/.test(value.replace(/[^\d+]/g, ""));
+  }
+
+  if (normalizedPreferred.includes("instagram")) {
+    return label.includes("instagram") || href.includes("instagram.com");
+  }
+
+  if (normalizedPreferred.includes("messenger")) {
+    return label.includes("messenger") || href.includes("m.me/") || href.includes("messenger.com");
+  }
+
+  if (normalizedPreferred.includes("facebook")) {
+    return label.includes("facebook") || href.includes("facebook.com");
+  }
+
+  if (normalizedPreferred.includes("email")) {
+    return label.includes("email") || href.startsWith("mailto:");
+  }
+
+  return label.includes(normalizedPreferred) || href.includes(normalizedPreferred) || value.includes(normalizedPreferred);
+}
+
+function prioritizeContactMethods(methods: ContactMethod[], fallbackUrl?: string | null, fallbackNetwork?: string | null) {
+  if (methods.length <= 1) {
+    return methods;
+  }
+
+  const normalizedFallbackUrl = normalizeContactValue(fallbackUrl);
+  const normalizedFallbackNetwork = String(fallbackNetwork || "").trim().toLowerCase();
+
+  return methods
+    .map((method, index) => {
+      const comparableValue = normalizeContactValue(method.href || method.value);
+      let score = 0;
+
+      if (normalizedFallbackUrl && comparableValue === normalizedFallbackUrl) {
+        score += 10;
+      }
+
+      if (normalizedFallbackNetwork && methodMatchesPreferredNetwork(method, normalizedFallbackNetwork)) {
+        score += 5;
+      }
+
+      return { method, index, score };
+    })
+    .sort((left, right) => right.score - left.score || left.index - right.index)
+    .map((entry) => entry.method);
+}
+
 export function parseContactMethods(contactMethods?: string | null, fallbackUrl?: string | null, fallbackNetwork?: string | null) {
   const methods: ContactMethod[] = [];
   const rawLines = String(contactMethods || "")
@@ -143,12 +203,17 @@ export function parseContactMethods(contactMethods?: string | null, fallbackUrl?
     }
   }
 
-  return methods;
+  return prioritizeContactMethods(methods, fallbackUrl, fallbackNetwork);
 }
 
-export function getPrimaryContactUrl(contactMethods?: string | null, fallbackUrl?: string | null) {
-  const methods = parseContactMethods(contactMethods, fallbackUrl);
+export function getPrimaryContactUrl(contactMethods?: string | null, fallbackUrl?: string | null, fallbackNetwork?: string | null) {
+  const methods = parseContactMethods(contactMethods, fallbackUrl, fallbackNetwork);
   return methods.find((method) => method.mode === "link")?.href || fallbackUrl || "#";
+}
+
+export function getPrimaryContactLabel(contactMethods?: string | null, fallbackUrl?: string | null, fallbackNetwork?: string | null) {
+  const methods = parseContactMethods(contactMethods, fallbackUrl, fallbackNetwork);
+  return methods[0]?.label || fallbackNetwork || "Enlace";
 }
 
 export function buildContactMethodsFromFields({

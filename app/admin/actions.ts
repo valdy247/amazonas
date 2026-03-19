@@ -232,8 +232,8 @@ async function performCreateProviderContact(formData: FormData) {
   });
 
   const safeTitle = await getNextProviderAlias(supabase);
-  const safeUrl = getPrimaryContactUrl(contactMethods) || "#";
   const primaryNetwork = email ? "Email" : whatsapp ? "WhatsApp" : instagram ? "Instagram" : messenger ? "Messenger" : facebook ? "Facebook" : "";
+  const safeUrl = getPrimaryContactUrl(contactMethods, undefined, primaryNetwork) || "#";
 
   const payloads = [
     {
@@ -414,8 +414,8 @@ export async function updateProviderContact(formData: FormData) {
   }
 
   const safeTitle = formatProviderAlias(contactId);
-  const safeUrl = getPrimaryContactUrl(contactMethods) || "#";
   const primaryNetwork = email ? "Email" : whatsapp ? "WhatsApp" : instagram ? "Instagram" : messenger ? "Messenger" : facebook ? "Facebook" : "";
+  const safeUrl = getPrimaryContactUrl(contactMethods, undefined, primaryNetwork) || "#";
 
   const payloads = [
     {

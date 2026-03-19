@@ -227,42 +227,6 @@ function shouldMergeProviderContacts(
   );
 }
 
-function buildProviderAliasMaps(input: {
-  manualContacts: Array<{ history_id?: number | null }>;
-  registeredProviders: ProfileRow[];
-}) {
-  const manualAliasMap = new Map<number, string>();
-  const registeredAliasMap = new Map<string, string>();
-
-  const manualIds = Array.from(
-    new Set(
-      input.manualContacts
-        .map((contact) => contact.history_id)
-        .filter((value): value is number => typeof value === "number" && Number.isFinite(value))
-    )
-  ).sort((left, right) => left - right);
-
-  manualIds.forEach((manualId, index) => {
-    manualAliasMap.set(manualId, formatProviderAlias(101 + index));
-  });
-
-  const orderedRegisteredProviders = [...input.registeredProviders].sort((left, right) => {
-    const leftTime = left.created_at ? new Date(left.created_at).getTime() : 0;
-    const rightTime = right.created_at ? new Date(right.created_at).getTime() : 0;
-
-    return leftTime - rightTime || left.id.localeCompare(right.id);
-  });
-
-  orderedRegisteredProviders.forEach((provider, index) => {
-    registeredAliasMap.set(provider.id, formatProviderAlias(101 + manualIds.length + index));
-  });
-
-  return {
-    manualAliasMap,
-    registeredAliasMap,
-  };
-}
-
 export default async function DashboardPage({
   searchParams,
 }: {
@@ -375,10 +339,12 @@ export default async function DashboardPage({
     kycStatus === "in_review" &&
     Boolean(kycReviewNote && kycReviewNote.toLowerCase().includes("nombre verificado"));
   const membershipMeta = getMembershipMeta(membershipStatus, currentUserLanguage);
+  const normalizedMembershipStatus = normalizeMembershipStatus(membershipStatus);
   const membershipPeriodEnd = formatMembershipDate(membershipState?.current_period_end_at, currentUserLanguage);
   const membershipCanceledAt = formatMembershipDate(membershipState?.canceled_at, currentUserLanguage);
   const lastPaymentFailedAt = formatMembershipDate(membershipState?.last_payment_failed_at, currentUserLanguage);
   const hasMembershipAccess = isAdmin || membershipHasAccess(membershipState);
+  const membershipIsResolved = normalizedMembershipStatus === "active";
   const canSeeContacts = isAdmin || (!isProvider && hasMembershipAccess && kycStatus === "approved");
   const canUseReferralProgram = rawRole === "reviewer" || rawRole === "tester" || rawRole === "admin";
   const referralCode = canUseReferralProgram ? await ensureReferralCode(user.id, (profile as ProfileRow | null)?.referral_code) : null;
@@ -464,8 +430,7 @@ export default async function DashboardPage({
     }>;
   }> = [];
   let allRegisteredProviderProfiles: ProfileRow[] = [];
-  let providerAliasByManualId = new Map<number, string>();
-  let providerAliasByRegisteredId = new Map<string, string>();
+  const providerAliasByRegisteredId = new Map<string, string>();
   let referralProfiles: ProfileRow[] = [];
   let rewardedReferralsThisMonth = 0;
   let totalQualifiedReferrals = 0;
@@ -606,7 +571,7 @@ export default async function DashboardPage({
 
         return {
           id: `registered:${provider.id}`,
-          title: providerAliasByRegisteredId.get(provider.id) || "Proveedor",
+          title: matchedManualContact?.title || providerAliasByRegisteredId.get(provider.id) || "Proveedor",
           network: providerProfileData.country || matchedManualContact?.network || "Registered on Verifyzon",
           url: primaryMethod?.value || primaryFallback || matchedManualContact?.url || "",
           notes: providerProfileData.note || matchedManualContact?.notes || null,
@@ -635,32 +600,6 @@ export default async function DashboardPage({
   }
 
   if (!isProvider) {
-    const aliasMaps = buildProviderAliasMaps({
-      manualContacts: contacts,
-      registeredProviders: allRegisteredProviderProfiles,
-    });
-    providerAliasByManualId = aliasMaps.manualAliasMap;
-    providerAliasByRegisteredId = aliasMaps.registeredAliasMap;
-
-    contacts = contacts.map((contact) => {
-      if (contact.source === "registered") {
-        const registeredId = contact.id.replace("registered:", "");
-        return {
-          ...contact,
-          title: providerAliasByRegisteredId.get(registeredId) || contact.title,
-        };
-      }
-
-      if (contact.history_id) {
-        return {
-          ...contact,
-          title: providerAliasByManualId.get(contact.history_id) || contact.title,
-        };
-      }
-
-      return contact;
-    });
-
     const registeredContacts = contacts.filter((contact) => contact.source === "registered");
     const directoryContacts = contacts.filter((contact) => contact.source !== "registered");
     const randomizedDirectoryContacts = sortItemsForViewer(directoryContacts, user.id);
@@ -1029,7 +968,7 @@ export default async function DashboardPage({
               </section>
             ) : null}
 
-            {!isAdmin && !hasMembershipAccess ? (
+            {!isAdmin && !hasMembershipAccess && !membershipIsResolved ? (
               <section className="rounded-[1.8rem] border border-[#f0d7ca] bg-[linear-gradient(180deg,#fff7f3_0%,#ffffff_100%)] p-5">
                 <div className="flex items-center gap-3">
                   <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-[#ff6b35] text-white">
@@ -1072,7 +1011,7 @@ export default async function DashboardPage({
                       <p className="mt-3 rounded-2xl border border-[#f2d7d7] bg-[#fff7f7] px-4 py-3 text-sm font-semibold text-red-600">{squareError}</p>
                     ) : null}
                     <a href="/api/square/checkout" className="btn-primary mt-3">
-                      {membershipStatus === "pending_payment" || membershipStatus === "payment_processing" ? copy.payWithSquare : copy.renewWithSquare}
+                      {normalizedMembershipStatus === "pending_payment" || normalizedMembershipStatus === "payment_processing" ? copy.payWithSquare : copy.renewWithSquare}
                     </a>
                   </>
                 )}
