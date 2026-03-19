@@ -109,3 +109,48 @@ export async function sendFirstConversationMessageEmail(input: {
     }),
   });
 }
+
+export async function sendPasswordRecoveryEmail(input: {
+  toProfile: ProfileEmailTarget;
+  recoveryUrl: string;
+}) {
+  if (!input.toProfile.email) {
+    return { sent: false, reason: "Recovery email skipped because target email is missing." };
+  }
+
+  const language = normalizeLanguage(input.toProfile.preferred_language);
+  const recipient = firstName(input.toProfile.full_name, language);
+
+  const copy =
+    language === "en"
+      ? {
+          subject: "Reset your Verifyzon password",
+          title: "Create a new password",
+          intro: `Hi ${recipient}, we received a request to reset your Verifyzon password.`,
+          body: `<p>Use the button below to create a new password.</p><p style="margin-top:16px">If the button does not open correctly, copy and paste this link into your browser:</p><p style="margin-top:12px;padding:14px 16px;border-radius:18px;background:#fcfaf7;border:1px solid #eadfd6;word-break:break-word"><a href="${input.recoveryUrl}" style="color:#dc4f1f;text-decoration:underline">${input.recoveryUrl}</a></p>`,
+          cta: "Reset password",
+          text: `Hi ${recipient}, we received a request to reset your Verifyzon password.\n\nOpen this link to create a new password:\n${input.recoveryUrl}\n`,
+        }
+      : {
+          subject: "Restablece tu contrasena de Verifyzon",
+          title: "Crear nueva contrasena",
+          intro: `Hola ${recipient}, recibimos una solicitud para restablecer tu contrasena de Verifyzon.`,
+          body: `<p>Usa el boton de abajo para crear una nueva contrasena.</p><p style="margin-top:16px">Si el boton no abre correctamente, copia y pega este enlace en tu navegador:</p><p style="margin-top:12px;padding:14px 16px;border-radius:18px;background:#fcfaf7;border:1px solid #eadfd6;word-break:break-word"><a href="${input.recoveryUrl}" style="color:#dc4f1f;text-decoration:underline">${input.recoveryUrl}</a></p>`,
+          cta: "Restablecer contrasena",
+          text: `Hola ${recipient}, recibimos una solicitud para restablecer tu contrasena de Verifyzon.\n\nAbre este enlace para crear una nueva contrasena:\n${input.recoveryUrl}\n`,
+        };
+
+  return sendAppEmail({
+    to: input.toProfile.email,
+    subject: copy.subject,
+    text: copy.text,
+    html: renderEmailLayout({
+      eyebrow: "Security",
+      title: copy.title,
+      intro: copy.intro,
+      bodyHtml: copy.body,
+      ctaLabel: copy.cta,
+      ctaUrl: input.recoveryUrl,
+    }),
+  });
+}

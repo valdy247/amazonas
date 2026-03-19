@@ -14,6 +14,7 @@ import {
   normalizeWhatsappPrefix,
 } from "@/lib/provider-contact";
 import { sanitizeProviderDraft } from "@/lib/provider-quality";
+import { sendPasswordRecoveryEmail } from "@/lib/notification-email";
 import { createClient } from "@/lib/supabase/server";
 
 export type ProviderCreateFormState = {
@@ -759,11 +760,30 @@ export async function sendPasswordRecoveryForUser(formData: FormData) {
     forwardedHost: requestHeaders.get("x-forwarded-host") || requestHeaders.get("host"),
     forwardedProto: requestHeaders.get("x-forwarded-proto"),
   })}/auth/callback`;
-  const { error } = await admin.auth.resetPasswordForEmail(email, { redirectTo });
+  const { data: linkData, error } = await admin.auth.admin.generateLink({
+    type: "recovery",
+    email,
+    options: { redirectTo },
+  });
 
-  if (error) {
-    throw new Error(error.message || "No se pudo enviar la recuperacion.");
+  if (error || !linkData?.properties?.action_link) {
+    throw new Error(error?.message || "No se pudo enviar la recuperacion.");
   }
+
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("full_name, preferred_language")
+    .eq("id", userId)
+    .maybeSingle();
+
+  await sendPasswordRecoveryEmail({
+    toProfile: {
+      email,
+      full_name: profile?.full_name || null,
+      preferred_language: profile?.preferred_language || null,
+    },
+    recoveryUrl: linkData.properties.action_link,
+  });
 
   await logAdminAction({
     supabase,
