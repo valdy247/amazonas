@@ -760,13 +760,14 @@ export async function sendPasswordRecoveryForUser(formData: FormData) {
     forwardedHost: requestHeaders.get("x-forwarded-host") || requestHeaders.get("host"),
     forwardedProto: requestHeaders.get("x-forwarded-proto"),
   })}/auth/callback`;
+  const siteOrigin = redirectTo.replace(/\/auth\/callback$/, "");
   const { data: linkData, error } = await admin.auth.admin.generateLink({
     type: "recovery",
     email,
     options: { redirectTo },
   });
 
-  if (error || !linkData?.properties?.action_link) {
+  if (error || !linkData?.properties?.hashed_token) {
     throw new Error(error?.message || "No se pudo enviar la recuperacion.");
   }
 
@@ -782,7 +783,7 @@ export async function sendPasswordRecoveryForUser(formData: FormData) {
       full_name: profile?.full_name || null,
       preferred_language: profile?.preferred_language || null,
     },
-    recoveryUrl: linkData.properties.action_link,
+    recoveryUrl: `${siteOrigin}/auth/callback?token_hash=${encodeURIComponent(linkData.properties.hashed_token)}&type=recovery`,
   });
 
   await logAdminAction({
