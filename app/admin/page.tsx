@@ -719,13 +719,13 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
           { href: "/profile", label: nav.editProfile },
         ]}
       />
-      <main className="container-x pt-8 pb-6 xl:max-w-[1680px]">
-        <div className="grid gap-7 xl:grid-cols-[280px_minmax(0,1fr)] xl:items-start xl:gap-6">
-          <aside className="space-y-4 xl:sticky xl:top-6">
-            <section className="pt-3 xl:pt-0">
+      <main className="container-x pt-8 pb-6 2xl:max-w-[1680px]">
+        <div className="grid gap-7 2xl:grid-cols-[280px_minmax(0,1fr)] 2xl:items-start 2xl:gap-6">
+          <aside className="space-y-4 2xl:sticky 2xl:top-6">
+            <section className="pt-3 2xl:pt-0">
               <AdminSectionNav sections={adminSections} activeSection={activeSection} desktopSidebar />
             </section>
-            <section className="hidden rounded-[1.8rem] border border-[#eadfd6] bg-[linear-gradient(180deg,#fffdfa_0%,#fff5ef_100%)] p-5 text-[#4a362a] shadow-[0_18px_36px_rgba(22,18,14,0.06)] xl:block">
+            <section className="hidden rounded-[1.8rem] border border-[#eadfd6] bg-[linear-gradient(180deg,#fffdfa_0%,#fff5ef_100%)] p-5 text-[#4a362a] shadow-[0_18px_36px_rgba(22,18,14,0.06)] 2xl:block">
               <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#dc4f1f]">Admin Desktop</p>
               <p className="mt-3 text-sm leading-6 text-[#62564a]">
                 Navegacion fija para saltar entre secciones y mantener el contexto mientras trabajas en escritorio.
@@ -734,26 +734,26 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
           </aside>
 
           <div className="min-w-0 space-y-7">
-        <section className="rounded-[1.8rem] border border-[#1f1b17] bg-[linear-gradient(135deg,#201915_0%,#2c221a_55%,#3f2a1d_100%)] px-5 pb-5 pt-10 text-white shadow-[0_26px_80px_rgba(35,22,13,0.22)] xl:px-7 xl:pb-7 xl:pt-12">
+        <section className="rounded-[1.8rem] border border-[#1f1b17] bg-[linear-gradient(135deg,#201915_0%,#2c221a_55%,#3f2a1d_100%)] px-5 pb-5 pt-10 text-white shadow-[0_26px_80px_rgba(35,22,13,0.22)] 2xl:px-7 2xl:pb-7 2xl:pt-12">
           <div className="flex flex-wrap items-start justify-between gap-5">
             <div>
               <p className="text-xs uppercase tracking-[0.24em] text-white/55">Control Center</p>
-              <h1 className="mt-2 text-3xl font-bold xl:text-[2.35rem]">Panel admin</h1>
-              <p className="mt-2 max-w-2xl text-sm text-white/70 xl:text-[15px]">
+              <h1 className="mt-2 text-3xl font-bold 2xl:text-[2.35rem]">Panel admin</h1>
+              <p className="mt-2 max-w-2xl text-sm text-white/70 2xl:text-[15px]">
                 Vista operativa para historiales, soporte, pagos, verificacion, proveedores y salud general del sistema.
               </p>
             </div>
-            <div className="hidden rounded-[1.35rem] border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/75 xl:block">
+            <div className="hidden rounded-[1.35rem] border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/75 2xl:block">
               <p className="font-semibold text-white">Seccion activa</p>
               <p className="mt-1">{adminSections.find((section) => section.id === activeSection)?.label || "Resumen"}</p>
             </div>
           </div>
         </section>
 
-        <section className="grid gap-4 xl:gap-5">
+        <section className="grid gap-4 2xl:gap-5">
           {activeSection === "summary" ? (
             <>
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-4">
                 <Link href="/admin?section=providers" className="card p-4 transition hover:-translate-y-0.5">
                   <p className="text-xs uppercase tracking-[0.18em] text-[#8f857b]">Proveedores</p>
                   <p className="mt-2 text-3xl font-bold text-[#131316]">{contacts.length}</p>
@@ -776,7 +776,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                 </Link>
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
                 <MetricCard title="Membresias activas" value={activeMembersCount || 0} body="Usuarios con acceso completo." />
                 <MetricCard title="Pago pendiente" value={pendingPaymentCount || 0} body="Aun no completan el primer pago." />
                 <MetricCard title="Validando pago" value={processingPaymentCount || 0} body="Esperando confirmacion final de Square." />

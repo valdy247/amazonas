@@ -14,14 +14,14 @@ type AdminSectionNavProps = {
 };
 
 export function AdminSectionNav({ sections, activeSection, desktopSidebar = false }: AdminSectionNavProps) {
-  const desktopGridClass = sections.length >= 8 ? "xl:grid-cols-8" : "xl:grid-cols-7";
+  const desktopGridClass = sections.length >= 8 ? "2xl:grid-cols-8" : "2xl:grid-cols-7";
   return (
     <div className="w-full">
       <div className="rounded-[1.85rem] border border-[#ead8ce] bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(255,244,237,0.96)_100%)] p-3 shadow-[0_18px_34px_rgba(45,25,15,0.1)] backdrop-blur">
         <div
           className={
             desktopSidebar
-              ? "grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-1"
+              ? "grid grid-cols-2 gap-2 sm:grid-cols-3 2xl:grid-cols-1"
               : `grid grid-cols-2 gap-2 sm:grid-cols-3 ${desktopGridClass}`
           }
         >
@@ -32,7 +32,7 @@ export function AdminSectionNav({ sections, activeSection, desktopSidebar = fals
               <Link
                 key={section.id}
                 href={`/admin?section=${section.id}`}
-                className={`relative rounded-[1.35rem] px-4 py-3.5 text-center text-sm font-semibold transition xl:text-left ${
+                className={`relative rounded-[1.35rem] px-4 py-3.5 text-center text-sm font-semibold transition 2xl:text-left ${
                   active
                     ? "bg-[linear-gradient(180deg,#ff8458_0%,#ff6532_100%)] text-white shadow-[0_16px_32px_rgba(255,107,53,0.26)]"
                     : "border border-transparent bg-white/72 text-[#3f2a1f] hover:border-[#ebd4c9] hover:bg-white hover:text-[#241710]"

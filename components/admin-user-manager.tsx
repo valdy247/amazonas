@@ -286,7 +286,7 @@ export function AdminUserManager({ members, initialQuery = "", language }: Admin
         </div>
       </div>
 
-      <div className="flex items-center justify-between gap-3 text-sm text-[#62626d] xl:px-1">
+      <div className="flex items-center justify-between gap-3 text-sm text-[#62626d] 2xl:px-1">
         <span>{filteredMembers.length} coincidencias</span>
         {query || roleFilter !== "all" || membershipFilter !== "all" || kycFilter !== "all" ? (
           <button
@@ -339,17 +339,17 @@ export function AdminUserManager({ members, initialQuery = "", language }: Admin
               </button>
 
               {isOpen ? (
-                <div className="border-t border-[#efe5db] px-4 py-4 xl:px-5 xl:py-5">
+                <div className="border-t border-[#efe5db] px-4 py-4 2xl:px-5 2xl:py-5">
                   <div className="mb-3 flex flex-wrap gap-2 text-xs font-semibold text-[#62564a]">
                     <span className={`rounded-full px-3 py-1 ${roleMeta.className}`}>Rol: {roleMeta.label}</span>
                     <span className={`rounded-full px-3 py-1 ${membershipMeta.className}`}>Membresia: {membershipMeta.label}</span>
                     <span className={`rounded-full px-3 py-1 ${kycMeta.className}`}>KYC: {kycMeta.label}</span>
                   </div>
 
-                  <div className="grid gap-4 xl:grid-cols-[minmax(0,1.08fr)_minmax(360px,0.92fr)] xl:items-start">
+                  <div className="grid gap-4 2xl:grid-cols-[minmax(0,1.08fr)_minmax(360px,0.92fr)] 2xl:items-start">
                     <div className="space-y-4">
-                  <div className="grid gap-2 rounded-[1.1rem] border border-[#efe5db] bg-[#fffaf6] p-3 text-sm text-[#62564a] xl:grid-cols-2 xl:gap-x-5">
-                    <p className="xl:col-span-2">
+                  <div className="grid gap-2 rounded-[1.1rem] border border-[#efe5db] bg-[#fffaf6] p-3 text-sm text-[#62564a] 2xl:grid-cols-2 2xl:gap-x-5">
+                    <p className="2xl:col-span-2">
                       <span className="font-semibold text-[#131316]">User ID:</span> {member.id}
                     </p>
                     <p>
@@ -413,7 +413,7 @@ export function AdminUserManager({ members, initialQuery = "", language }: Admin
                   <AdminAccountActions member={member} />
                     </div>
 
-                  <div className="rounded-[1.1rem] border border-[#efe5db] bg-[#fffaf6] p-3 xl:sticky xl:top-6">
+                  <div className="rounded-[1.1rem] border border-[#efe5db] bg-[#fffaf6] p-3 2xl:sticky 2xl:top-6">
                     <div className="flex items-center justify-between gap-3">
                       <h3 className="text-sm font-semibold text-[#131316]">Historial del usuario</h3>
                       <span className="rounded-full bg-[#f6f0e9] px-3 py-1 text-[11px] font-semibold text-[#62564a]">
