@@ -51,6 +51,8 @@ create table if not exists public.memberships (
   last_payment_failed_at timestamptz,
   last_square_event_type text,
   last_square_event_at timestamptz,
+  provider_access_cycle integer not null default 0,
+  provider_access_granted_at timestamptz,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
@@ -61,6 +63,8 @@ alter table public.memberships add column if not exists canceled_at timestamptz;
 alter table public.memberships add column if not exists last_payment_failed_at timestamptz;
 alter table public.memberships add column if not exists last_square_event_type text;
 alter table public.memberships add column if not exists last_square_event_at timestamptz;
+alter table public.memberships add column if not exists provider_access_cycle integer not null default 0;
+alter table public.memberships add column if not exists provider_access_granted_at timestamptz;
 update public.memberships set status = 'active' where status = 'paid';
 alter table public.memberships drop constraint if exists memberships_status_check;
 alter table public.memberships

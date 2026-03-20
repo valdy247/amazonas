@@ -22,6 +22,8 @@ export type MembershipRow = {
   square_subscription_id?: string | null;
   last_square_event_type?: string | null;
   last_square_event_at?: string | null;
+  provider_access_cycle?: number | null;
+  provider_access_granted_at?: string | null;
 };
 
 type MembershipCopy = {
@@ -154,4 +156,34 @@ export function shouldTreatMembershipAsRenewal(input: {
   const previousTime = input.previousPeriodEndAt ? Date.parse(input.previousPeriodEndAt) : 0;
   const nextTime = input.nextPeriodEndAt ? Date.parse(input.nextPeriodEndAt) : 0;
   return nextTime > previousTime;
+}
+
+export function getNextProviderAccessState(input: {
+  previousMembership: MembershipRow | null | undefined;
+  nextStatus: string | null | undefined;
+  nextPeriodEndAt: string | null | undefined;
+  grantedAt?: string | null;
+}) {
+  const previousCycle = Math.max(0, Number(input.previousMembership?.provider_access_cycle) || 0);
+  const activation =
+    normalizeMembershipStatus(input.previousMembership?.status) !== "active" &&
+    normalizeMembershipStatus(input.nextStatus) === "active";
+  const renewal = shouldTreatMembershipAsRenewal({
+    previousStatus: input.previousMembership?.status,
+    previousPeriodEndAt: input.previousMembership?.current_period_end_at,
+    nextStatus: input.nextStatus,
+    nextPeriodEndAt: input.nextPeriodEndAt,
+  });
+
+  if (activation || renewal) {
+    return {
+      providerAccessCycle: previousCycle + 1,
+      providerAccessGrantedAt: input.grantedAt || new Date().toISOString(),
+    };
+  }
+
+  return {
+    providerAccessCycle: previousCycle,
+    providerAccessGrantedAt: input.previousMembership?.provider_access_granted_at || null,
+  };
 }

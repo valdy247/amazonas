@@ -15,6 +15,7 @@ import {
 } from "@/lib/provider-contact";
 import { sanitizeProviderDraft } from "@/lib/provider-quality";
 import { sendPasswordRecoveryEmail } from "@/lib/notification-email";
+import { getNextProviderAccessState, normalizeMembershipStatus, type MembershipRow } from "@/lib/membership";
 import { createClient } from "@/lib/supabase/server";
 
 export type ProviderCreateFormState = {
@@ -597,14 +598,14 @@ export async function updateMemberStatus(formData: FormData) {
 
   const membershipWithOrderId = await admin
     .from("memberships")
-    .select("square_customer_id, square_order_id, square_subscription_id, created_at")
+    .select("status, paid_at, current_period_end_at, canceled_at, last_payment_failed_at, square_customer_id, square_order_id, square_subscription_id, provider_access_cycle, provider_access_granted_at, created_at")
     .eq("user_id", userId)
     .maybeSingle();
 
   const membershipWithoutOrderId = membershipWithOrderId.error
-    ? await admin
+      ? await admin
         .from("memberships")
-        .select("square_customer_id, square_subscription_id, created_at")
+        .select("status, paid_at, current_period_end_at, canceled_at, last_payment_failed_at, square_customer_id, square_subscription_id, provider_access_cycle, provider_access_granted_at, created_at")
         .eq("user_id", userId)
         .maybeSingle()
     : null;
@@ -627,10 +628,27 @@ export async function updateMemberStatus(formData: FormData) {
   }
 
   const now = new Date();
+  const previousMembership = (existingMembership || null) as MembershipRow | null;
+  const previousStatus = normalizeMembershipStatus(previousMembership?.status);
+  const previousPeriodEndAt =
+    previousMembership?.current_period_end_at && Number.isFinite(Date.parse(previousMembership.current_period_end_at))
+      ? new Date(previousMembership.current_period_end_at)
+      : null;
+  const hasCurrentActiveWindow =
+    previousStatus === "active" &&
+    Boolean(previousPeriodEndAt && previousPeriodEndAt.getTime() > now.getTime());
   const currentPeriodEndAt =
     membershipStatus === "active"
-      ? new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString()
+      ? hasCurrentActiveWindow
+        ? previousMembership?.current_period_end_at || null
+        : new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString()
       : null;
+  const providerAccessState = getNextProviderAccessState({
+    previousMembership,
+    nextStatus: membershipStatus,
+    nextPeriodEndAt: currentPeriodEndAt,
+    grantedAt: now.toISOString(),
+  });
 
   const { error: membershipError } = await admin.from("memberships").upsert(
     {
@@ -643,6 +661,8 @@ export async function updateMemberStatus(formData: FormData) {
       square_customer_id: existingMembership?.square_customer_id || null,
       square_order_id: existingMembership?.square_order_id || null,
       square_subscription_id: existingMembership?.square_subscription_id || null,
+      provider_access_cycle: providerAccessState.providerAccessCycle,
+      provider_access_granted_at: providerAccessState.providerAccessGrantedAt,
       created_at: existingMembership?.created_at || now.toISOString(),
       updated_at: now.toISOString(),
     },

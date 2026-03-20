@@ -22,6 +22,8 @@ import { reconcileMembershipFromSquare } from "@/lib/square-membership";
 import {
   buildReferralLink,
   ensureReferralCode,
+  REFERRAL_BASE_PROVIDER_LIMIT,
+  REFERRAL_MAX_PROVIDER_LIMIT,
   getMonthlyRewardedReferralCount,
   getProviderAccessLimit,
   isVerifiedReviewerReferrer,
@@ -328,7 +330,7 @@ export default async function DashboardPage({
 
   const { data: membership } = await supabase
     .from("memberships")
-    .select("status, paid_at, current_period_end_at, canceled_at, last_payment_failed_at, square_customer_id, square_order_id, square_subscription_id, last_square_event_type, last_square_event_at")
+    .select("status, paid_at, current_period_end_at, canceled_at, last_payment_failed_at, square_customer_id, square_order_id, square_subscription_id, last_square_event_type, last_square_event_at, provider_access_cycle, provider_access_granted_at")
     .eq("user_id", user.id)
     .single();
   const { data: kyc } = await supabase.from("kyc_checks").select("status, review_note").eq("user_id", user.id).single();
@@ -398,6 +400,17 @@ export default async function DashboardPage({
       ? requestedSection
       : "home";
   const showWelcomeActivation = !isProvider && canSeeContacts;
+  const providerAccessCycle = Math.max(0, Number(membershipState?.provider_access_cycle) || 0);
+  const missingContactsAccessMessage =
+    currentUserLanguage === "en"
+      ? "Complete your monthly payment to open access to the provider contacts page."
+      : "Completa tu pago mensual para abrir el acceso a la pagina de contacto de proveedores.";
+  const blockedContactsBody =
+    !hasMembershipAccess
+      ? missingContactsAccessMessage
+      : currentUserLanguage === "en"
+        ? "Your payment is active, but you still need to complete your ID verification with Veriff to unlock trusted provider contacts."
+        : "Tu pago ya esta activo, pero todavia debes completar tu verificacion de identidad con Veriff para desbloquear los contactos de proveedores confiables.";
 
   let contacts: ProviderContact[] = [];
   let contactedIds: string[] = [];
@@ -621,16 +634,13 @@ export default async function DashboardPage({
   }
 
   if (!isProvider) {
-    const registeredContacts = contacts.filter((contact) => contact.source === "registered");
-    const directoryContacts = contacts.filter((contact) => contact.source !== "registered");
-    const randomizedDirectoryContacts = sortItemsForViewer(directoryContacts, user.id);
-    const visibleDirectoryContacts = isAdmin ? randomizedDirectoryContacts : randomizedDirectoryContacts.slice(0, providerAccessLimit);
-    const selectedIds = new Set([
-      ...registeredContacts.map((contact) => contact.id),
-      ...visibleDirectoryContacts.map((contact) => contact.id),
-    ]);
-    contactedIds.forEach((contactId) => selectedIds.add(contactId));
-    contacts = [...registeredContacts, ...randomizedDirectoryContacts].filter((contact) => selectedIds.has(contact.id));
+    const orderedContacts = sortItemsForViewer(contacts, user.id, "provider-directory");
+    const cycleStart = Math.max(0, (providerAccessCycle - 1) * REFERRAL_MAX_PROVIDER_LIMIT);
+    const visibleContacts = isAdmin
+      ? orderedContacts
+      : orderedContacts.slice(cycleStart, cycleStart + Math.max(REFERRAL_BASE_PROVIDER_LIMIT, providerAccessLimit));
+    const selectedIds = new Set(visibleContacts.map((contact) => contact.id));
+    contacts = orderedContacts.filter((contact) => selectedIds.has(contact.id));
     contactedIds = contactedIds.filter((contactId) => selectedIds.has(contactId));
   }
 
@@ -1024,6 +1034,7 @@ export default async function DashboardPage({
                         {copy.squareProcessing}
                       </p>
                     ) : null}
+                    <p className="mt-3 text-sm font-semibold text-[#c64b1e]">{missingContactsAccessMessage}</p>
                     <div className="mt-3 rounded-[1.2rem] border border-[#f1e3d9] bg-[#fffaf7] px-4 py-3 text-sm text-[#62564a]">
                       <p className="font-semibold text-[#131316]">{membershipMeta.label}</p>
                       <p className="mt-1">{membershipMeta.detail}</p>
@@ -1129,7 +1140,7 @@ export default async function DashboardPage({
                 <div>
                   <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#dc4f1f]">{copy.accessBlocked}</p>
                   <h2 className="mt-2 text-2xl font-bold text-[#131316]">{copy.blockedTitle}</h2>
-                  <p className="mt-3 text-sm text-[#62626d]">{copy.blockedBody}</p>
+                  <p className="mt-3 text-sm text-[#62626d]">{blockedContactsBody}</p>
                 </div>
                 <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-[#ff6b35] text-white">
                   <LockKeyhole className="h-5 w-5" />

@@ -6,6 +6,7 @@ import {
   searchSquareSubscriptionByCustomer,
 } from "@/lib/square";
 import {
+  getNextProviderAccessState,
   normalizeMembershipStatus,
   shouldTreatMembershipAsRenewal,
   type MembershipRow,
@@ -155,7 +156,7 @@ export async function updateMembershipFromSquare(input: {
   if (!previousMembership) {
     const { data } = await input.admin
       .from("memberships")
-      .select("status, paid_at, current_period_end_at, canceled_at, last_payment_failed_at, square_customer_id, square_order_id, square_subscription_id, last_square_event_type, last_square_event_at")
+      .select("status, paid_at, current_period_end_at, canceled_at, last_payment_failed_at, square_customer_id, square_order_id, square_subscription_id, last_square_event_type, last_square_event_at, provider_access_cycle, provider_access_granted_at")
       .eq("user_id", input.userId)
       .maybeSingle();
     previousMembership = (data as MembershipRow | null) || null;
@@ -171,6 +172,14 @@ export async function updateMembershipFromSquare(input: {
     previousProfile = (data as MembershipProfile | null) || null;
   }
 
+  const nextCurrentPeriodEndAt = input.currentPeriodEndAt || previousMembership?.current_period_end_at || null;
+  const providerAccessState = getNextProviderAccessState({
+    previousMembership,
+    nextStatus: input.status,
+    nextPeriodEndAt: nextCurrentPeriodEndAt,
+    grantedAt: input.eventOccurredAt || new Date().toISOString(),
+  });
+
   const nextMembership: MembershipRow = {
     status: input.status,
     paid_at:
@@ -179,7 +188,7 @@ export async function updateMembershipFromSquare(input: {
         : normalizeMembershipStatus(previousMembership?.status) === "active"
           ? previousMembership?.paid_at || new Date().toISOString()
           : null,
-    current_period_end_at: input.currentPeriodEndAt || previousMembership?.current_period_end_at || null,
+    current_period_end_at: nextCurrentPeriodEndAt,
     canceled_at: input.status === "canceled" ? input.canceledAt || new Date().toISOString() : null,
     last_payment_failed_at: input.status === "payment_failed" ? new Date().toISOString() : previousMembership?.last_payment_failed_at || null,
     square_customer_id: input.customerId || previousMembership?.square_customer_id || null,
@@ -187,6 +196,8 @@ export async function updateMembershipFromSquare(input: {
     square_subscription_id: input.subscriptionId || previousMembership?.square_subscription_id || null,
     last_square_event_type: input.eventType || null,
     last_square_event_at: input.eventOccurredAt || new Date().toISOString(),
+    provider_access_cycle: providerAccessState.providerAccessCycle,
+    provider_access_granted_at: providerAccessState.providerAccessGrantedAt,
   };
 
   if (input.status === "active") {
@@ -207,6 +218,8 @@ export async function updateMembershipFromSquare(input: {
       square_subscription_id: nextMembership.square_subscription_id || null,
       last_square_event_type: nextMembership.last_square_event_type || null,
       last_square_event_at: nextMembership.last_square_event_at || null,
+      provider_access_cycle: nextMembership.provider_access_cycle || 0,
+      provider_access_granted_at: nextMembership.provider_access_granted_at || null,
       updated_at: new Date().toISOString(),
     })
     .eq("user_id", input.userId);
