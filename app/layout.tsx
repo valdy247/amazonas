@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Manrope, Space_Grotesk } from "next/font/google";
+import { AppShell } from "@/components/app-shell";
 import "./globals.css";
 
 const manrope = Manrope({
@@ -41,7 +42,7 @@ export default function RootLayout({
   return (
     <html lang="es">
       <body className={`${manrope.variable} ${spaceGrotesk.variable} antialiased`}>
-        <div className="app-shell">{children}</div>
+        <AppShell>{children}</AppShell>
       </body>
     </html>
   );

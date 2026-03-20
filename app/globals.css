@@ -36,6 +36,10 @@ body {
   background: radial-gradient(circle at 20% 10%, #fff3ec, transparent 35%), var(--bg);
 }
 
+.app-shell-admin {
+  width: min(100%, 96rem);
+}
+
 h1,
 h2,
 h3 {
@@ -190,5 +194,9 @@ textarea.input {
     border-radius: 2rem;
     box-shadow: 0 30px 100px rgba(0, 0, 0, 0.28);
     overflow: clip;
+  }
+
+  .app-shell-admin {
+    width: min(100% - 2rem, 96rem);
   }
 }
