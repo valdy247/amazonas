@@ -300,8 +300,8 @@ export function ProviderContactGrid({ contacts, initialContactedIds, language, r
               <article className="rounded-[1.35rem] border border-[#f1e1d6] bg-white/90 p-4">
                 <p className="text-sm font-semibold text-[#131316]">
                   {isEnglish
-                    ? "1. You will have access to 150 providers each month, and you can also earn new providers by inviting people."
-                    : "1. Tendras acceso a 150 proveedores cada mes y ademas podras ganar proveedores nuevos por invitar personas."}
+                    ? "1. You will have access to up to 150 providers each month, and you can also earn new providers by inviting people."
+                    : "1. Tendras acceso de hasta 150 proveedores cada mes y ademas podras ganar proveedores nuevos por invitar personas."}
                 </p>
               </article>
               <article className="rounded-[1.35rem] border border-[#f1e1d6] bg-white/90 p-4">
