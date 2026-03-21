@@ -23,6 +23,7 @@ export function AuthForm() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
   const [preferredLanguage, setPreferredLanguage] = useState(() => normalizeLanguage(params.get("lang")));
   const [signupRole, setSignupRole] = useState<SignupRole>(() => (params.get("role") === "provider" ? "provider" : "reviewer"));
   const [referralCode, setReferralCode] = useState(() => String(params.get("ref") || "").trim().toUpperCase());
@@ -37,6 +38,19 @@ export function AuthForm() {
   const confirmError = params.get("confirm_error") === "1";
   const passwordUpdatedOk = params.get("password_updated") === "1";
   const copy = authCopy[preferredLanguage];
+  const forgotPasswordLabel = preferredLanguage === "en" ? "Forgot password?" : "Olvide mi contrasena";
+  const recoveryEmailSent =
+    preferredLanguage === "en"
+      ? "We sent you a password reset link. Check your email. If you do not see it, check spam or promotions."
+      : "Te enviamos un enlace para restablecer tu contrasena. Revisa tu correo. Si no ves el mensaje, revisa spam o promociones.";
+  const recoveryEmailRequired =
+    preferredLanguage === "en"
+      ? "Enter your email so we can send the reset link."
+      : "Escribe tu correo para enviarte el enlace de restablecimiento.";
+  const recoverySendFailed =
+    preferredLanguage === "en"
+      ? "The password reset email could not be sent."
+      : "No se pudo enviar el correo de restablecimiento.";
 
   function humanizeAuthError(raw: string) {
     const msg = raw.toLowerCase();
@@ -50,6 +64,7 @@ export function AuthForm() {
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
+    setInfo(null);
     setLoading(true);
     const formElement = event.currentTarget;
 
@@ -176,6 +191,45 @@ export function AuthForm() {
     }
   }
 
+  async function onForgotPassword() {
+    setError(null);
+    setInfo(null);
+
+    const email = String(document.querySelector<HTMLInputElement>('input[name="email"]')?.value || "")
+      .trim()
+      .toLowerCase();
+
+    if (!email) {
+      setError(recoveryEmailRequired);
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const supabase = createClient();
+      const origin =
+        (typeof window !== "undefined" && window.location.origin) ||
+        process.env.NEXT_PUBLIC_SITE_URL ||
+        "https://verifyzon.com";
+      const redirectTo = `${origin}/auth?mode=recovery&lang=${preferredLanguage}`;
+      const { error: recoveryError } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo,
+      });
+
+      if (recoveryError) {
+        setError(recoveryError.message || recoverySendFailed);
+        return;
+      }
+
+      setInfo(recoveryEmailSent);
+    } catch {
+      setError(recoverySendFailed);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <form onSubmit={onSubmit} className="card w-full space-y-4 p-4" noValidate>
       <h1 className="text-2xl font-bold">
@@ -196,6 +250,7 @@ export function AuthForm() {
       {passwordUpdatedOk ? (
         <p className="rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{copy.passwordUpdatedOk}</p>
       ) : null}
+      {info ? <p className="rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{info}</p> : null}
 
       {mode === "signup" ? (
         <div className="grid gap-3">
@@ -349,6 +404,18 @@ export function AuthForm() {
         <p className="rounded-xl bg-[#fcfaf7] px-3 py-2 text-sm text-[#62564a]">{copy.recoveryBody}</p>
       )}
       <input className="input" name="password" placeholder={copy.password} type="password" minLength={8} required />
+      {mode === "signin" ? (
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={onForgotPassword}
+            disabled={loading}
+            className="text-sm font-semibold text-[#dc4f1f] underline underline-offset-4 disabled:opacity-60"
+          >
+            {forgotPasswordLabel}
+          </button>
+        </div>
+      ) : null}
       {mode === "signup" || mode === "recovery" ? (
         <input
           className="input"
