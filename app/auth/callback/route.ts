@@ -38,8 +38,13 @@ export async function GET(request: NextRequest) {
   const accessToken = url.searchParams.get("access_token");
   const refreshToken = url.searchParams.get("refresh_token");
   const baseUrl = getSafeRedirect(request);
+  const hasAuthPayload = Boolean(code || (tokenHash && type) || (accessToken && refreshToken));
 
   try {
+    if (hasAuthPayload) {
+      await supabase.auth.signOut();
+    }
+
     if (code) {
       const { error } = await supabase.auth.exchangeCodeForSession(code);
 

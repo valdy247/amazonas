@@ -212,7 +212,7 @@ export function AuthForm() {
         (typeof window !== "undefined" && window.location.origin) ||
         process.env.NEXT_PUBLIC_SITE_URL ||
         "https://verifyzon.com";
-      const redirectTo = `${origin}/auth?mode=recovery&lang=${preferredLanguage}`;
+      const redirectTo = `${origin}/auth/callback?type=recovery&lang=${preferredLanguage}`;
       const { error: recoveryError } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo,
       });
