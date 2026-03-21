@@ -39,6 +39,8 @@ export function AuthForm() {
   const passwordUpdatedOk = params.get("password_updated") === "1";
   const copy = authCopy[preferredLanguage];
   const forgotPasswordLabel = preferredLanguage === "en" ? "Forgot password?" : "Olvide mi contrasena";
+  const resendConfirmationLabel =
+    preferredLanguage === "en" ? "Resend confirmation email" : "Reenviar correo de confirmacion";
   const recoveryEmailSent =
     preferredLanguage === "en"
       ? "We sent you a password reset link. Check your email. If you do not see it, check spam or promotions."
@@ -51,6 +53,18 @@ export function AuthForm() {
     preferredLanguage === "en"
       ? "The password reset email could not be sent."
       : "No se pudo enviar el correo de restablecimiento.";
+  const resendConfirmationSent =
+    preferredLanguage === "en"
+      ? "We sent a new confirmation email. Check your inbox, spam, or promotions."
+      : "Te enviamos un nuevo correo de confirmacion. Revisa tu bandeja, spam o promociones.";
+  const resendConfirmationRequired =
+    preferredLanguage === "en"
+      ? "Enter your email so we can resend the confirmation link."
+      : "Escribe tu correo para reenviar el enlace de confirmacion.";
+  const resendConfirmationFailed =
+    preferredLanguage === "en"
+      ? "The confirmation email could not be resent."
+      : "No se pudo reenviar el correo de confirmacion.";
 
   function humanizeAuthError(raw: string) {
     const msg = raw.toLowerCase();
@@ -225,6 +239,44 @@ export function AuthForm() {
       setInfo(recoveryEmailSent);
     } catch {
       setError(recoverySendFailed);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function onResendConfirmation() {
+    setError(null);
+    setInfo(null);
+
+    const email = String(document.querySelector<HTMLInputElement>('input[name="email"]')?.value || "")
+      .trim()
+      .toLowerCase();
+
+    if (!email) {
+      setError(resendConfirmationRequired);
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const response = await fetch("/api/auth/resend-confirmation", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = (await response.json().catch(() => ({}))) as { error?: string };
+      if (!response.ok) {
+        setError(data.error || resendConfirmationFailed);
+        return;
+      }
+
+      setInfo(resendConfirmationSent);
+    } catch {
+      setError(resendConfirmationFailed);
     } finally {
       setLoading(false);
     }
@@ -405,7 +457,15 @@ export function AuthForm() {
       )}
       <input className="input" name="password" placeholder={copy.password} type="password" minLength={8} required />
       {mode === "signin" ? (
-        <div className="flex justify-end">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <button
+            type="button"
+            onClick={onResendConfirmation}
+            disabled={loading}
+            className="text-sm font-semibold text-[#7a5b47] underline underline-offset-4 disabled:opacity-60"
+          >
+            {resendConfirmationLabel}
+          </button>
           <button
             type="button"
             onClick={onForgotPassword}
