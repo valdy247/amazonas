@@ -142,6 +142,7 @@ type ProviderSnapshot = {
 
 const PAYMENT_TEST_MODE = false;
 const KYC_TEST_MODE = false;
+const PREVIEW_PROVIDER_LIMIT = 50;
 
 function normalizeComparable(value: string | null | undefined) {
   return (value || "").trim().toLowerCase();
@@ -366,7 +367,9 @@ export default async function DashboardPage({
   const lastPaymentFailedAt = formatMembershipDate(membershipState?.last_payment_failed_at, currentUserLanguage);
   const hasMembershipAccess = isAdmin || membershipHasAccess(membershipState);
   const membershipIsResolved = normalizedMembershipStatus === "active";
-  const canSeeContacts = isAdmin || (!isProvider && hasMembershipAccess && kycStatus === "approved");
+  const hasPreviewAccess = !isAdmin && !isProvider && !hasMembershipAccess;
+  const canSeePaidContacts = isAdmin || (!isProvider && hasMembershipAccess && kycStatus === "approved");
+  const canSeeContacts = canSeePaidContacts || hasPreviewAccess;
   const canUseReferralProgram = rawRole === "reviewer" || rawRole === "tester" || rawRole === "admin";
   const referralCode = canUseReferralProgram ? await ensureReferralCode(user.id, (profile as ProfileRow | null)?.referral_code) : null;
   const referralQualifiedAt = canUseReferralProgram
@@ -403,8 +406,8 @@ export default async function DashboardPage({
   const providerAccessCycle = Math.max(0, Number(membershipState?.provider_access_cycle) || 0);
   const missingContactsAccessMessage =
     currentUserLanguage === "en"
-      ? "Complete your monthly payment to open access to the provider contacts page."
-      : "Completa tu pago mensual para abrir el acceso a la pagina de contacto de proveedores.";
+      ? "Complete your monthly payment to unlock 150 new providers and full directory access."
+      : "Completa tu pago mensual para desbloquear 150 proveedores nuevos y el acceso completo al directorio.";
   const blockedContactsBody =
     !hasMembershipAccess
       ? missingContactsAccessMessage
@@ -635,10 +638,14 @@ export default async function DashboardPage({
 
   if (!isProvider) {
     const orderedContacts = sortItemsForViewer(contacts, user.id, "provider-directory");
-    const cycleStart = Math.max(0, (providerAccessCycle - 1) * REFERRAL_MAX_PROVIDER_LIMIT);
     const visibleContacts = isAdmin
       ? orderedContacts
-      : orderedContacts.slice(cycleStart, cycleStart + Math.max(REFERRAL_BASE_PROVIDER_LIMIT, providerAccessLimit));
+      : hasMembershipAccess
+        ? (() => {
+            const cycleStart = PREVIEW_PROVIDER_LIMIT + Math.max(0, providerAccessCycle - 1) * REFERRAL_MAX_PROVIDER_LIMIT;
+            return orderedContacts.slice(cycleStart, cycleStart + Math.max(REFERRAL_BASE_PROVIDER_LIMIT, providerAccessLimit));
+          })()
+        : orderedContacts.slice(0, PREVIEW_PROVIDER_LIMIT);
     const selectedIds = new Set(visibleContacts.map((contact) => contact.id));
     contacts = orderedContacts.filter((contact) => selectedIds.has(contact.id));
     contactedIds = contactedIds.filter((contactId) => selectedIds.has(contactId));
@@ -1029,6 +1036,18 @@ export default async function DashboardPage({
                             ? copy.squareDelayedBody
                             : copy.squareBody}
                     </p>
+                    <div className="mt-3 rounded-[1.2rem] border border-[#f6d6c6] bg-[#fff3ea] px-4 py-3 text-sm text-[#62564a]">
+                      <p className="font-semibold text-[#131316]">
+                        {currentUserLanguage === "en"
+                          ? "You already have 50 preview providers available right now."
+                          : "Ya tienes 50 proveedores de prueba disponibles ahora mismo."}
+                      </p>
+                      <p className="mt-1">
+                        {currentUserLanguage === "en"
+                          ? "Complete your payment to unlock 150 additional providers and keep rotating through new batches with each paid cycle."
+                          : "Completa tu pago para desbloquear 150 proveedores adicionales y seguir recibiendo lotes nuevos en cada ciclo pagado."}
+                      </p>
+                    </div>
                     {squareStatus === "processing" || membershipStatus === "payment_processing" ? (
                       <p className="mt-3 rounded-2xl border border-[#f6d1c0] bg-[#fff4ed] px-4 py-3 text-sm font-semibold text-[#c64b1e]">
                         {copy.squareProcessing}
@@ -1113,12 +1132,35 @@ export default async function DashboardPage({
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <h2 className="text-xl font-bold">{copy.contactsTitle}</h2>
-                  <p className="mt-1 text-sm text-[#62626d]">{copy.contactsBody}</p>
+                  <p className="mt-1 text-sm text-[#62626d]">
+                    {hasMembershipAccess
+                      ? copy.contactsBody
+                      : currentUserLanguage === "en"
+                        ? "You are viewing your free 50-provider preview. Complete your monthly payment to unlock 150 additional providers."
+                        : "Estas viendo tu vista previa gratuita de 50 proveedores. Completa tu pago mensual para desbloquear 150 proveedores adicionales."}
+                  </p>
                 </div>
                 <span className="inline-flex rounded-full bg-[#fff3ec] px-3 py-2 text-xs font-bold uppercase tracking-[0.18em] text-[#dc4f1f]">
-                  {copy.accessOpen}
+                  {hasMembershipAccess ? copy.accessOpen : currentUserLanguage === "en" ? "Preview access" : "Acceso de prueba"}
                 </span>
               </div>
+              {!hasMembershipAccess ? (
+                <div className="mt-4 rounded-[1.2rem] border border-[#f6d6c6] bg-[#fff6ef] px-4 py-3 text-sm text-[#62564a]">
+                  <p className="font-semibold text-[#131316]">
+                    {currentUserLanguage === "en"
+                      ? "Your 50 preview providers are already open."
+                      : "Tus 50 proveedores de prueba ya estan abiertos."}
+                  </p>
+                  <p className="mt-1">
+                    {currentUserLanguage === "en"
+                      ? "When you pay, the app will open a new batch of 150 providers without repeating this preview block."
+                      : "Cuando pagues, la app abrira un nuevo lote de 150 proveedores sin repetir este bloque de prueba."}
+                  </p>
+                  <a href="/api/square/checkout" className="btn-primary mt-3 inline-flex">
+                    {copy.payWithSquare}
+                  </a>
+                </div>
+              ) : null}
               {referralCode && referralLink ? (
                 <div className="mt-4">
                   <ReviewerReferralCard
