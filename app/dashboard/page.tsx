@@ -524,21 +524,21 @@ export default async function DashboardPage({
   }
 
   if (canSeeContacts) {
-      const withMethods = await supabase
+      const withMethods = await admin
       .from("provider_contacts")
       .select("id, title, email, network, url, notes, is_verified, avatar_data_url, contact_methods")
       .order("id", { ascending: true })
       .eq("is_active", true);
 
     if (withMethods.error) {
-        const withVerification = await supabase
+        const withVerification = await admin
         .from("provider_contacts")
         .select("id, title, network, url, notes, is_verified, avatar_data_url")
         .order("id", { ascending: true })
         .eq("is_active", true);
 
       if (withVerification.error) {
-        const fallback = await supabase.from("provider_contacts").select("id, title, network, url, notes").order("id", { ascending: true }).eq("is_active", true);
+        const fallback = await admin.from("provider_contacts").select("id, title, network, url, notes").order("id", { ascending: true }).eq("is_active", true);
         contacts = (fallback.data || []).map((contact) => ({
           ...contact,
           id: `admin:${contact.id}`,
@@ -574,7 +574,7 @@ export default async function DashboardPage({
 
     const contactIds = contacts.map((contact) => contact.history_id).filter((value): value is number => Number.isFinite(value));
     if (contactIds.length) {
-      const { data: contactHistory } = await supabase
+      const { data: contactHistory } = await admin
         .from("reviewer_contact_history")
         .select("provider_contact_id")
         .eq("reviewer_id", user.id)
